@@ -1,0 +1,697 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ElevatorSimulator } from "@/components/simulations/elevator-simulator"
+
+<Lead>Design a system that receives elevator requests, chooses a car, and moves each car one floor at a time until every request is served.</Lead>
+
+<ConceptImage src="/images/elevator-system-overview.png" alt="A ten-floor building with three elevator cars and a passenger call being assigned to one car" caption="First understand the real flow: a passenger makes a request, the system chooses a car, and that car moves to serve it." />
+
+<FrameworkMap />
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The prompt is intentionally short:
+
+> “Design an elevator system for a building.”
+
+The word *elevator* may immediately make you think of buttons, doors, displays, motors, and sensors. That is useful real-world knowledge, but it is too much to design at once. Before choosing classes, we need to discover which small part of the real system the interviewer wants us to model.
+
+Think of the requirements as a promise: **what must our finished code be able to demonstrate?** Every later class and method should help keep that promise.
+
+<QuestionGuide />
+
+### Ask questions and turn each answer into a requirement
+
+<QuestionAnswer
+  ask="How many floors and elevators should we support? Should these values be fixed?"
+  why="This sets the size of the simulation and tells us whether configuration is part of the problem."
+  answer="Use three elevators and floors 0 through 9. They can be fixed for now."
+  derived="The controller manages 3 elevators. Every accepted floor must be between 0 and 9."
+/>
+
+<QuestionAnswer
+  ask="What can a passenger do outside and inside an elevator?"
+  why="This reveals the system's main actions. Outside and inside requests contain different information."
+  answer="Outside, a passenger requests UP or DOWN. Inside, a passenger selects a destination floor."
+  derived="Support hall calls with a direction and destination requests without a direction."
+/>
+
+<QuestionAnswer
+  ask="When should a moving elevator stop for a hall call?"
+  why="A floor number alone is not enough. A passenger waiting to go DOWN should not enter a car that is moving UP."
+  answer="Serve a hall call only when the car is moving in the requested direction. Destinations are always served."
+  derived="A request stores both floor and type: PICKUP_UP, PICKUP_DOWN, or DESTINATION."
+/>
+
+<QuestionAnswer
+  ask="How does time move in this design? Are we controlling real hardware?"
+  why="Real hardware sends sensor events. An interview simulation needs a simple, testable way to advance time."
+  answer="Build a simulation. One tick moves each active elevator by at most one floor."
+  derived="ElevatorController.tick() advances the whole system; Elevator.tick() advances one car."
+/>
+
+<QuestionAnswer
+  ask="What should happen for an invalid floor, a duplicate request, or the current floor?"
+  why="These cases define the public method results and protect object state."
+  answer="Reject invalid floors, ignore duplicates, and treat the current floor as already served."
+  derived="Request methods return boolean and do not change state when input is invalid or already handled."
+/>
+
+<QuestionAnswer
+  ask="Should we include doors, weight limits, emergencies, or real concurrency?"
+  why="These are large features. Excluding them keeps the interview focused on movement and assignment."
+  answer="No. Discuss them only as later extensions."
+  derived="Door mechanics, capacity, emergency operation, hardware, storage, and threads are out of scope."
+/>
+
+### Confirm the specification
+
+<RequirementBox requirements={[
+  "Manage 3 elevators serving floors 0 through 9.",
+  "Accept UP or DOWN hall calls and assign one elevator.",
+  "Accept one or more destination floors inside each elevator.",
+  "Advance the simulation one tick at a time.",
+  "Serve a hall call only while moving in its requested direction.",
+  "Reject out-of-range floors without changing state.",
+  "Ignore duplicate requests and treat the current floor as already served."
+]} outOfScope={["Doors and physical sensors", "Weight and passenger capacity", "Emergency and maintenance modes", "Persistence or networking", "Real concurrent threads"]} />
+
+<Insight title="How to know you are done with requirements">
+  You can now describe every public action, every important rule, every invalid action, and the boundary of the problem. Read the list back to the interviewer before moving on.
+</Insight>
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+We have agreed on the behavior. Now we can ask: **which objects are needed to make that behavior happen?**
+
+Start by scanning the confirmed requirements for important nouns: elevator, floor, request, direction, and system. These are only *candidates*. A noun does not automatically deserve a class.
+
+For each candidate, ask two simple questions:
+
+1. Does it remember information that changes while the program runs?
+2. Does it protect or perform an important rule?
+
+If the answer to both is no, it is probably a field, an enum, or something we can leave out.
+
+<CandidateWalkthrough
+  name="Elevator"
+  fromRequirement="We must manage three elevators, remember their positions, and move each active car one floor per tick."
+  question="What must one elevator remember and decide for itself?"
+  reasoning="One car has a current floor, a direction, and its own pending stops. All three values change as time advances. The car must also decide whether to stop, continue, reverse, or become idle. That is both changing state and real behavior."
+  decision="Class"
+>
+  Create an `Elevator` class. It owns one car's movement state and rules. It should not know about the other cars.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="ElevatorController"
+  fromRequirement="A hall call must be received, one elevator must be chosen, and all cars must advance when the simulation ticks."
+  question="Who performs work that involves more than one elevator?"
+  reasoning="No individual elevator can choose itself fairly because it would need to inspect the other cars. We need one object that can see the fleet, receive building-level commands, and coordinate the simulation."
+  decision="Class"
+>
+  Create an `ElevatorController` class. It owns the collection of elevators and coordinates them, but it does not change a car's floor directly.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Floor"
+  fromRequirement="The system serves floors 0 through 9 and rejects a floor outside that range."
+  question="What would a Floor object remember or do in the agreed scope?"
+  reasoning="A floor identifies a position. We did not agree to model floor displays, queues of waiting passengers, or floor-specific buttons. With no state or rule of its own, a Floor class would only wrap an integer."
+  decision="Field"
+>
+  Keep a floor as `int`. The controller and elevator validate whether that number is inside the allowed range.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Request"
+  fromRequirement="A hall call has a floor and direction, while an inside request has a destination floor. Duplicate requests must be ignored."
+  question="Is a floor number by itself enough to describe why the elevator should stop?"
+  reasoning="No. A request for floor 5 while travelling UP is different from a request for floor 5 while travelling DOWN. We must keep the floor and its meaning together. We also need to compare two requests to detect duplicates."
+  decision="Class"
+>
+  Create an immutable `Request` value object containing `floor` and `type`. Value equality lets the request set reject an exact duplicate.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Direction and RequestType"
+  fromRequirement="A car is moving UP, moving DOWN, or IDLE; a stop is an UP pickup, DOWN pickup, or destination."
+  question="Can these values be any text, or do they come from small fixed sets?"
+  reasoning="Both concepts have a closed list of valid values. Strings would allow mistakes such as 'Up' or 'WAITING'. They need names, but they do not need independent changing state."
+  decision="Enum"
+>
+  Use `Direction` and `RequestType` enums. The compiler can then reject an unsupported value.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Door"
+  fromRequirement="Door mechanics and physical sensors were explicitly placed out of scope."
+  question="Does any confirmed behavior need a door object?"
+  reasoning="No. A real elevator has doors, but our agreed program never opens, closes, or checks one. Adding a Door class would mean designing a requirement the interviewer did not ask for."
+  decision="Leave out"
+>
+  Do not add a door field or class yet. If door behavior is introduced as an extension, derive it from those new rules at that time.
+</CandidateWalkthrough>
+
+<Insight title="The entity test to remember" tone="mint">
+  Do not ask only, “Is this a thing in the real world?” Ask, “What must this thing remember or decide in the system we agreed to build?” That second question produces smaller and clearer designs.
+</Insight>
+
+### See the objects working together
+
+<ConceptImage
+  src="/images/elevator-entity-flow.png"
+  alt="A passenger sends a hall call to ElevatorController, which selects an elevator that stores a request and reports its floor and direction"
+  caption="Follow one hall call from left to right. The return arrow matters: the controller needs each car's floor and direction before it can choose well."
+  width={1774}
+  height={887}
+  mobileScrollable={true}
+/>
+
+Read the arrows as a short story. A passenger creates a **hall call**. The controller compares the elevators and **selects one car**. That car **stores the request**. Before the next selection, the controller can read each car's floor and direction. This explains why the controller needs access to the fleet but should not own a car's movement logic.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+We now have the objects, but not their fields or methods. Do not fill the classes from memory. Go back to each requirement and ask, **what must this object remember, and what must another object ask it to do?**
+
+This creates a traceable chain:
+
+> requirement → responsible object → state it remembers → method that changes or reads that state
+
+### Derive the controller
+
+Begin with the controller because a passenger's hall call enters the system there. “Manage three elevators” becomes a list. “Assign a hall call” becomes a public method. “Choose one car” reveals a decision rule. “Advance the simulation” becomes `tick()`.
+
+<DerivationTable rows={[
+  ["Manage three elevators", "ElevatorController", "List<Elevator> elevators"],
+  ["Assign a hall call", "ElevatorController", "requestElevator(floor, direction)"],
+  ["Choose one car", "ElevatorController", "DispatchStrategy strategy"],
+  ["Advance all cars", "ElevatorController", "tick()"]
+]} />
+
+### Derive each elevator
+
+Now move one level down. The controller should say *advance this car*, not calculate its next floor itself. To perform that command, an elevator needs its current position, direction, and pending requests. Those requirements become its fields; the actions become methods.
+
+<DerivationTable rows={[
+  ["Know the current position", "Elevator", "int currentFloor"],
+  ["Know whether the car is moving", "Elevator", "Direction direction"],
+  ["Remember pending stops", "Elevator", "Set<Request> requests"],
+  ["Accept a stop", "Elevator", "addRequest(Request)"],
+  ["Move, stop, reverse, or become idle", "Elevator", "tick()"],
+  ["Help the controller choose", "Elevator", "getCurrentFloor(), getDirection()"]
+]} />
+
+### Decide whether a pattern helps
+
+Only now should we discuss patterns. Look for a rule that may have more than one valid version. In this problem, car selection may change while the meaning of an elevator remains the same.
+
+<PatternDecision name="Strategy for elevator selection" useIt={true}>
+  The rule for choosing an elevator can change independently from movement. We may start with “nearest car” and later use “direction-aware” or “lowest estimated wait.” A `DispatchStrategy` interface lets the controller use any of those rules without changing `Elevator`.
+</PatternDecision>
+
+<PatternDecision name="Singleton for the controller" useIt={false}>
+  Nothing in the requirements says only one controller object may exist in the entire program. A singleton would add global state and make tests harder. Create a normal controller object instead.
+</PatternDecision>
+
+<PatternDecision name="Factory for requests" useIt={false}>
+  Creating a request needs only a floor and type. A constructor is already clear. A factory would add another class without solving a problem.
+</PatternDecision>
+
+<h2 id="implementation">4. Implementation (~10 minutes)</h2>
+
+Below is the complete Java version. Each file has one job. The code uses Java 17 or later.
+
+<ImplementationGuide
+  what="It accepts hall calls and destination requests, chooses an elevator, and advances every car by one predictable tick. Each car decides whether to stop, continue, reverse, or become idle."
+  why="The controller owns work that concerns the whole building. Each Elevator owns only its own position, direction, and pending stops. The selection rule is behind an interface because interviewers often ask to replace that rule."
+  flow={[
+    "ElevatorController.requestElevator receives a floor and direction.",
+    "It creates a typed Request and asks DispatchStrategy to select one car.",
+    "The selected Elevator stores the request after validating the floor.",
+    "Each tick lets every Elevator serve, move, reverse, or become idle."
+  ]}
+/>
+
+### Code concepts to understand
+
+Open these explanations before reading the related files. They explain the decision, not just the definition.
+
+<ConceptDropdown title="Strategy pattern: choosing an elevator" summary="The controller delegates the replaceable car-selection rule to DispatchStrategy." defaultOpen={true}>
+
+The changing question is: **which elevator should receive this hall call?** `ElevatorController` should not contain every possible answer to that question.
+
+- `DispatchStrategy` defines one operation: `select(elevators, hallCall)`.
+- `DirectionAwareDispatchStrategy` supplies the current rule.
+- The controller uses the interface, so it does not know how the score is calculated.
+- A nearest-car or least-busy strategy can be added without changing `Elevator` or the request workflow.
+
+This pattern is useful here because the selection rule is likely to change. It is **not** used for movement because this version has only one movement rule.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Immutable request value" summary="Request records what was asked without owning system behavior.">
+
+`Request` has final fields and no setters. Once created, its floor and type cannot change. That makes queued requests safe to compare and easy to reason about.
+
+`equals` and `hashCode` use the same fields because requests are stored in a `Set`. Two requests with the same floor and type are treated as duplicates.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Encapsulation: each object protects its own state" summary="The controller coordinates cars, while an Elevator alone changes its floor, direction, and queue.">
+
+The controller calls `addRequest` and `tick`; it does not directly edit an elevator's fields. `getRequests` returns an unmodifiable view, so outside code can inspect the queue but cannot bypass validation.
+
+This keeps one clear place for movement rules and prevents the controller from becoming a class that does everything.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Deterministic ticks instead of real timers" summary="One tick means one small, testable unit of time.">
+
+A real elevator is concurrent and event-driven, but threads and wall-clock timers would hide the design being discussed. `tick()` makes every state change repeatable: a test can call it once and know exactly what should happen.
+
+Real concurrency can be added later around the same domain rules.
+
+</ConceptDropdown>
+
+### Value types
+
+Start with the smallest vocabulary. `Direction` describes motion, `RequestType` explains why a car should stop, and `Request` combines a floor with that reason. Keeping these meanings explicit prevents unclear booleans such as `isPickup` or direction strings such as `"up"`.
+
+<JavaFile name="Direction.java" purpose="The three possible movement states">
+
+```java
+public enum Direction {
+    UP,
+    DOWN,
+    IDLE;
+
+    public Direction opposite() {
+        return switch (this) {
+            case UP -> DOWN;
+            case DOWN -> UP;
+            case IDLE -> IDLE;
+        };
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="RequestType.java" purpose="Why the elevator must stop at a floor">
+
+```java
+public enum RequestType {
+    PICKUP_UP,
+    PICKUP_DOWN,
+    DESTINATION;
+
+    public boolean matches(Direction direction) {
+        return this == DESTINATION
+                || (this == PICKUP_UP && direction == Direction.UP)
+                || (this == PICKUP_DOWN && direction == Direction.DOWN);
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="Request.java" purpose="An immutable floor and request type">
+
+```java
+import java.util.Objects;
+
+public final class Request {
+    private final int floor;
+    private final RequestType type;
+
+    public Request(int floor, RequestType type) {
+        this.floor = floor;
+        this.type = Objects.requireNonNull(type);
+    }
+
+    public int getFloor() {
+        return floor;
+    }
+
+    public RequestType getType() {
+        return type;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof Request request)) return false;
+        return floor == request.floor && type == request.type;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(floor, type);
+    }
+
+    @Override
+    public String toString() {
+        return "Request{floor=" + floor + ", type=" + type + "}";
+    }
+}
+```
+
+</JavaFile>
+
+### Elevator entity
+
+`Elevator` is the main state-owning object. Read its methods in this order: the constructor establishes valid limits, `addRequest` protects the queue, and `tick` performs one state change. The private helpers answer smaller questions so the main workflow remains readable.
+
+<JavaFile name="Elevator.java" purpose="Owns one car's state and movement rules">
+
+```java
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+public final class Elevator {
+    private final int id;
+    private final int minFloor;
+    private final int maxFloor;
+    private int currentFloor;
+    private Direction direction;
+    private final Set<Request> requests = new LinkedHashSet<>();
+
+    public Elevator(int id, int minFloor, int maxFloor, int startFloor) {
+        if (minFloor > maxFloor) {
+            throw new IllegalArgumentException("minFloor must be <= maxFloor");
+        }
+        if (startFloor < minFloor || startFloor > maxFloor) {
+            throw new IllegalArgumentException("startFloor is out of range");
+        }
+        this.id = id;
+        this.minFloor = minFloor;
+        this.maxFloor = maxFloor;
+        this.currentFloor = startFloor;
+        this.direction = Direction.IDLE;
+    }
+
+    public boolean addRequest(Request request) {
+        if (request == null || !isValidFloor(request.getFloor())) {
+            return false;
+        }
+        if (request.getFloor() == currentFloor) {
+            return true; // already served
+        }
+        return requests.add(request); // false for a duplicate
+    }
+
+    public void tick() {
+        if (requests.isEmpty()) {
+            direction = Direction.IDLE;
+            return;
+        }
+
+        if (direction == Direction.IDLE) {
+            direction = directionToNearestRequest();
+        }
+
+        if (serveCurrentFloor()) {
+            if (requests.isEmpty()) direction = Direction.IDLE;
+            return; // stopping consumes this tick
+        }
+
+        if (!hasRequestAhead(direction)) {
+            direction = direction.opposite();
+            return; // reversing consumes this tick
+        }
+
+        currentFloor += direction == Direction.UP ? 1 : -1;
+    }
+
+    private boolean serveCurrentFloor() {
+        return requests.removeIf(request ->
+                request.getFloor() == currentFloor
+                        && request.getType().matches(direction));
+    }
+
+    private boolean hasRequestAhead(Direction travelDirection) {
+        return requests.stream().anyMatch(request ->
+                travelDirection == Direction.UP
+                        ? request.getFloor() > currentFloor
+                        : request.getFloor() < currentFloor);
+    }
+
+    private Direction directionToNearestRequest() {
+        Request nearest = requests.stream()
+                .min((left, right) -> {
+                    int leftDistance = Math.abs(left.getFloor() - currentFloor);
+                    int rightDistance = Math.abs(right.getFloor() - currentFloor);
+                    int byDistance = Integer.compare(leftDistance, rightDistance);
+                    return byDistance != 0
+                            ? byDistance
+                            : Integer.compare(left.getFloor(), right.getFloor());
+                })
+                .orElseThrow();
+
+        return nearest.getFloor() > currentFloor
+                ? Direction.UP
+                : Direction.DOWN;
+    }
+
+    private boolean isValidFloor(int floor) {
+        return floor >= minFloor && floor <= maxFloor;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public int getCurrentFloor() {
+        return currentFloor;
+    }
+
+    public Direction getDirection() {
+        return direction;
+    }
+
+    public Set<Request> getRequests() {
+        return Collections.unmodifiableSet(requests);
+    }
+}
+```
+
+</JavaFile>
+
+### Selection strategy
+
+These two files form one replaceable seam. The interface tells the controller what it may ask for. The implementation ranks cars by direction, distance, and finally ID so equal choices still produce a predictable answer.
+
+<JavaFile name="DispatchStrategy.java" purpose="The one rule we expect to replace">
+
+```java
+import java.util.List;
+
+public interface DispatchStrategy {
+    Elevator select(List<Elevator> elevators, Request hallCall);
+}
+```
+
+</JavaFile>
+
+<JavaFile name="DirectionAwareDispatchStrategy.java" purpose="Prefers a nearby car moving toward the caller">
+
+```java
+import java.util.Comparator;
+import java.util.List;
+
+public final class DirectionAwareDispatchStrategy
+        implements DispatchStrategy {
+
+    @Override
+    public Elevator select(List<Elevator> elevators, Request hallCall) {
+        if (elevators == null || elevators.isEmpty()) {
+            throw new IllegalArgumentException("At least one elevator is required");
+        }
+        if (hallCall == null || hallCall.getType() == RequestType.DESTINATION) {
+            throw new IllegalArgumentException("A hall call is required");
+        }
+
+        Direction requestedDirection = hallCall.getType() == RequestType.PICKUP_UP
+                ? Direction.UP
+                : Direction.DOWN;
+
+        return elevators.stream()
+                .min(Comparator
+                        .comparingInt((Elevator elevator) -> priority(
+                                elevator, hallCall.getFloor(), requestedDirection))
+                        .thenComparingInt(elevator -> Math.abs(
+                                elevator.getCurrentFloor() - hallCall.getFloor()))
+                        .thenComparingInt(Elevator::getId))
+                .orElseThrow();
+    }
+
+    private int priority(
+            Elevator elevator,
+            int requestedFloor,
+            Direction requestedDirection) {
+
+        boolean movingTowardCaller =
+                elevator.getDirection() == requestedDirection
+                        && (requestedDirection == Direction.UP
+                            ? elevator.getCurrentFloor() <= requestedFloor
+                            : elevator.getCurrentFloor() >= requestedFloor);
+
+        if (movingTowardCaller) return 0;
+        if (elevator.getDirection() == Direction.IDLE) return 1;
+        return 2;
+    }
+}
+```
+
+</JavaFile>
+
+### Controller and example program
+
+`ElevatorController` is the entry point for building-level actions. It validates public input, translates it into domain objects, delegates selection, and advances the fleet. `ElevatorDemo` is intentionally small: it shows the order in which a caller creates the system, submits a request, and advances time.
+
+<JavaFile name="ElevatorController.java" purpose="Receives system-level commands and coordinates cars">
+
+```java
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+public final class ElevatorController {
+    private final int minFloor;
+    private final int maxFloor;
+    private final List<Elevator> elevators;
+    private final DispatchStrategy dispatchStrategy;
+
+    public ElevatorController(
+            int elevatorCount,
+            int minFloor,
+            int maxFloor,
+            DispatchStrategy dispatchStrategy) {
+
+        if (elevatorCount <= 0) {
+            throw new IllegalArgumentException("elevatorCount must be positive");
+        }
+        if (minFloor > maxFloor) {
+            throw new IllegalArgumentException("minFloor must be <= maxFloor");
+        }
+
+        this.minFloor = minFloor;
+        this.maxFloor = maxFloor;
+        this.dispatchStrategy = Objects.requireNonNull(dispatchStrategy);
+        this.elevators = new ArrayList<>();
+
+        for (int id = 1; id <= elevatorCount; id++) {
+            elevators.add(new Elevator(id, minFloor, maxFloor, minFloor));
+        }
+    }
+
+    public boolean requestElevator(int floor, Direction direction) {
+        if (!isValidFloor(floor) || direction == null || direction == Direction.IDLE) {
+            return false;
+        }
+
+        RequestType type = direction == Direction.UP
+                ? RequestType.PICKUP_UP
+                : RequestType.PICKUP_DOWN;
+        Request hallCall = new Request(floor, type);
+        Elevator selected = dispatchStrategy.select(elevators, hallCall);
+        return selected.addRequest(hallCall);
+    }
+
+    public boolean selectDestination(int elevatorId, int floor) {
+        Elevator elevator = findElevator(elevatorId);
+        if (elevator == null || !isValidFloor(floor)) return false;
+        return elevator.addRequest(new Request(floor, RequestType.DESTINATION));
+    }
+
+    public void tick() {
+        elevators.forEach(Elevator::tick);
+    }
+
+    private Elevator findElevator(int elevatorId) {
+        return elevators.stream()
+                .filter(elevator -> elevator.getId() == elevatorId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isValidFloor(int floor) {
+        return floor >= minFloor && floor <= maxFloor;
+    }
+
+    public List<Elevator> getElevators() {
+        return Collections.unmodifiableList(elevators);
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="ElevatorDemo.java" purpose="Creates the system and walks through one request">
+
+```java
+public final class ElevatorDemo {
+    public static void main(String[] args) {
+        ElevatorController controller = new ElevatorController(
+                3,
+                0,
+                9,
+                new DirectionAwareDispatchStrategy());
+
+        controller.requestElevator(5, Direction.UP);
+
+        for (int tick = 1; tick <= 8; tick++) {
+            controller.tick();
+            System.out.println("Tick " + tick);
+            controller.getElevators().forEach(elevator ->
+                    System.out.printf(
+                            "Car %d: floor=%d, direction=%s, requests=%s%n",
+                            elevator.getId(),
+                            elevator.getCurrentFloor(),
+                            elevator.getDirection(),
+                            elevator.getRequests()));
+        }
+    }
+}
+```
+
+</JavaFile>
+
+### Verify the design with a real scenario
+
+<ScenarioTrace steps={[
+  "Initial: all cars are idle at floor 0 and all request sets are empty.",
+  "requestElevator(5, UP) creates Request(5, PICKUP_UP).",
+  "The strategy chooses car 1 because every car has the same priority and car 1 wins the stable ID tie-break.",
+  "Ticks 1–5 move car 1 from floor 0 to floor 5. Other cars stay idle.",
+  "Tick 6 finds a matching UP pickup at floor 5, removes it, and makes the car IDLE.",
+  "requestElevator(12, UP) returns false. No elevator state changes."
+]} />
+
+Use the simulation to try the same sequence. Then load the edge case and compare the two selection rules.
+
+<ElevatorSimulator />
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+### “Use a different assignment rule”
+
+Add another `DispatchStrategy` implementation. The controller and elevator classes do not change. This is the exact change the Strategy pattern was introduced to support.
+
+### “Add express elevators”
+
+Give each elevator a set of supported floors and reject unsupported destinations in `addRequest`. The controller must filter out cars that cannot serve the requested floor before calling the strategy.
+
+### “Requests can arrive from different threads”
+
+The selection and assignment must happen as one protected operation; otherwise two callers can both observe the same idle car. Protect `requestElevator`, or place incoming hall calls in a thread-safe queue that one controller loop consumes.
+
+### “Add doors and weight limits”
+
+This changes the state machine. Add door state and capacity only now that the requirement exists. A car should move only when doors are closed, and should reject boarding when capacity is reached.
+
+<Insight title="What a strong answer sounds like" tone="mint">
+  “I used Strategy only for elevator selection because that rule is expected to change. I did not use Singleton or Factory because the current requirements do not need them. The controller coordinates the fleet; each elevator protects its own movement state.”
+</Insight>

@@ -1,0 +1,103 @@
+import { Lead, FrameworkMap, QuestionGuide, Insight, RequirementBox, DerivationTable, ScenarioTrace, PatternDecision } from "@/components/lesson-blocks"
+
+<Lead>Use the same five steps in every low-level design interview. The problem changes; the way you solve it does not.</Lead>
+
+<FrameworkMap />
+
+The order matters. Requirements tell you what must happen. Those requirements reveal the objects. The objects reveal the fields and methods. Only then should you write code.
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The interviewer usually gives you one sentence, such as “Design Tic-Tac-Toe.” Do not start naming classes yet. First turn the sentence into a small, agreed specification.
+
+<QuestionGuide />
+
+Ask only questions whose answers change your design. After every answer, write one short requirement. At the end, read the list back to the interviewer.
+
+<RequirementBox requirements={[
+  "State the main actions the system must support.",
+  "State the rules that decide success, failure, and completion.",
+  "State how invalid actions are handled.",
+  "Choose fixed limits when scale is not the point of the problem.",
+  "Confirm what will not be implemented."
+]} outOfScope={["Do not guess hidden requirements", "Do not discuss classes yet", "Do not solve future extensions now"]} />
+
+<Insight title="A useful sentence to say">
+  “Let me repeat the requirements so we agree on the system I am about to design.” This catches misunderstandings before they become code.
+</Insight>
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+Read the confirmed requirements and underline meaningful nouns. Treat them as candidates, not automatic classes.
+
+For each candidate, speak your reasoning aloud:
+
+1. “This candidate came from the requirement that says…”
+2. “It would need to remember…”
+3. “It would be responsible for the rule…”
+4. “Therefore it should be a class / field / enum / left out.”
+
+A noun becomes a class only if it owns meaningful data or performs a rule. For example, *floor* sounds like an important real-world object in an elevator system. But if our requirements use a floor only as a numbered position, a `Floor` class has nothing useful to do. Keep it as an integer.
+
+Ask these questions:
+
+1. Which object receives the main request and controls the workflow?
+2. Which objects own data that changes?
+3. Which object is responsible for each rule?
+4. Does any proposed object have no useful behavior? If so, remove it.
+
+Draw plain boxes and arrows. Say “Game owns Board” or “Controller selects Elevator.” Formal UML symbols are not required unless the interviewer asks for them.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+Start with the object that controls the main workflow. For each object, derive its design instead of guessing it.
+
+<DerivationTable rows={[
+  ["What must this object remember to enforce its rule?", "Class state", "private fields"],
+  ["What action does another object need from it?", "Public behavior", "public method(...)"],
+  ["What must never happen to this state?", "Validation", "guard clause"],
+  ["What decision may have several valid implementations?", "Change point", "interface only if needed"]
+]} />
+
+Keep data private. Put a rule next to the data that rule needs. Do not expose every field and let another class make the decision.
+
+<PatternDecision name="design patterns" useIt={false}>
+  A pattern is not a checklist item. Use one only when you can name the change it makes easier. “Dispatch rules may change, so I will use a Strategy” is useful. “I always use Factory in LLD” is not.
+</PatternDecision>
+
+<h2 id="implementation">4. Implementation (~10 minutes)</h2>
+
+Ask whether the interviewer wants full code or only the important methods. Then implement from the top-level method downward.
+
+For every important method:
+
+1. Write the normal successful flow.
+2. Add checks for invalid input and invalid current state.
+3. Keep each rule in the class that owns the required data.
+4. Return a clear result instead of silently failing.
+
+After writing code, walk through one real example.
+
+<ScenarioTrace steps={[
+  "State the initial object state.",
+  "Call one public method with concrete values.",
+  "Say which object validates the request.",
+  "Show every state change in order.",
+  "Try one invalid action and confirm that state does not change.",
+  "Reach a completion or direction-change case."
+]} />
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+The interviewer will change one requirement. Do not rewrite the design immediately. First identify:
+
+1. Which existing rule changed?
+2. Which class currently owns that rule?
+3. Can that class change alone?
+4. If several versions of the rule are now required, would an interface help?
+
+Explain the smallest change that supports the new requirement. Implement it only if asked.
+
+<Insight title="The complete interview script" tone="mint">
+  “I will clarify the requirements, identify the objects and their relationships, derive each class from the requirements, implement the main flow with edge cases, verify one scenario, and then discuss extensions.”
+</Insight>

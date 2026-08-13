@@ -1,0 +1,562 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { TicTacToeSimulator } from "@/components/simulations/tic-tac-toe-simulator"
+
+<Lead>Design a two-player game that accepts legal moves, alternates turns, and stops with a win or draw.</Lead>
+
+<ConceptImage src="/images/tic-tac-toe-turn-flow.png" alt="Two players taking turns placing X and O marks on a three by three board" caption="The whole game loop: one player chooses a cell, the board changes, the result is checked, and the next turn begins." />
+
+<FrameworkMap />
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The interview begins with one sentence:
+
+> “Design Tic-Tac-Toe.”
+
+You probably know how Tic-Tac-Toe works. The danger is assuming that your version of the rules is the interviewer's version. The sentence does not tell us the board size, who starts, how invalid moves are reported, or whether features such as undo are required.
+
+Before thinking about classes, turn the familiar game into a precise promise that our code can keep.
+
+<QuestionGuide />
+
+### Ask questions and record what each answer changes
+
+<QuestionAnswer
+  ask="How many players are there, and how are their marks assigned?"
+  why="This defines who can act and what data identifies a move."
+  answer="There are two local players. One uses X and the other uses O. X starts."
+  derived="Store two players, assign different marks, and make X the current player after creation or reset."
+/>
+
+<QuestionAnswer
+  ask="Is the board always 3 by 3? What exactly counts as a win?"
+  why="Board size and the completion rule decide the storage shape and win-check logic."
+  answer="Use a fixed 3 by 3 board. Three equal marks in a row, column, or diagonal wins."
+  derived="Board stores Mark[3][3] and checks 3 rows, 3 columns, and 2 diagonals."
+/>
+
+<QuestionAnswer
+  ask="When is the game a draw, and can moves continue after the game ends?"
+  why="This defines the game states and when the main action must stop."
+  answer="It is a draw when all nine cells are filled without a winner. Reject every move after a win or draw."
+  derived="GameStatus is IN_PROGRESS, X_WON, O_WON, or DRAW. makeMove checks status first."
+/>
+
+<QuestionAnswer
+  ask="Which moves are invalid, and how should the caller learn why?"
+  why="Invalid actions should not partially change the board or switch the turn."
+  answer="Reject a wrong player, a cell outside the board, an occupied cell, or a move after completion. Return a clear result."
+  derived="makeMove returns MoveResult and changes state only after all checks pass."
+/>
+
+<QuestionAnswer
+  ask="Do we need a computer player, undo, score history, larger boards, or online play?"
+  why="Each feature creates new objects and rules. Excluding them prevents unnecessary design."
+  answer="No. Discuss them only if asked as extensions."
+  derived="The first version has two local human players, one match, fixed rules, no history, and no networking."
+/>
+
+### Confirm the specification
+
+<RequirementBox requirements={[
+  "Two local players use X and O; X takes the first turn.",
+  "Players alternate placing one mark on an empty cell of a fixed 3 by 3 board.",
+  "A row, column, or diagonal containing three equal marks wins.",
+  "A full board without a winner is a draw.",
+  "Reject the wrong player, out-of-range cells, occupied cells, and moves after completion.",
+  "Expose the board, current player, status, winner, and a reset operation."
+]} outOfScope={["Computer opponent", "Undo or replay history", "Score across matches", "Variable board size", "Online multiplayer", "UI and storage"]} />
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+Now return to the confirmed requirements and look for candidate objects: game, player, board, cell, mark, and winning rule. We will not keep all of them as classes.
+
+For each candidate, ask: **what information changes here, and which rule needs that information?** The class should be placed where the answer is clearest.
+
+<CandidateWalkthrough
+  name="Board"
+  fromRequirement="Players place marks on a fixed 3 by 3 grid; occupied or out-of-range cells must be rejected; rows, columns, and diagonals can win."
+  question="Which rules can be answered by looking only at the cells?"
+  reasoning="Whether a coordinate exists, whether a cell is empty, whether three marks form a line, and whether the grid is full can all be decided from the cell array. The array changes after every accepted move."
+  decision="Class"
+>
+  Create a `Board` class. It owns the cells and the rules that depend only on those cells. It does not decide whose turn it is.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Game"
+  fromRequirement="X starts, players alternate, moves stop after a win or draw, the winner is exposed, and the match can reset."
+  question="Who controls the order of a complete move?"
+  reasoning="The board cannot answer whether Alice is allowed to move now or whether the match already ended; that information belongs to the match as a whole. We need an object that checks the current player, asks the board to place a mark, then updates the result."
+  decision="Class"
+>
+  Create a `Game` class as the public entry point. It owns turn order, status, and winner, and it coordinates one move from start to finish.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Player"
+  fromRequirement="Two local players have names and are assigned different marks for the whole match."
+  question="Is a player only a name, or do two pieces of information belong together?"
+  reasoning="A player's identity and mark travel together whenever we check a turn or report a winner. The values are stable during a match, and keeping them together avoids passing a loose name and mark separately."
+  decision="Class"
+>
+  Create a small immutable `Player` class containing `name` and `mark`. Small classes are valid when they preserve a meaningful relationship between values.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Cell"
+  fromRequirement="A move chooses one row and column, and that position is either empty, X, or O."
+  question="What behavior would a Cell object add in this fixed game?"
+  reasoning="A cell does not have rules beyond holding one mark. Coordinate validation belongs to Board because Board knows its size. Occupancy is simply whether the stored mark is null. A Cell class would add another wrapper without removing complexity."
+  decision="Field"
+>
+  Store each cell directly as `Mark` or `null` inside `Mark[][]`. Introduce a Cell class only if cells later gain their own state or behavior.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Mark, GameStatus, and MoveResult"
+  fromRequirement="Only X and O may be placed; a match has a small set of end states; every rejected move needs a clear reason."
+  question="Are these objects with changing identity, or names from fixed lists?"
+  reasoning="They describe allowed values rather than independent things. Using strings would allow spelling mistakes and booleans would allow contradictory states. Each concept has a small closed set of valid choices."
+  decision="Enum"
+>
+  Use three enums. `Mark` describes a piece, `GameStatus` describes the whole match, and `MoveResult` explains the result of one attempted action.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="WinningRule"
+  fromRequirement="This version has one fixed rule: three equal marks in a row, column, or diagonal."
+  question="Do we currently have several interchangeable ways to decide a winner?"
+  reasoning="No. An interface with one implementation would make the reader jump between files without giving us flexibility we need today. The rule only reads Board data, so Board can contain it directly."
+  decision="Leave out"
+>
+  Do not create a `WinningRule` interface yet. If the interviewer later asks for different board sizes or rule sets, that new requirement will justify extracting it.
+</CandidateWalkthrough>
+
+<Insight title="A useful ownership question" tone="mint">
+  Ask, “What information does this rule need?” Put the rule beside that information. Cell-based rules belong to `Board`; turn and match rules belong to `Game`.
+</Insight>
+
+### See one move flow through the objects
+
+<ConceptImage
+  src="/images/tic-tac-toe-entity-flow.png"
+  alt="Players send makeMove to Game, Game asks Board to place a mark, and Board returns whether the placement was accepted or rejected"
+  caption="Game protects the match flow; Board protects the cells. The return result lets Game update the turn only after a mark was accepted."
+  width={1774}
+  height={887}
+  mobileScrollable={true}
+/>
+
+Read the arrows in order. A player sends `makeMove` to **Game**. Game first checks the current player and match status. It then asks **Board** to place the mark. Board checks the coordinate and cell, stores the mark only when valid, and returns accepted or rejected. Game changes the turn only after an accepted placement. That is why the UI talks to Game instead of editing Board directly.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+The entity step told us *which* objects we need. The class-design step decides exactly what each object must remember and expose.
+
+Start from the action a user performs: “player X places a mark at row 1, column 2.” That action enters `Game.makeMove`. Walk through what Game must know, then move down to the Board operations it needs.
+
+### Derive Game state and methods
+
+Take the requirements one sentence at a time. “Players alternate” means Game must remember `currentPlayer`. “Moves stop after completion” means it must remember `status`. “Expose the winner” means a `winner` field is needed. We are not guessing fields; each one pays for a stated behavior.
+
+<DerivationTable rows={[
+  ["Two players use X and O", "Game", "Player playerX, playerO"],
+  ["Players alternate turns", "Game", "Player currentPlayer"],
+  ["The game can finish", "Game", "GameStatus status"],
+  ["Expose the winner", "Game", "Player winner"],
+  ["Accept one move", "Game", "makeMove(player, row, col)"],
+  ["Start again", "Game", "reset()"]
+]} />
+
+### Derive Board state and methods
+
+Game should not inspect array indexes itself. It asks Board questions in the language of the problem: *is this coordinate inside, can this mark be placed, is there a winning line, is the board full?* That keeps all cell knowledge in one place.
+
+<DerivationTable rows={[
+  ["Store a fixed 3 by 3 grid", "Board", "Mark[][] cells"],
+  ["Reject bad coordinates", "Board", "isInside(row, col)"],
+  ["Reject an occupied cell", "Board", "place(row, col, mark)"],
+  ["Detect a winner", "Board", "hasWinningLine(mark)"],
+  ["Detect a draw", "Board", "isFull()"],
+  ["Start again", "Board", "clear()"]
+]} />
+
+### Decide whether a pattern helps
+
+Before choosing a pattern, ask what rule has multiple versions **right now**. The answer is none: there is one fixed board and two human players. A direct design is easier to explain and test.
+
+<PatternDecision name="Strategy for the basic game" useIt={false}>
+  The requirements contain one fixed winning rule and two human players. A `WinningStrategy` or `MoveStrategy` interface would create extra code without any second implementation. Write the direct rule first.
+</PatternDecision>
+
+<PatternDecision name="Singleton for Game" useIt={false}>
+  We may want several games in tests or in a future tournament. A normal object supports that naturally. Global singleton state would make this harder.
+</PatternDecision>
+
+<PatternDecision name="Strategy when a computer player is added" useIt={true}>
+  If an extension requires easy, medium, and hard computer players, those are several ways to choose a move. At that point a `MoveStrategy` interface has a real purpose. Do not add it before that requirement arrives.
+</PatternDecision>
+
+<h2 id="implementation">4. Implementation (~10 minutes)</h2>
+
+This is the complete Java version. The main method changes state only after validation succeeds.
+
+<ImplementationGuide
+  what="It creates two players, stores marks on a three-by-three board, accepts or rejects moves, alternates turns, and ends the match with a win or draw."
+  why="Board owns cell and winning-line rules. Game owns the match workflow: whose turn it is, whether play may continue, and who won. Keeping these jobs separate makes invalid-state changes easier to prevent."
+  flow={[
+    "A caller sends Game.makeMove with a player, row, and column.",
+    "Game checks match status and turn order before touching the board.",
+    "Board validates the cell and places the mark only when it is empty.",
+    "Game checks win, then draw, otherwise changes the current player."
+  ]}
+/>
+
+### Code concepts to understand
+
+<ConceptDropdown title="Validate first, change state second" summary="A rejected move must leave the board and current player exactly as they were." defaultOpen={true}>
+
+`Game.makeMove` checks completion and turn order first. `Board.place` then checks the coordinates and cell. Only after placement succeeds does `Game` calculate the result or switch players.
+
+This order is important. If the turn changed before the board accepted the move, clicking an occupied cell would incorrectly give the other player a turn.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Board rules versus game workflow" summary="Board answers questions about cells; Game controls the match.">
+
+`Board` knows whether a coordinate is valid, whether a cell is empty, whether a mark has a winning line, and whether the board is full. It does not know player names or whose turn it is.
+
+`Game` knows the current player, status, and winner. It calls Board instead of reading or changing the cell array directly. This gives both classes one clear reason to change.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Enums instead of strings and booleans" summary="Mark, GameStatus, and MoveResult give every meaningful state a clear name.">
+
+An enum prevents invalid values such as `"FINSHED"` and avoids combinations of booleans such as `isWon=true` and `isDraw=true`. `MoveResult` also tells the caller why a move failed without throwing an exception for an expected user action.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Why no Strategy pattern in the basic game" summary="There is only one fixed human move flow and one fixed winning rule.">
+
+A pattern should solve a current source of change. The basic requirements do not include bots, several board sizes, or selectable winning rules, so extra interfaces would make the first design harder to read.
+
+If the interviewer adds computer players, introduce `MoveStrategy`. If they add different winning rules, introduce `WinningRule`. The extension creates the need for the pattern.
+
+</ConceptDropdown>
+
+### Value types
+
+These enums define the complete vocabulary used by the rest of the program. They remove magic strings and make method results readable at the call site.
+
+<JavaFile name="Mark.java" purpose="The two marks a player can own">
+
+```java
+public enum Mark {
+    X,
+    O
+}
+```
+
+</JavaFile>
+
+<JavaFile name="GameStatus.java" purpose="The complete state of a match">
+
+```java
+public enum GameStatus {
+    IN_PROGRESS,
+    X_WON,
+    O_WON,
+    DRAW
+}
+```
+
+</JavaFile>
+
+<JavaFile name="MoveResult.java" purpose="Why a requested move was accepted or rejected">
+
+```java
+public enum MoveResult {
+    ACCEPTED,
+    NOT_YOUR_TURN,
+    OUT_OF_BOUNDS,
+    CELL_OCCUPIED,
+    GAME_ALREADY_OVER
+}
+```
+
+</JavaFile>
+
+### Player and board
+
+`Player` is stable identity data: a name and one fixed mark. `Board` owns the mutable cell array and all rules that can be answered by looking only at that array. Notice that callers cannot receive and modify the array directly.
+
+<JavaFile name="Player.java" purpose="A player's identity and fixed mark">
+
+```java
+import java.util.Objects;
+
+public final class Player {
+    private final String name;
+    private final Mark mark;
+
+    public Player(String name, Mark mark) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name is required");
+        }
+        this.name = name;
+        this.mark = Objects.requireNonNull(mark);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Mark getMark() {
+        return mark;
+    }
+
+    @Override
+    public String toString() {
+        return name + " (" + mark + ")";
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="Board.java" purpose="Owns cells, placement checks, and fixed winning rules">
+
+```java
+import java.util.Arrays;
+
+public final class Board {
+    public static final int SIZE = 3;
+    private final Mark[][] cells = new Mark[SIZE][SIZE];
+
+    public boolean place(int row, int column, Mark mark) {
+        if (!isInside(row, column) || mark == null) return false;
+        if (cells[row][column] != null) return false;
+        cells[row][column] = mark;
+        return true;
+    }
+
+    public boolean isInside(int row, int column) {
+        return row >= 0 && row < SIZE && column >= 0 && column < SIZE;
+    }
+
+    public boolean hasWinningLine(Mark mark) {
+        for (int index = 0; index < SIZE; index++) {
+            if (cells[index][0] == mark
+                    && cells[index][1] == mark
+                    && cells[index][2] == mark) {
+                return true;
+            }
+            if (cells[0][index] == mark
+                    && cells[1][index] == mark
+                    && cells[2][index] == mark) {
+                return true;
+            }
+        }
+
+        boolean mainDiagonal = cells[0][0] == mark
+                && cells[1][1] == mark
+                && cells[2][2] == mark;
+        boolean otherDiagonal = cells[0][2] == mark
+                && cells[1][1] == mark
+                && cells[2][0] == mark;
+
+        return mainDiagonal || otherDiagonal;
+    }
+
+    public boolean isFull() {
+        for (Mark[] row : cells) {
+            for (Mark cell : row) {
+                if (cell == null) return false;
+            }
+        }
+        return true;
+    }
+
+    public Mark getMark(int row, int column) {
+        if (!isInside(row, column)) {
+            throw new IndexOutOfBoundsException("Cell is outside the board");
+        }
+        return cells[row][column];
+    }
+
+    public void clear() {
+        for (Mark[] row : cells) {
+            Arrays.fill(row, null);
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder output = new StringBuilder();
+        for (int row = 0; row < SIZE; row++) {
+            for (int column = 0; column < SIZE; column++) {
+                Mark mark = cells[row][column];
+                output.append(mark == null ? "." : mark);
+                if (column < SIZE - 1) output.append(" ");
+            }
+            output.append(System.lineSeparator());
+        }
+        return output.toString();
+    }
+}
+```
+
+</JavaFile>
+
+### Game controller
+
+`Game.makeMove` is the central workflow and should be read from top to bottom: reject illegal game state, reject the wrong player, validate the cell, place the mark, calculate the result, and switch the turn only if play continues. `TicTacToeDemo` proves how the public API is meant to be used.
+
+<JavaFile name="Game.java" purpose="Controls turns, status, and the move workflow">
+
+```java
+import java.util.Objects;
+
+public final class Game {
+    private final Board board;
+    private final Player playerX;
+    private final Player playerO;
+    private Player currentPlayer;
+    private Player winner;
+    private GameStatus status;
+
+    public Game(Player first, Player second) {
+        Objects.requireNonNull(first);
+        Objects.requireNonNull(second);
+        if (first.getMark() == second.getMark()) {
+            throw new IllegalArgumentException("Players need different marks");
+        }
+
+        this.playerX = first.getMark() == Mark.X ? first : second;
+        this.playerO = first.getMark() == Mark.O ? first : second;
+        this.board = new Board();
+        reset();
+    }
+
+    public MoveResult makeMove(Player player, int row, int column) {
+        if (status != GameStatus.IN_PROGRESS) {
+            return MoveResult.GAME_ALREADY_OVER;
+        }
+        if (player != currentPlayer) {
+            return MoveResult.NOT_YOUR_TURN;
+        }
+        if (!board.isInside(row, column)) {
+            return MoveResult.OUT_OF_BOUNDS;
+        }
+        if (!board.place(row, column, player.getMark())) {
+            return MoveResult.CELL_OCCUPIED;
+        }
+
+        if (board.hasWinningLine(player.getMark())) {
+            winner = player;
+            status = player.getMark() == Mark.X
+                    ? GameStatus.X_WON
+                    : GameStatus.O_WON;
+        } else if (board.isFull()) {
+            status = GameStatus.DRAW;
+        } else {
+            currentPlayer = currentPlayer == playerX ? playerO : playerX;
+        }
+
+        return MoveResult.ACCEPTED;
+    }
+
+    public void reset() {
+        board.clear();
+        currentPlayer = playerX;
+        winner = null;
+        status = GameStatus.IN_PROGRESS;
+    }
+
+    public Board getBoard() {
+        return board;
+    }
+
+    public Player getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    public Player getWinner() {
+        return winner;
+    }
+
+    public GameStatus getStatus() {
+        return status;
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="TicTacToeDemo.java" purpose="Runs a complete winning game">
+
+```java
+public final class TicTacToeDemo {
+    public static void main(String[] args) {
+        Player alice = new Player("Alice", Mark.X);
+        Player bob = new Player("Bob", Mark.O);
+        Game game = new Game(alice, bob);
+
+        play(game, alice, 0, 0);
+        play(game, bob,   1, 0);
+        play(game, alice, 0, 1);
+        play(game, bob,   1, 1);
+        play(game, alice, 0, 2);
+
+        System.out.println(game.getBoard());
+        System.out.println("Status: " + game.getStatus());
+        System.out.println("Winner: " + game.getWinner());
+    }
+
+    private static void play(Game game, Player player, int row, int column) {
+        MoveResult result = game.makeMove(player, row, column);
+        System.out.printf("%s -> (%d,%d): %s%n",
+                player.getName(), row, column, result);
+    }
+}
+```
+
+</JavaFile>
+
+### Verify the design with a real scenario
+
+<ScenarioTrace steps={[
+  "Initial: the board is empty, status is IN_PROGRESS, and Alice (X) is current.",
+  "Alice plays (0,0). Board accepts X and Game changes current player to Bob.",
+  "Alice tries another move immediately. Game returns NOT_YOUR_TURN and the board does not change.",
+  "Bob plays (1,0), then turns continue until Alice completes row 0.",
+  "After Alice plays (0,2), Board finds X X X, Game sets X_WON, stores Alice as winner, and does not switch turns.",
+  "Any later move returns GAME_ALREADY_OVER and the winning board stays unchanged."
+]} />
+
+Try the flow below. Click the same cell twice to confirm that a rejected move does not switch the player.
+
+<TicTacToeSimulator />
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+### “Add computer players with several difficulty levels”
+
+Now introduce a `MoveStrategy` interface with `chooseMove(Board)`. Easy, medium, and hard bots implement different selection rules. Human players still receive moves from input, so do not put minimax logic inside `Board` or `Game`.
+
+### “Support an N by N board and K marks in a row”
+
+Pass size into `Board` and move win checking behind a `WinningRule` interface. The fixed eight-line implementation can then be replaced without changing the turn workflow in `Game`.
+
+### “Add undo”
+
+Store each accepted move in a stack. `undo()` removes the most recent mark, restores the previous player, and changes status back to `IN_PROGRESS`. Rejected moves never enter the history.
+
+### “Play over a network”
+
+Keep this domain model. Add a service around `Game` that identifies the remote player, serializes commands, and ensures that two moves cannot update one game at the same time.
+
+<Insight title="What a strong answer sounds like" tone="mint">
+  “I did not use a pattern in the basic version because there is only one fixed rule and no computer player. I kept the rule in Board and the turn workflow in Game. If the interviewer adds several move or win rules, that is when Strategy becomes useful.”
+</Insight>

@@ -1,0 +1,296 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "LLD Field Guide Think in objects." [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e9]:
+            - generic [ref=e10]: LLD Field Guide
+            - generic [ref=e11]: Think in objects.
+        - paragraph [ref=e12]: Problem breakdowns
+        - navigation "Problem lessons" [ref=e13]:
+          - link "01 Elevator System State + scheduling" [ref=e14] [cursor=pointer]:
+            - /url: /problems/elevator/
+            - generic [ref=e15]: "01"
+            - generic [ref=e16]:
+              - generic [ref=e17]: Elevator System
+              - generic [ref=e18]: State + scheduling
+          - link "02 Tic-Tac-Toe Rules + state" [ref=e19] [cursor=pointer]:
+            - /url: /problems/tic-tac-toe/
+            - generic [ref=e20]: "02"
+            - generic [ref=e21]:
+              - generic [ref=e22]: Tic-Tac-Toe
+              - generic [ref=e23]: Rules + state
+        - generic [ref=e24]: Interview rhythmClarify → model → implement → verify → extend.
+    - main [ref=e25]:
+      - article [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]: Rules + state
+          - generic [ref=e29]: •
+          - generic [ref=e30]: Beginner
+          - generic [ref=e31]: •
+          - generic [ref=e32]: 25 min
+        - heading "Tic-Tac-Toe" [level=1] [ref=e33]
+        - generic [ref=e35]:
+          - paragraph [ref=e36]: Tic-Tac-Toe looks trivial until one class starts owning the board, players, turns, validation, winning rules, and rendering.
+          - paragraph [ref=e37]: The interview value is not the game algorithm. It is showing that a small domain can still have clean boundaries, explicit invariants, and room to change.
+          - heading "1. Clarify the version of the game" [level=2] [ref=e38]
+          - generic [ref=e39]:
+            - generic [ref=e40]: Interview dialogue
+            - generic [ref=e44]:
+              - generic [ref=e45]:
+                - generic [ref=e46]: You
+                - paragraph [ref=e47]: Is the board always 3×3, and is three marks in any row, column, or diagonal a win?
+              - generic [ref=e48]:
+                - generic [ref=e49]: Interviewer
+                - paragraph [ref=e50]: Yes. Keep the first version fixed at 3×3.
+              - generic [ref=e51]:
+                - generic [ref=e52]: You
+                - paragraph [ref=e53]: Two local human players, or should one player be a computer?
+              - generic [ref=e54]:
+                - generic [ref=e55]: Interviewer
+                - paragraph [ref=e56]: Two players. Explain how a bot could be introduced later.
+              - generic [ref=e57]:
+                - generic [ref=e58]: You
+                - paragraph [ref=e59]: Should we support undo, replay, score history, or persistence?
+              - generic [ref=e60]:
+                - generic [ref=e61]: Interviewer
+                - paragraph [ref=e62]: No. Validate moves, alternate turns, and detect win or draw.
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - paragraph [ref=e65]: In scope
+              - list [ref=e68]:
+                - listitem [ref=e69]: • A fixed 3×3 board
+                - listitem [ref=e70]: "• Two players: X and O"
+                - listitem [ref=e71]: • Legal-move validation
+                - listitem [ref=e72]: • Alternating turns
+                - listitem [ref=e73]: • Win and draw detection
+                - listitem [ref=e74]: • Resetting the current game
+            - generic [ref=e75]:
+              - paragraph [ref=e76]: Out of scope
+              - list [ref=e80]:
+                - listitem [ref=e81]: • Online multiplayer
+                - listitem [ref=e82]: • Computer strategy in version one
+                - listitem [ref=e83]: • Undo and replay history
+                - listitem [ref=e84]: • Tournament scoring
+                - listitem [ref=e85]: • Accounts or persistence
+                - listitem [ref=e86]: • Arbitrary board dimensions
+          - paragraph [ref=e87]: "The core invariants are small and testable:"
+          - list [ref=e88]:
+            - listitem [ref=e89]: A cell changes from empty to marked at most once.
+            - listitem [ref=e90]: Only the current player may make a move.
+            - listitem [ref=e91]: A finished game accepts no more moves.
+            - listitem [ref=e92]: The turn changes only after a valid, non-terminal move.
+          - heading "2. Separate state from orchestration" [level=2] [ref=e93]
+          - paragraph [ref=e94]:
+            - text: The board should know cells, not whose turn it is. A player should know its mark, not whether a line is a win.
+            - code [ref=e95]: Game
+            - text: coordinates those collaborators and exposes the operation the UI needs.
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e98]: Object
+              - generic [ref=e99]: Owns
+              - generic [ref=e100]: Does not own
+            - generic [ref=e101]:
+              - strong [ref=e102]: Game
+              - generic [ref=e103]: Turn order, status, orchestration
+              - generic [ref=e104]: Cell storage or UI rendering
+            - generic [ref=e105]:
+              - strong [ref=e106]: Board
+              - generic [ref=e107]: Cells and legal placement
+              - generic [ref=e108]: Players, turns, or match history
+            - generic [ref=e109]:
+              - strong [ref=e110]: Player
+              - generic [ref=e111]: Identity, mark, move source
+              - generic [ref=e112]: Winning rules
+            - generic [ref=e113]:
+              - strong [ref=e114]: WinningRule
+              - generic [ref=e115]: Evaluating a board
+              - generic [ref=e116]: Changing board state
+          - complementary [ref=e117]:
+            - generic [ref=e121]:
+              - paragraph [ref=e122]: Avoid the Cell-class reflex
+              - paragraph [ref=e124]:
+                - text: A cell has no meaningful behavior in this scope. A
+                - code [ref=e125]: Mark | null
+                - text: value in a matrix is clearer than nine tiny objects. Promote it to a class only when the requirements give it responsibility.
+          - heading "3. Sketch the object conversation" [level=2] [ref=e126]
+          - figure "Keep rules replaceable and keep the board ignorant of turns and players." [ref=e127]:
+            - img "Tic-Tac-Toe class responsibility diagram Game orchestrates two players, owns one board, and asks a winning rule to evaluate the board." [ref=e129]:
+              - generic [ref=e131]: coordinates 2
+              - generic [ref=e132]: owns 1
+              - generic [ref=e134]: delegates
+              - generic [ref=e135]:
+                - generic [ref=e138]: Game
+                - generic [ref=e139]:
+                  - generic [ref=e140]: board, players, turn, status
+                  - generic [ref=e141]: + makeMove(row, col)
+                  - generic [ref=e142]: + reset()
+              - generic [ref=e143]:
+                - generic [ref=e146]: Player
+                - generic [ref=e147]:
+                  - generic [ref=e148]: symbol, name
+                  - generic [ref=e149]: + nextMove()
+              - generic [ref=e150]:
+                - generic [ref=e153]: Board
+                - generic [ref=e154]:
+                  - generic [ref=e155]: "cells: Mark[3][3]"
+                  - generic [ref=e156]: + place(move)
+                  - generic [ref=e157]: + isFull()
+                  - generic [ref=e158]: + availableCells()
+              - generic [ref=e159]:
+                - generic [ref=e162]: WinningRule
+                - generic [ref=e163]:
+                  - generic [ref=e164]: + evaluate(board)
+                  - generic [ref=e165]: → GameResult
+          - paragraph [ref=e167]: The game acts like an application service for one match. It validates the match state, delegates placement to the board, delegates evaluation to the rule, then changes the turn.
+          - 'figure "A valid move is a small transaction: validate, mutate, evaluate, then advance the turn." [ref=e168]':
+            - img "Tic-Tac-Toe valid move sequence The UI asks Game to make a move. Game validates through Board, asks the rule to evaluate, then changes the active player." [ref=e170]:
+              - generic [ref=e171]: UI
+              - generic [ref=e174]: Game
+              - generic [ref=e177]: Board
+              - generic [ref=e180]: Rule
+              - generic [ref=e183]: makeMove(1, 1)
+              - generic [ref=e186]: place(X, 1, 1)
+              - generic [ref=e189]: "true"
+              - generic [ref=e192]: evaluate(board)
+              - generic [ref=e195]: IN_PROGRESS
+              - generic [ref=e198]: turn = O
+          - paragraph [ref=e202]: This ordering matters. If the game switches players before evaluation, it may report the wrong winner. If the UI mutates the board directly, the domain invariants become optional.
+          - heading "4. Choose a winning-rule shape" [level=2] [ref=e203]
+          - generic [ref=e204]:
+            - generic [ref=e205]:
+              - text: Simple
+              - heading "Scan eight lines" [level=4] [ref=e206]
+              - paragraph [ref=e207]: After each move, inspect three rows, three columns, and two diagonals. Constant work and immediately readable for a fixed 3×3 board.
+              - paragraph [ref=e208]: Best fit for the stated scope
+            - generic [ref=e209]:
+              - text: Extensible
+              - heading "Counters per player" [level=4] [ref=e210]
+              - paragraph [ref=e211]: Track row, column, diagonal, and anti-diagonal counts. A move can determine a win in constant time for an N×N board.
+              - paragraph [ref=e212]: Useful only if variable board size is likely
+          - paragraph [ref=e213]: Do not optimize simply because another solution exists. With eight fixed winning lines, the scan is already constant time, easier to review, and less likely to corrupt duplicated state.
+          - heading "5. Exercise the transaction" [level=2] [ref=e214]
+          - paragraph [ref=e215]:
+            - text: Play a game or load a near-win. The live state panel shows which values belong to
+            - code [ref=e216]: Game
+            - text: and which belong to
+            - code [ref=e217]: Board
+            - text: . Try an occupied cell to observe rejection without a turn change.
+          - region "Interactive Tic-Tac-Toe simulation" [ref=e218]:
+            - generic [ref=e219]:
+              - generic [ref=e220]:
+                - paragraph [ref=e221]: Interactive model
+                - heading "Turn transaction lab" [level=3] [ref=e222]
+              - generic [ref=e223]:
+                - generic [ref=e224]: Move 0
+                - generic [ref=e225]: X's turn
+            - generic [ref=e226]:
+              - generic [ref=e227]:
+                - generic [ref=e228]:
+                  - button "Cell 1, 1 empty" [ref=e229] [cursor=pointer]
+                  - button "Cell 1, 2 empty" [ref=e230] [cursor=pointer]
+                  - button "Cell 1, 3 empty" [ref=e231] [cursor=pointer]
+                  - button "Cell 2, 1 empty" [ref=e232] [cursor=pointer]
+                  - button "Cell 2, 2 empty" [ref=e233] [cursor=pointer]
+                  - button "Cell 2, 3 empty" [ref=e234] [cursor=pointer]
+                  - button "Cell 3, 1 empty" [ref=e235] [cursor=pointer]
+                  - button "Cell 3, 2 empty" [ref=e236] [cursor=pointer]
+                  - button "Cell 3, 3 empty" [ref=e237] [cursor=pointer]
+                - paragraph [ref=e238]: Choose an empty cell. Try clicking an occupied cell too.
+              - generic [ref=e239]:
+                - paragraph [ref=e240]: Live object state
+                - generic [ref=e241]:
+                  - generic [ref=e242]:
+                    - paragraph [ref=e244]: Game.status
+                    - paragraph [ref=e245]: IN_PROGRESS
+                  - generic [ref=e246]:
+                    - paragraph [ref=e248]: Game.current
+                    - paragraph [ref=e249]: Player X
+                  - generic [ref=e250]:
+                    - paragraph [ref=e252]: Board.moves
+                    - paragraph [ref=e253]: 0 / 9
+                - generic [ref=e254]:
+                  - paragraph [ref=e255]: Watch the transaction
+                  - list [ref=e258]:
+                    - listitem [ref=e259]: Game created. Player X owns the first turn.
+                - generic [ref=e260]:
+                  - button "New game" [ref=e261] [cursor=pointer]
+                  - button "Load win" [ref=e265] [cursor=pointer]
+                  - button "Load draw" [ref=e266] [cursor=pointer]
+            - generic [ref=e267]:
+              - generic [ref=e268]:
+                - generic [ref=e269]: "1"
+                - generic [ref=e270]: UI sends intent
+              - generic [ref=e271]:
+                - generic [ref=e272]: "2"
+                - generic [ref=e273]: Game checks status
+              - generic [ref=e274]:
+                - generic [ref=e275]: "3"
+                - generic [ref=e276]: Board validates cell
+              - generic [ref=e277]:
+                - generic [ref=e278]: "4"
+                - generic [ref=e279]: Rule evaluates result
+          - heading "6. Keep makeMove atomic" [level=2] [ref=e280]
+          - paragraph [ref=e281]: Return a result instead of making callers infer what happened. The UI can then render errors without reaching into the domain model.
+          - code [ref=e283]: "makeMove(row: number, col: number): MoveResult { if (this.status !== GameStatus.IN_PROGRESS) { return MoveResult.rejected(\"GAME_FINISHED\") } const placed = this.board.place(row, col, this.currentPlayer.mark) if (!placed) return MoveResult.rejected(\"CELL_OCCUPIED\") this.status = this.winningRule.evaluate(this.board) if (this.status === GameStatus.IN_PROGRESS) { this.currentPlayerIndex = 1 - this.currentPlayerIndex } return MoveResult.accepted(this.status) }"
+          - paragraph [ref=e284]: "For the fixed board, rule evaluation stays direct:"
+          - code [ref=e286]: "evaluate(board: Board): GameStatus { for (const [a, b, c] of WINNING_LINES) { if (board.markAt(a) !== null && board.markAt(a) === board.markAt(b) && board.markAt(a) === board.markAt(c)) { return board.markAt(a) === Mark.X ? X_WON : O_WON } } return board.isFull() ? DRAW : IN_PROGRESS }"
+          - heading "7. Attack the invariants" [level=2] [ref=e287]
+          - paragraph [ref=e288]: "Test the model through its public API:"
+          - list [ref=e289]:
+            - listitem [ref=e290]: X gets the first turn.
+            - listitem [ref=e291]: A valid move changes exactly one cell and advances the turn.
+            - listitem [ref=e292]: An occupied or out-of-bounds cell is rejected without advancing the turn.
+            - listitem [ref=e293]: Each possible row, column, and diagonal can win.
+            - listitem [ref=e294]: A full board without a winner is a draw.
+            - listitem [ref=e295]: No move is accepted after a win or draw.
+            - listitem [ref=e296]: Reset creates an empty board with X active.
+          - complementary [ref=e297]:
+            - generic [ref=e301]:
+              - paragraph [ref=e302]: Test behavior, not private fields
+              - paragraph [ref=e304]:
+                - text: Tests should call
+                - code [ref=e305]: makeMove()
+                - text: and assert the observable board, status, and next player. If a refactor changes private storage from a matrix to a flat array, the tests should still pass.
+          - heading "8. Evolve without demolition" [level=2] [ref=e306]
+          - paragraph [ref=e307]:
+            - strong [ref=e308]: “Add a computer player.”
+            - text: Introduce a
+            - code [ref=e309]: MoveStrategy
+            - text: used by a computer-controlled
+            - code [ref=e310]: Player
+            - text: . Human input and minimax become two move sources; board rules stay unchanged.
+          - paragraph [ref=e311]:
+            - strong [ref=e312]: “Support N×N with K-in-a-row.”
+            - text: Parameterize board dimensions and replace
+            - code [ref=e313]: WinningRule
+            - text: . This is precisely why rule evaluation was kept outside
+            - code [ref=e314]: Board
+            - text: .
+          - paragraph [ref=e315]:
+            - strong [ref=e316]: “Add undo.”
+            - text: Represent each accepted action as an immutable
+            - code [ref=e317]: Move
+            - text: ", keep a history inside"
+            - code [ref=e318]: Game
+            - text: ", and ask"
+            - code [ref=e319]: Board
+            - text: to remove only the most recent move. Turn and status must be recomputed safely.
+          - generic [ref=e320]:
+            - generic [ref=e321]:
+              - strong [ref=e323]: Junior
+              - paragraph [ref=e324]: Model a board and alternating players, reject illegal moves, and detect every terminal state.
+            - generic [ref=e325]:
+              - strong [ref=e327]: Mid-level
+              - paragraph [ref=e328]: Keep turn changes atomic, separate rules from storage, and test through the public API.
+            - generic [ref=e329]:
+              - strong [ref=e331]: Senior
+              - paragraph [ref=e332]: Avoid speculative classes, introduce extension seams only where requirements vary, and explain concurrency for online play.
+        - navigation "Lesson pagination" [ref=e333]:
+          - link "Previous problem Elevator System" [ref=e334] [cursor=pointer]:
+            - /url: /problems/elevator/
+            - generic [ref=e337]:
+              - generic [ref=e338]: Previous problem
+              - text: Elevator System
+  - alert [ref=e339]

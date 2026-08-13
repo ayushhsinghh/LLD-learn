@@ -1,0 +1,333 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - button "Index" [ref=e3] [cursor=pointer]
+    - main [ref=e5]:
+      - article [ref=e6]:
+        - generic [ref=e7]:
+          - generic [ref=e8]: State + scheduling
+          - generic [ref=e9]: •
+          - generic [ref=e10]: Intermediate
+          - generic [ref=e11]: •
+          - generic [ref=e12]: 35 min
+        - heading "Elevator System" [level=1] [ref=e13]
+        - generic [ref=e15]:
+          - paragraph [ref=e16]:
+            - text: "An elevator is a small moving system with a surprisingly rich question at its center:"
+            - strong [ref=e17]: who should do what, and when?
+          - paragraph [ref=e18]: The goal is not to reproduce real elevator hardware. In an interview, we want a deterministic model that receives requests, assigns them to cars, and advances one unit of time at a time.
+          - heading "1. Turn ambiguity into requirements" [level=2] [ref=e19]
+          - paragraph [ref=e20]: A vague prompt is useful—it gives you room to demonstrate how you discover boundaries before naming classes.
+          - generic [ref=e21]:
+            - generic [ref=e22]: Interview dialogue
+            - generic [ref=e26]:
+              - generic [ref=e27]:
+                - generic [ref=e28]: You
+                - paragraph [ref=e29]: Are we designing hardware control software, or a simulation where one tick moves an elevator by one floor?
+              - generic [ref=e30]:
+                - generic [ref=e31]: Interviewer
+                - paragraph [ref=e32]: Use a deterministic simulation. We care about scheduling and movement, not motors or sensors.
+              - generic [ref=e33]:
+                - generic [ref=e34]: You
+                - paragraph [ref=e35]: Do hall calls include a direction? Can passengers select multiple destinations?
+              - generic [ref=e36]:
+                - generic [ref=e37]: Interviewer
+                - paragraph [ref=e38]: Yes to both. A hall call is UP or DOWN; a destination has only a floor.
+              - generic [ref=e39]:
+                - generic [ref=e40]: You
+                - paragraph [ref=e41]: Should an elevator stop for a DOWN hall call while it is moving UP?
+              - generic [ref=e42]:
+                - generic [ref=e43]: Interviewer
+                - paragraph [ref=e44]: No. It should return while moving in the requested direction.
+          - generic [ref=e45]:
+            - generic [ref=e46]:
+              - paragraph [ref=e47]: In scope
+              - list [ref=e50]:
+                - listitem [ref=e51]: • Two or more elevators serving floors 0–9
+                - listitem [ref=e52]: • Direction-aware hall calls
+                - listitem [ref=e53]: • Multiple destination requests
+                - listitem [ref=e54]: • One deterministic tick at a time
+                - listitem [ref=e55]: • Replaceable dispatch strategy
+                - listitem [ref=e56]: • Invalid-floor validation
+            - generic [ref=e57]:
+              - paragraph [ref=e58]: Out of scope
+              - list [ref=e62]:
+                - listitem [ref=e63]: • Doors, motors, sensors, and weight limits
+                - listitem [ref=e64]: • Emergency or maintenance workflows
+                - listitem [ref=e65]: • Network communication
+                - listitem [ref=e66]: • Persistence and analytics
+                - listitem [ref=e67]: • Real-time threading
+                - listitem [ref=e68]: • Destination-dispatch kiosks
+          - complementary [ref=e69]:
+            - generic [ref=e73]:
+              - paragraph [ref=e74]: The question that changes the entire model
+              - paragraph [ref=e76]:
+                - text: A simulation owns time through
+                - code [ref=e77]: tick()
+                - text: . Real control software reacts to asynchronous sensor events such as
+                - code [ref=e78]: onFloorReached()
+                - text: . Say which world you are modelling before writing a class.
+          - heading "2. Find responsibilities, not nouns" [level=2] [ref=e79]
+          - paragraph [ref=e80]:
+            - text: Do not automatically turn every noun into a class. A floor has no behavior in this scope, so it can remain a number. A request needs identity beyond a floor because
+            - code [ref=e81]: 7↑
+            - text: ","
+            - code [ref=e82]: 7↓
+            - text: ", and a destination at"
+            - code [ref=e83]: "7"
+            - text: have different meanings.
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - generic [ref=e86]: Object
+              - generic [ref=e87]: Owns
+              - generic [ref=e88]: Does not own
+            - generic [ref=e89]:
+              - strong [ref=e90]: ElevatorController
+              - generic [ref=e91]: The fleet and dispatch policy
+              - generic [ref=e92]: How an individual car moves
+            - generic [ref=e93]:
+              - strong [ref=e94]: DispatchStrategy
+              - generic [ref=e95]: Choosing the best car for a hall call
+              - generic [ref=e96]: Mutating elevator state
+            - generic [ref=e97]:
+              - strong [ref=e98]: Elevator
+              - generic [ref=e99]: Position, direction, queued requests, movement
+              - generic [ref=e100]: Knowledge of other elevators
+            - generic [ref=e101]:
+              - strong [ref=e102]: Request
+              - generic [ref=e103]: Floor and request type
+              - generic [ref=e104]: Scheduling or movement behavior
+          - paragraph [ref=e105]: "Three invariants keep the design honest:"
+          - list [ref=e106]:
+            - listitem [ref=e107]:
+              - text: A car never moves outside floors
+              - code [ref=e108]: 0…9
+              - text: .
+            - listitem [ref=e109]: A car services an UP hall call only while moving UP, and a DOWN call only while moving DOWN.
+            - listitem [ref=e110]:
+              - text: Empty request queues imply
+              - code [ref=e111]: direction = IDLE
+              - text: .
+          - heading "3. Draw the collaboration" [level=2] [ref=e112]
+          - paragraph [ref=e113]: Start from the public entry point. Outside code asks the controller for an elevator—it should not inspect cars and make the decision itself.
+          - figure "The controller coordinates. Each elevator owns its movement. The strategy is replaceable." [ref=e114]:
+            - img "Elevator system class diagram ElevatorController owns elevators and a dispatch strategy. Each elevator stores requests. Requests contain a floor and request type." [ref=e116]:
+              - generic [ref=e120]: delegates selection
+              - generic [ref=e121]: owns 1..*
+              - generic [ref=e122]: queues 0..*
+              - generic [ref=e123]:
+                - generic [ref=e126]: ElevatorController
+                - generic [ref=e127]: "- elevators: Elevator[]"
+                - generic [ref=e128]: "- strategy: DispatchStrategy"
+                - generic [ref=e129]: + requestElevator(floor, dir)
+                - generic [ref=e130]: + tick()
+              - generic [ref=e131]:
+                - generic [ref=e134]: DispatchStrategy
+                - generic [ref=e135]: + select(request, elevators)
+                - generic [ref=e136]: → Elevator
+              - generic [ref=e137]:
+                - generic [ref=e140]: Elevator
+                - generic [ref=e141]: "- floor: number"
+                - generic [ref=e142]: "- direction: Direction"
+                - generic [ref=e143]: "- requests: Request[]"
+                - generic [ref=e144]: + addRequest(request)
+                - generic [ref=e145]: + tick()
+              - generic [ref=e146]:
+                - generic [ref=e149]: Request
+                - generic [ref=e150]: "- floor: number"
+                - generic [ref=e151]: "- type: RequestType"
+          - paragraph [ref=e153]:
+            - text: The strategy boundary is intentional. It lets an interviewer ask for “better scheduling” without forcing changes inside
+            - code [ref=e154]: Elevator
+            - text: .
+          - figure "Direction is explicit state, not something inferred from the last floor movement." [ref=e155]:
+            - img "Elevator direction state transitions An idle elevator moves up or down toward a request. A moving elevator reverses only when there are no requests ahead and becomes idle when its queue is empty." [ref=e157]:
+              - generic [ref=e162]: request above
+              - generic [ref=e163]: queue empty
+              - generic [ref=e164]: nothing ahead
+              - generic [ref=e165]: nothing below
+              - generic [ref=e166]: IDLE
+              - generic [ref=e169]: MOVING UP
+              - generic [ref=e172]: MOVING DOWN
+          - complementary [ref=e176]:
+            - generic [ref=e180]:
+              - paragraph [ref=e181]: A useful design smell
+              - paragraph [ref=e183]:
+                - text: If
+                - code [ref=e184]: ElevatorController.tick()
+                - text: contains floor-by-floor movement rules, the controller knows too much. It should only tell each elevator to advance; the elevator protects its own state machine.
+          - heading "4. Compare dispatch policies" [level=2] [ref=e185]
+          - paragraph [ref=e186]: Begin with the smallest correct strategy, then expose where it fails. This produces a much stronger interview discussion than silently jumping to a complicated scoring formula.
+          - generic [ref=e187]:
+            - generic [ref=e188]:
+              - text: Baseline
+              - heading "Nearest car" [level=4] [ref=e189]
+              - paragraph [ref=e190]: Choose the smallest absolute distance from the caller. It is deterministic and easy to explain, but ignores travel direction and committed stops.
+              - paragraph [ref=e191]: Correct baseline · weak passenger experience
+            - generic [ref=e192]:
+              - text: Recommended
+              - heading "Direction-aware" [level=4] [ref=e193]
+              - paragraph [ref=e194]: Prefer a car already travelling toward the caller in the requested direction, then an idle car, then the nearest remaining car.
+              - paragraph [ref=e195]: Good interview balance · extensible policy
+          - paragraph [ref=e196]: "A production scheduler might estimate arrival time from every committed stop. For a 35-minute LLD interview, direction-aware tiers are usually a better trade-off: meaningful behavior without hiding the object model inside an optimization algorithm."
+          - heading "5. Test the model tick by tick" [level=2] [ref=e197]
+          - paragraph [ref=e198]: The simulation below runs entirely in your browser and resets on refresh. Load the edge case, add the suggested hall call, and switch strategies to see why distance alone is not enough.
+          - region "Interactive elevator simulation" [ref=e199]:
+            - generic [ref=e200]:
+              - generic [ref=e201]:
+                - paragraph [ref=e202]: Interactive model
+                - heading "Dispatch lab" [level=3] [ref=e203]
+              - generic [ref=e204]:
+                - generic [ref=e205]: Tick 0
+                - generic [ref=e206]: No persistence
+            - generic [ref=e207]:
+              - generic [ref=e209]:
+                - generic [ref=e210]:
+                  - generic [ref=e212]: Car A
+                  - generic [ref=e213]: Car B
+                - generic [ref=e214]: F9
+                - generic [ref=e218]: F8
+                - generic [ref=e222]: F7
+                - generic [ref=e226]:
+                  - generic [ref=e227]: F6
+                  - generic [ref=e229]: B ·
+                - generic [ref=e231]: F5
+                - generic [ref=e235]: F4
+                - generic [ref=e239]: F3
+                - generic [ref=e243]: F2
+                - generic [ref=e247]: F1
+                - generic [ref=e251]:
+                  - generic [ref=e252]: F0
+                  - generic [ref=e253]: A ·
+              - generic [ref=e256]:
+                - generic [ref=e257]:
+                  - paragraph [ref=e258]: Dispatch strategy
+                  - tablist [ref=e259]:
+                    - tab "Nearest" [ref=e260] [cursor=pointer]
+                    - tab "Direction-aware" [selected] [ref=e261] [cursor=pointer]
+                  - tabpanel "Direction-aware" [ref=e262]: Prefers a car already travelling toward the caller in the requested direction.
+                - generic [ref=e263]:
+                  - paragraph [ref=e264]: Create hall call
+                  - generic [ref=e265]:
+                    - generic [ref=e266]:
+                      - text: Floor
+                      - combobox "Hall call floor" [ref=e267]:
+                        - option "0"
+                        - option "1"
+                        - option "2"
+                        - option "3" [selected]
+                        - option "4"
+                        - option "5"
+                        - option "6"
+                        - option "7"
+                        - option "8"
+                        - option "9"
+                    - generic [ref=e268]:
+                      - text: Direction
+                      - combobox "Hall call direction" [ref=e269]:
+                        - option "UP" [selected]
+                        - option "DOWN"
+                  - button "Dispatch request" [ref=e270] [cursor=pointer]
+                - generic [ref=e272]:
+                  - generic [ref=e273]:
+                    - generic [ref=e274]:
+                      - strong [ref=e275]: Car A
+                      - generic [ref=e276]: F0 · IDLE
+                    - generic [ref=e277]: "Queue: empty"
+                    - generic [ref=e278]:
+                      - combobox "Destination for elevator A" [ref=e279]:
+                        - option "0"
+                        - option "1" [selected]
+                        - option "2"
+                        - option "3"
+                        - option "4"
+                        - option "5"
+                        - option "6"
+                        - option "7"
+                        - option "8"
+                        - option "9"
+                      - button "Add stop" [ref=e280] [cursor=pointer]
+                  - generic [ref=e281]:
+                    - generic [ref=e282]:
+                      - strong [ref=e283]: Car B
+                      - generic [ref=e284]: F6 · IDLE
+                    - generic [ref=e285]: "Queue: empty"
+                    - generic [ref=e286]:
+                      - combobox "Destination for elevator B" [ref=e287]:
+                        - option "0"
+                        - option "1"
+                        - option "2"
+                        - option "3"
+                        - option "4"
+                        - option "5"
+                        - option "6"
+                        - option "7" [selected]
+                        - option "8"
+                        - option "9"
+                      - button "Add stop" [ref=e288] [cursor=pointer]
+                - generic [ref=e289]:
+                  - button "Play" [ref=e290] [cursor=pointer]
+                  - button "Step" [ref=e293] [cursor=pointer]
+                  - button "Reset" [ref=e296] [cursor=pointer]
+                  - button "Load edge case" [ref=e300] [cursor=pointer]
+            - generic [ref=e301]:
+              - paragraph [ref=e302]: Event log
+              - list [ref=e303]:
+                - listitem [ref=e304]: Simulation ready. Add a hall call or destination.
+          - paragraph [ref=e305]: "Ask yourself while stepping:"
+          - list [ref=e306]:
+            - listitem [ref=e307]: Which object changed on this tick?
+            - listitem [ref=e308]: Why did a car pass a waiting passenger?
+            - listitem [ref=e309]: When is direction allowed to reverse?
+            - listitem [ref=e310]: Would two identical requests create duplicate work?
+          - heading "6. Implement the heart of the state machine" [level=2] [ref=e311]
+          - paragraph [ref=e312]: The important method is short because the decisions were made in the model. Stopping consumes a tick; reversing also consumes a tick. That makes the simulation deterministic and easy to verify.
+          - code [ref=e314]: "class Elevator { tick(): void { if (this.requests.isEmpty()) { this.direction = Direction.IDLE return } if (this.direction === Direction.IDLE) { this.direction = this.directionTowardNearestRequest() } if (this.hasMatchingStopAtCurrentFloor()) { this.serveCurrentFloor() return } if (!this.hasRequestsAhead(this.direction)) { this.direction = this.direction.opposite() return } this.currentFloor += this.direction === Direction.UP ? 1 : -1 } }"
+          - paragraph [ref=e315]:
+            - text: "Notice what is absent: hardcoded checks for floor"
+            - code [ref=e316]: "0"
+            - text: and floor
+            - code [ref=e317]: "9"
+            - text: . Valid requests and
+            - code [ref=e318]: hasRequestsAhead()
+            - text: naturally prevent crossing the boundary.
+          - heading "7. Verify with scenarios, not hope" [level=2] [ref=e319]
+          - paragraph [ref=e320]: "A compact test suite should cover behavior, invariants, and awkward transitions:"
+          - list [ref=e321]:
+            - listitem [ref=e322]: An idle car moves toward its nearest request.
+            - listitem [ref=e323]: A car moving UP passes a DOWN pickup and serves it after reversing.
+            - listitem [ref=e324]: A destination is served regardless of hall-call direction.
+            - listitem [ref=e325]: Duplicate requests do not create duplicate stops.
+            - listitem [ref=e326]: An invalid floor is rejected without changing state.
+            - listitem [ref=e327]: The final request makes the car IDLE.
+            - listitem [ref=e328]: Equal-distance dispatch has a deterministic tie-breaker.
+          - complementary [ref=e329]:
+            - generic [ref=e333]:
+              - paragraph [ref=e334]: Say the scenario aloud
+              - paragraph [ref=e336]: "Walking through one tick at a time exposes ordering bugs: should the car stop before moving, reverse before stopping, or become idle after consuming the last request? Make that order explicit."
+          - heading "8. Handle the interviewer twist" [level=2] [ref=e337]
+          - paragraph [ref=e338]:
+            - strong [ref=e339]: “Add express elevators.”
+            - text: Give an elevator a service policy that validates supported floors; let dispatch prefer eligible express cars. The request object does not change.
+          - paragraph [ref=e340]:
+            - strong [ref=e341]: “Hall calls arrive concurrently.”
+            - text: Make selection plus assignment atomic, or feed incoming calls through a thread-safe queue that the controller drains at the start of a tick.
+          - paragraph [ref=e342]:
+            - strong [ref=e343]: “Show estimated arrival time.”
+            - text: Add a pure estimator to the dispatch strategy. Do not let the UI simulate private elevator mutations just to calculate an ETA.
+          - generic [ref=e344]:
+            - generic [ref=e345]:
+              - strong [ref=e347]: Junior
+              - paragraph [ref=e348]: Model a car and controller, move safely, serve all requests, and validate floors.
+            - generic [ref=e349]:
+              - strong [ref=e351]: Mid-level
+              - paragraph [ref=e352]: Protect state transitions, recognize direction-aware pickup, and separate coordination from movement.
+            - generic [ref=e353]:
+              - strong [ref=e355]: Senior
+              - paragraph [ref=e356]: Make scheduling replaceable, discuss atomic assignment, and evolve the model without rewriting the car.
+        - navigation "Lesson pagination" [ref=e357]:
+          - link "Next problem Tic-Tac-Toe" [ref=e359] [cursor=pointer]:
+            - /url: /problems/tic-tac-toe/
+            - generic [ref=e360]:
+              - generic [ref=e361]: Next problem
+              - text: Tic-Tac-Toe
+  - alert [ref=e364]
