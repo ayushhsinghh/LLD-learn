@@ -1,14 +1,14 @@
 import createMDX from "@next/mdx";
 
 const withMDX = createMDX({});
-const isGitHubPagesBuild = process.env.GITHUB_ACTIONS === "true";
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
-  // GitHub Pages serves this repository at /LLD-learn/, while local development
-  // continues to run from the domain root.
-  ...(isGitHubPagesBuild ? { basePath: "/LLD-learn" } : {}),
+  // The custom domain serves this site at its root. Set NEXT_PUBLIC_BASE_PATH
+  // only for a deployment that intentionally uses a repository subpath.
+  ...(basePath ? { basePath } : {}),
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   trailingSlash: true,
   turbopack: {
