@@ -45,6 +45,15 @@ export const lessons: Lesson[] = [
     summary: "Derive seat holds and booking rules, make concurrent requests safe, and prove the design with complete Java and an interactive race lab.",
     accent: "#ee9360",
   },
+  {
+    slug: "meeting-room-scheduler",
+    title: "Meeting Room Scheduler",
+    eyebrow: "Complete walkthrough",
+    difficulty: "Intermediate",
+    duration: "45 min",
+    summary: "Turn time ranges into precise interval rules, choose the smallest suitable available room, and test the design with complete Java and an interactive schedule.",
+    accent: "#7fc7ae",
+  },
 ];
 
 export const lessonHref = (slug: string) => `/problems/${slug}/`;

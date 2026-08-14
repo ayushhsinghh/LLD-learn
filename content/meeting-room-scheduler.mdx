@@ -1,0 +1,861 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { MeetingRoomSchedulerSimulator } from "@/components/simulations/meeting-room-scheduler-simulator"
+
+<Lead>Design a meeting-room scheduler that finds a room with enough space and equipment, prevents time conflicts, and makes the room reusable after cancellation.</Lead>
+
+<ConceptImage
+  src="/images/meeting-room-scheduler-overview.png"
+  alt="A team of four requests a meeting with a projector while an occupied room and an unsuitable room are rejected and the smallest suitable free room is highlighted"
+  caption="A room is useful only when three answers are yes at the same time: it fits the people, has the required equipment, and is free for the complete time slot."
+  width={1536}
+  height={1024}
+  eager={true}
+/>
+
+<FrameworkMap />
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The interview prompt is usually short:
+
+> “Design a meeting-room scheduler.”
+
+We all understand meetings and rooms, but that familiarity can hide unanswered questions. Does the caller choose a room? Does a meeting ending at 10:00 conflict with one starting at 10:00? Are attendee calendars included? Can anybody cancel another person's meeting?
+
+Do not begin with a `Room` class. First turn the vague prompt into actions whose results both you and the interviewer can predict.
+
+<QuestionGuide />
+
+### Ask questions and record what each answer changes
+
+<QuestionAnswer
+  ask="Which actions must the first version support?"
+  why="Creating, changing, canceling, and recurring meetings are separate workflows. We need a small complete core."
+  answer="An organizer submits one meeting request. The system chooses a room and returns a meeting ID. The same organizer may later cancel it."
+  derived="Provide schedule(request) and cancel(meetingId, organizerId). Rescheduling is cancel followed by a new schedule request."
+/>
+
+<QuestionAnswer
+  ask="What makes a room suitable before we check its calendar?"
+  why="Availability alone is not enough if the room is too small or lacks required equipment."
+  answer="A request contains an attendee count and zero or more required equipment values. A room needs enough capacity and every required item."
+  derived="Room must answer whether capacity >= attendeeCount and room equipment contains all required equipment."
+/>
+
+<QuestionAnswer
+  ask="Who chooses the room, and which suitable room wins?"
+  why="Without an ordering, two correct implementations may return different rooms and tests become unpredictable."
+  answer="The system chooses the smallest suitable available room. If capacities tie, choose the lower room ID. Keep the policy replaceable."
+  derived="Use a RoomSelectionStrategy. The first implementation compares capacity and then room ID after filtering unsuitable or busy rooms."
+/>
+
+<QuestionAnswer
+  ask="Does a meeting from 09:00 to 10:00 block a meeting starting exactly at 10:00?"
+  why="The answer changes the overlap formula and whether back-to-back meetings are possible."
+  answer="No. Treat every slot as [start, end): start is included and end is excluded."
+  derived="Two slots overlap only when first.start < second.end and second.start < first.end. Equal touching boundaries do not overlap."
+/>
+
+<QuestionAnswer
+  ask="What happens when no room satisfies every rule?"
+  why="A failed request must not leave a partial meeting or change a room schedule."
+  answer="Return NO_ROOM_AVAILABLE. Do not create a meeting ID or reserve any room."
+  derived="Perform suitability and availability checks before constructing and recording the Meeting."
+/>
+
+<QuestionAnswer
+  ask="Who may cancel a meeting, and what does cancellation change?"
+  why="Cancellation needs an ownership rule and must remove the exact scheduled interval."
+  answer="Only the organizer may cancel. An unknown ID or wrong organizer is rejected without changing the schedule."
+  derived="Meeting stores organizerId and roomId. cancel finds the meeting, checks ownership, removes it from its Room, and then removes the service index entry."
+/>
+
+<QuestionAnswer
+  ask="Which time-zone, attendee, recurrence, storage, and concurrency rules are in scope?"
+  why="Each of these can turn a focused LLD problem into a calendar or distributed-system design."
+  answer="Use one office time zone and pre-created rooms. Calls reach one in-memory process sequentially. Leave recurring meetings, attendee calendars, persistence, and simultaneous callers for extensions."
+  derived="Use LocalDateTime in the core model. Do not add users, invitations, recurrence engines, databases, or locks to the first implementation."
+/>
+
+### Confirm the specification
+
+<RequirementBox requirements={[
+  "Rooms are pre-created with a unique ID, name, capacity, and equipment set.",
+  "A request contains a title, organizer ID, attendee count, required equipment, start time, and end time.",
+  "A valid time slot uses [start, end): start must be before end, and back-to-back meetings are allowed.",
+  "A room is suitable only when it has enough capacity and all required equipment.",
+  "A room is available only when the requested slot overlaps none of its existing meetings.",
+  "Choose the available suitable room with the smallest capacity; break ties by room ID.",
+  "If no room qualifies, return NO_ROOM_AVAILABLE and change nothing.",
+  "Only the organizer may cancel a known meeting; successful cancellation frees its room and slot."
+]} outOfScope={["Recurring meetings", "Attendee calendars and invitations", "Time-zone conversion", "Room setup or cleanup buffers", "Persistent storage", "Concurrent or multi-server requests", "Notifications and email", "Changing an existing meeting in place"]} />
+
+<Insight title="Requirements are ready when boundary examples have one answer" tone="mint">
+  Read this aloud: “Focus has a meeting from 09:00 to 10:00. A four-person request needs its projector from 10:00 to 10:30.” The room is available because 10:00 belongs to the new slot, not the old one. If the interviewer agrees, the most error-prone time rule is now precise.
+</Insight>
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+Scan the confirmed requirements for nouns: organizer, meeting request, time slot, meeting, room, equipment, calendar, selection rule, and scheduler. These are candidates, not automatic classes. Ask what each one must remember or decide.
+
+<CandidateWalkthrough
+  name="TimeSlot"
+  fromRequirement="Every request has a start and end, back-to-back meetings are allowed, and overlap has one exact rule."
+  question="Do start and end have meaning only as two separate fields, or do they form one concept with its own rule?"
+  reasoning="The values must always be valid together, and many objects need the same overlap calculation. Keeping them separate would repeat the hardest rule."
+  decision="Class"
+>
+  Use an immutable `TimeSlot` record. Its constructor protects `start < end`, and `overlaps` owns the half-open interval formula.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="MeetingRequest"
+  fromRequirement="Scheduling receives a title, organizer, time slot, attendee count, and equipment requirements as one action."
+  question="Should these values travel as many parameters or one meaningful input?"
+  reasoning="They describe one requested meeting and should be validated and passed together. They do not change after submission."
+  decision="Class"
+>
+  Use an immutable `MeetingRequest` record. It describes intent but does not claim that a room has been reserved.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Room"
+  fromRequirement="A room owns capacity, equipment, and the meetings that make it unavailable."
+  question="Which object has all the information required to answer ‘can this request use me?’"
+  reasoning="Room has the fixed suitability facts and its changing schedule. It can check both without exposing or letting callers edit the schedule map."
+  decision="Class"
+>
+  `Room` owns its ordered schedule and the `canHost`, `isAvailable`, `reserve`, and `remove` rules.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Meeting"
+  fromRequirement="A successful schedule action returns an ID and must later reveal the organizer, room, and exact slot for cancellation."
+  question="What stable facts describe an accepted reservation?"
+  reasoning="The assigned room and meeting ID do not exist until selection succeeds. After creation, all meeting facts are a permanent record in this scope."
+  decision="Class"
+>
+  Use an immutable `Meeting` record. It is the accepted result, unlike `MeetingRequest`, which is only a request.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="MeetingScheduler"
+  fromRequirement="The public action must find a room, issue an ID, record the meeting, and coordinate cancellation."
+  question="Who sees all rooms and accepted meeting IDs without taking over each room's overlap rule?"
+  reasoning="No single Room can compare itself with every other room or maintain the global meeting lookup. A coordinator is useful, but it should ask Room instead of reading Room's schedule fields."
+  decision="Class"
+>
+  `MeetingScheduler` is the public entry point. It coordinates selection and indexes accepted meetings; `Room` still owns schedule correctness.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="RoomSelectionStrategy"
+  fromRequirement="The interviewer explicitly asks to keep room choice replaceable while smallest suitable is the current policy."
+  question="Which rule may change while scheduling and cancellation stay the same?"
+  reasoning="ID creation, overlap checking, and cancellation remain stable. Only the comparison among qualified rooms may later prefer location, floor, or equipment cost."
+  decision="Interface"
+>
+  `RoomSelectionStrategy` isolates that one variation. `SmallestSuitableRoomStrategy` is the first implementation.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Equipment and result values"
+  fromRequirement="Equipment and expected outcomes come from small, fixed sets."
+  question="Do these values have changing state or identity?"
+  reasoning="No. Strings permit invalid spellings, while named choices make requirements and failures explicit."
+  decision="Enum"
+>
+  Use enums for `Equipment`, `ScheduleStatus`, and `CancellationStatus`.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Organizer and attendee"
+  fromRequirement="The scheduler compares an organizer ID and counts attendees, but does not manage profiles or invitations."
+  question="What behavior would User or Attendee classes own in this scope?"
+  reasoning="None. We only need one identity string and one count. Creating profile objects would add names without adding rules."
+  decision="Field"
+>
+  Keep `organizerId` and `attendeeCount` as fields. Add user objects only if attendee calendars or invitations become requirements.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Calendar"
+  fromRequirement="The word calendar appears in the physical story, but the confirmed scope only stores meetings per room."
+  question="Would a separate Calendar object own state or behavior that Room does not already own?"
+  reasoning="No. It would wrap the same room schedule and forward every call. The real-world noun does not justify another layer."
+  decision="Leave out"
+>
+  Keep the ordered schedule inside `Room`. Introduce a calendar abstraction only when several calendar types gain different rules.
+</CandidateWalkthrough>
+
+### See one request move through the objects
+
+<ConceptImage
+  src="/images/meeting-room-scheduler-entity-flow.png"
+  alt="An organizer sends a time request to MeetingScheduler, which asks RoomSelectionStrategy to check Room capacity, equipment, schedule, and TimeSlot before creating a Meeting and returning a result"
+  caption="The strategy compares rooms, but each Room owns the final answer about its suitability and schedule."
+  width={1774}
+  height={887}
+  mobileScrollable={true}
+/>
+
+Read the arrows from left to right. The **Organizer** submits a request to **MeetingScheduler**. The scheduler asks **RoomSelectionStrategy** to compare rooms. The strategy calls each **Room**, and Room uses its capacity, equipment, ordered meetings, and the requested **TimeSlot**. The chosen Room reserves the slot, which allows the scheduler to create a **Meeting**. If no Room qualifies, the same path returns a rejection and no Meeting is created.
+
+The boundary matters: the strategy may *choose* a Room, but it cannot write into that Room's schedule. `Room.reserve` repeats the availability check and owns the state change.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+Move from the entities into methods using the same chain:
+
+> requirement → responsible object → state it remembers → method that changes or reads that state
+
+Start at `MeetingScheduler.schedule` because that is the caller-visible action. Then follow its questions downward: which rooms qualify, and how does one Room know that its time is free?
+
+### Derive the coordinating workflow
+
+“Choose among all rooms” creates a room list and Strategy. “Cancel by meeting ID” creates the global meeting index. “Do not create an ID on rejection” determines when the sequence advances: only after a room is selected.
+
+<DerivationTable rows={[
+  ["Accept one scheduling action", "MeetingScheduler", "schedule(MeetingRequest)"],
+  ["Compare all configured rooms", "MeetingScheduler", "List<Room> rooms"],
+  ["Keep room choice replaceable", "MeetingScheduler", "RoomSelectionStrategy strategy"],
+  ["Return unique accepted meeting IDs", "MeetingScheduler", "nextMeetingNumber"],
+  ["Cancel by meeting ID", "MeetingScheduler", "meetingsById and cancel(...)"],
+  ["Reject a different organizer", "MeetingScheduler", "compare Meeting.organizerId before removal"]
+]} />
+
+### Derive the room's state and methods
+
+The room owns the information used by every local rule. Capacity and equipment decide suitability. Existing meetings decide availability. A `TreeMap` orders meetings by start time, which lets Room check only the neighbouring entries instead of scanning its complete day.
+
+<DerivationTable rows={[
+  ["Check attendee capacity", "Room", "capacity and canHost(request)"],
+  ["Check every equipment requirement", "Room", "Set<Equipment> equipment"],
+  ["Keep meetings ordered by start", "Room", "TreeMap<LocalDateTime, Meeting> schedule"],
+  ["Prevent time conflicts", "Room", "isAvailable(TimeSlot)"],
+  ["Change state only after validation", "Room", "reserve(Meeting)"],
+  ["Free the exact accepted interval", "Room", "remove(Meeting)"],
+  ["Expose schedule safely", "Room", "meetings() returns an immutable list"]
+]} />
+
+### Scheduling concept: half-open intervals
+
+Write a time slot as `[start, end)`. The square bracket means the start belongs to the meeting. The round bracket means the end does not.
+
+For a meeting `[09:00, 10:00)`, the occupied times include 09:00 and 09:59, but not 10:00. Therefore `[10:00, 10:30)` can begin immediately.
+
+Two slots overlap only when both statements are true:
+
+```text
+first.start < second.end
+second.start < first.end
+```
+
+Why use two comparisons? Consider `[09:00, 10:00)` and `[10:00, 10:30)`:
+
+- `09:00 < 10:30` is true.
+- `10:00 < 10:00` is false.
+- Both are not true, so the slots do not overlap.
+
+Using `<=` would wrongly reject every back-to-back meeting. That one character is a common interview bug.
+
+<ScenarioTrace steps={[
+  "Focus contains [09:00, 10:00).",
+  "A request asks for [10:00, 10:30).",
+  "Existing start 09:00 is before requested end 10:30.",
+  "Requested start 10:00 is not before existing end 10:00.",
+  "The slots only touch, so Focus is available."
+]} />
+
+### Why an ordered schedule needs only two neighbour checks
+
+`Room` stores accepted meetings in a `TreeMap` keyed by start time. A TreeMap keeps keys sorted and can quickly find the closest entry before or after a requested start.
+
+Suppose the schedule is:
+
+```text
+[08:30, 09:00)   [09:00, 10:00)   [10:30, 11:00)
+```
+
+For a new `[10:00, 10:30)` slot:
+
+1. `floorEntry(10:00)` returns `[09:00, 10:00)`, the closest meeting starting at or before 10:00.
+2. It touches but does not overlap.
+3. `ceilingEntry(10:00)` returns `[10:30, 11:00)`, the closest meeting starting at or after 10:00.
+4. It also touches but does not overlap.
+5. No more distant meeting can overlap without crossing one of those neighbours.
+
+This last step depends on an **invariant**: a promise the object always keeps. Room never stores overlapping meetings. Because existing entries do not overlap, checking the predecessor and successor is sufficient.
+
+If one room has `M` meetings, each neighbour lookup costs `O(log M)`. Checking `R` rooms costs `O(R log M)` in the simplified worst case, and inserting the accepted meeting costs another `O(log M)`. Total space is `O(R + N)` for rooms and all `N` accepted meetings.
+
+<Insight title="The data structure is useful because Room protects its invariant" tone="warning">
+  A TreeMap alone does not prevent overlap. Correctness comes from allowing schedule changes only through `Room.reserve`, which checks the neighbours before inserting. Exposing the map would let callers break the assumption that makes the fast check valid.
+</Insight>
+
+### Understand deterministic room selection
+
+The strategy filters in this order:
+
+1. Enough capacity.
+2. Every required equipment item.
+3. No overlapping meeting.
+4. Among survivors, lower capacity wins.
+5. If capacity ties, lower room ID wins.
+
+For four people needing a projector, a free 4-seat room beats a free 10-seat room. This preserves the large room for a later request that may actually need it. The ID comparison is not a business optimization; it makes equal cases predictable.
+
+### Decide whether patterns help
+
+<PatternDecision name="Strategy for room selection" useIt={true}>
+  The requirement explicitly says selection may change. `RoomSelectionStrategy.select(rooms, request)` is the boundary. `SmallestSuitableRoomStrategy` implements today's capacity-and-ID rule. A future nearest-floor strategy can replace it without changing interval checks, meeting creation, or cancellation.
+</PatternDecision>
+
+<PatternDecision name="Observer for invitations" useIt={false}>
+  The first version sends no invitations or notifications. There are no listeners to notify. Add Observer-like event handling only when a confirmed requirement introduces several reactions to a successful schedule or cancellation.
+</PatternDecision>
+
+<PatternDecision name="Singleton MeetingScheduler" useIt={false}>
+  A global instance does not prevent conflicts across servers and makes tests share mutable state. Normal construction keeps rooms and strategy explicit.
+</PatternDecision>
+
+<PatternDecision name="Factory for Meeting" useIt={false}>
+  Meeting construction is one visible record constructor after room selection. A factory would hide simple values without solving a creation rule. Add one only if creation later needs several meeting types or external configuration.
+</PatternDecision>
+
+### Prove the scheduling rule interactively
+
+The default request starts exactly when Focus becomes free. Schedule it to prove the half-open boundary. Then load the overlap edge to see every room's rejection reason, or the capacity edge to see why Atlas is the only candidate.
+
+<MeetingRoomSchedulerSimulator />
+
+<h2 id="implementation">4. Java implementation (~10 minutes)</h2>
+
+<ImplementationGuide
+  what="This Java 17 program models room capacity and equipment, half-open time slots, ordered per-room schedules, deterministic smallest-room selection, accepted meetings, and owner-only cancellation."
+  why="TimeSlot owns interval math. Room owns schedule correctness. Strategy compares qualified rooms. MeetingScheduler coordinates IDs and cancellation without reaching into a Room's private schedule."
+  flow={[
+    "MeetingScheduler receives one immutable MeetingRequest.",
+    "SmallestSuitableRoomStrategy asks every Room whether it can host the request.",
+    "Room checks capacity, equipment, and the two neighbouring schedule entries.",
+    "The strategy selects the smallest capacity, then the lowest room ID.",
+    "Room.reserve repeats validation and inserts the Meeting into its TreeMap.",
+    "MeetingScheduler records the accepted Meeting by ID and returns it."
+  ]}
+/>
+
+### Code concepts to understand
+
+<ConceptDropdown title="Half-open TimeSlot" summary="One value object keeps boundary behavior identical everywhere." defaultOpen={true}>
+  `TimeSlot.overlaps` uses two strict `isBefore` comparisons. Strict comparisons make equal end and start times non-overlapping. The constructor rejects an end that is equal to or before the start, so every created TimeSlot is meaningful.
+</ConceptDropdown>
+
+<ConceptDropdown title="TreeMap predecessor and successor" summary="An ordered, non-overlapping schedule avoids scanning every meeting.">
+  `floorEntry(request.start)` finds the closest existing start at or before the request. `ceilingEntry(request.start)` finds the closest at or after it. Room checks both with the same `TimeSlot.overlaps` method. This is correct because `reserve` never permits existing meetings to overlap.
+</ConceptDropdown>
+
+<ConceptDropdown title="Immutable request and result records" summary="Requested values and accepted facts cannot be edited behind the scheduler's back.">
+  `MeetingRequest`, `TimeSlot`, and `Meeting` are records. Their constructors copy equipment sets, so a caller cannot modify the original Set after construction and silently change the request or meeting.
+</ConceptDropdown>
+
+<ConceptDropdown title="Validation before state change" summary="A rejection leaves every room exactly as it was.">
+  Strategy checks all qualifications before a Meeting exists. `Room.reserve` checks again before `TreeMap.put`. MeetingScheduler adds the global index only after reserve succeeds. Cancellation checks existence and ownership before removing from either place.
+</ConceptDropdown>
+
+<ConceptDropdown title="Strategy call flow" summary="The pattern isolates only the rule that actually varies.">
+  MeetingScheduler calls `strategy.select(rooms, request)`. The strategy does not inspect private maps; it calls `room.canHost(request)`. The returned Room still performs `reserve`. Selection and ownership of schedule state remain separate.
+</ConceptDropdown>
+
+### Start with the fixed values and interval object
+
+Read `TimeSlot` first. Every later availability decision depends on its boundary rule. Then read the two immutable records that distinguish a requested meeting from an accepted one.
+
+<JavaFile name="Equipment.java" purpose="Names the equipment values supported by the first version.">
+{`public enum Equipment {
+    PROJECTOR,
+    WHITEBOARD,
+    VIDEO
+}`}
+</JavaFile>
+
+<JavaFile name="TimeSlot.java" purpose="Validates and compares half-open [start, end) intervals.">
+{`import java.time.LocalDateTime;
+
+public record TimeSlot(LocalDateTime start, LocalDateTime end) {
+    public TimeSlot {
+        if (start == null || end == null) {
+            throw new IllegalArgumentException("Start and end are required");
+        }
+        if (!start.isBefore(end)) {
+            throw new IllegalArgumentException("Start must be before end");
+        }
+    }
+
+    public boolean overlaps(TimeSlot other) {
+        if (other == null) {
+            throw new IllegalArgumentException("Other slot is required");
+        }
+        return start.isBefore(other.end)
+                && other.start.isBefore(end);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="MeetingRequest.java" purpose="Carries and validates one organizer's requested meeting.">
+{`import java.util.Set;
+
+public record MeetingRequest(
+        String title,
+        String organizerId,
+        TimeSlot slot,
+        int attendeeCount,
+        Set<Equipment> requiredEquipment
+) {
+    public MeetingRequest {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+        if (organizerId == null || organizerId.isBlank()) {
+            throw new IllegalArgumentException("Organizer is required");
+        }
+        if (slot == null || attendeeCount <= 0 || requiredEquipment == null) {
+            throw new IllegalArgumentException("Valid slot, attendees, and equipment are required");
+        }
+        requiredEquipment = Set.copyOf(requiredEquipment);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Meeting.java" purpose="Stores the immutable facts of one accepted room reservation.">
+{`import java.util.Set;
+
+public record Meeting(
+        String id,
+        String title,
+        String organizerId,
+        String roomId,
+        TimeSlot slot,
+        int attendeeCount,
+        Set<Equipment> requiredEquipment
+) {
+    public Meeting {
+        if (id == null || id.isBlank()
+                || title == null || title.isBlank()
+                || organizerId == null || organizerId.isBlank()
+                || roomId == null || roomId.isBlank()) {
+            throw new IllegalArgumentException("Meeting identity fields are required");
+        }
+        if (slot == null || attendeeCount <= 0 || requiredEquipment == null) {
+            throw new IllegalArgumentException("Valid slot, attendees, and equipment are required");
+        }
+        requiredEquipment = Set.copyOf(requiredEquipment);
+    }
+}`}
+</JavaFile>
+
+### Add clear result types
+
+Expected scheduling and cancellation failures are normal outcomes, not programming exceptions. These enums let a caller distinguish “no room” from “wrong organizer” without parsing text.
+
+<JavaFile name="ScheduleStatus.java" purpose="Names the accepted and rejected schedule outcomes.">
+{`public enum ScheduleStatus {
+    SCHEDULED,
+    NO_ROOM_AVAILABLE
+}`}
+</JavaFile>
+
+<JavaFile name="CancellationStatus.java" purpose="Names every expected cancellation outcome.">
+{`public enum CancellationStatus {
+    CANCELED,
+    MEETING_NOT_FOUND,
+    NOT_ORGANIZER
+}`}
+</JavaFile>
+
+<JavaFile name="ScheduleResult.java" purpose="Carries a status and the accepted Meeting when scheduling succeeds.">
+{`import java.util.Optional;
+
+public record ScheduleResult(
+        ScheduleStatus status,
+        Optional<Meeting> meeting
+) {
+    public ScheduleResult {
+        if (status == null || meeting == null) {
+            throw new IllegalArgumentException("Result fields are required");
+        }
+    }
+
+    public static ScheduleResult accepted(Meeting meeting) {
+        return new ScheduleResult(
+                ScheduleStatus.SCHEDULED,
+                Optional.of(meeting)
+        );
+    }
+
+    public static ScheduleResult rejected() {
+        return new ScheduleResult(
+                ScheduleStatus.NO_ROOM_AVAILABLE,
+                Optional.empty()
+        );
+    }
+}`}
+</JavaFile>
+
+### Let Room protect the ordered schedule
+
+Read `isAvailable` before `reserve`. The first method explains the neighbour algorithm; the second shows how the state change remains behind the same validation boundary.
+
+<JavaFile name="Room.java" purpose="Owns suitability facts, ordered meetings, overlap checks, reservation, and removal.">
+{`import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+public final class Room {
+    private final String id;
+    private final String name;
+    private final int capacity;
+    private final Set<Equipment> equipment;
+    private final TreeMap<LocalDateTime, Meeting> schedule = new TreeMap<>();
+
+    public Room(String id, String name, int capacity, Set<Equipment> equipment) {
+        if (id == null || id.isBlank() || name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Room id and name are required");
+        }
+        if (capacity <= 0 || equipment == null) {
+            throw new IllegalArgumentException("Valid capacity and equipment are required");
+        }
+        this.id = id;
+        this.name = name;
+        this.capacity = capacity;
+        this.equipment = Set.copyOf(equipment);
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public int capacity() {
+        return capacity;
+    }
+
+    public Set<Equipment> equipment() {
+        return equipment;
+    }
+
+    public boolean canHost(MeetingRequest request) {
+        return capacity >= request.attendeeCount()
+                && equipment.containsAll(request.requiredEquipment())
+                && isAvailable(request.slot());
+    }
+
+    public boolean isAvailable(TimeSlot requested) {
+        Map.Entry<LocalDateTime, Meeting> previous =
+                schedule.floorEntry(requested.start());
+        if (previous != null && previous.getValue().slot().overlaps(requested)) {
+            return false;
+        }
+
+        Map.Entry<LocalDateTime, Meeting> next =
+                schedule.ceilingEntry(requested.start());
+        return next == null || !next.getValue().slot().overlaps(requested);
+    }
+
+    public boolean reserve(Meeting meeting) {
+        if (!id.equals(meeting.roomId())
+                || capacity < meeting.attendeeCount()
+                || !equipment.containsAll(meeting.requiredEquipment())
+                || !isAvailable(meeting.slot())) {
+            return false;
+        }
+        schedule.put(meeting.slot().start(), meeting);
+        return true;
+    }
+
+    public boolean remove(Meeting meeting) {
+        if (meeting == null || !id.equals(meeting.roomId())) {
+            return false;
+        }
+        return schedule.remove(meeting.slot().start(), meeting);
+    }
+
+    public List<Meeting> meetings() {
+        return List.copyOf(schedule.values());
+    }
+}`}
+</JavaFile>
+
+### Isolate the selection rule
+
+The interface is deliberately small. Its implementation filters by `Room.canHost` and uses `min`, so it does not need to sort every qualified room.
+
+<JavaFile name="RoomSelectionStrategy.java" purpose="Defines the one room-choice behavior allowed to vary.">
+{`import java.util.List;
+import java.util.Optional;
+
+public interface RoomSelectionStrategy {
+    Optional<Room> select(List<Room> rooms, MeetingRequest request);
+}`}
+</JavaFile>
+
+<JavaFile name="SmallestSuitableRoomStrategy.java" purpose="Chooses the smallest qualified room, then the lowest room ID.">
+{`import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+
+public final class SmallestSuitableRoomStrategy
+        implements RoomSelectionStrategy {
+
+    @Override
+    public Optional<Room> select(
+            List<Room> rooms,
+            MeetingRequest request
+    ) {
+        return rooms.stream()
+                .filter(room -> room.canHost(request))
+                .min(Comparator.comparingInt(Room::capacity)
+                        .thenComparing(Room::id));
+    }
+}`}
+</JavaFile>
+
+### Finish with the coordinator and demo
+
+`MeetingScheduler.schedule` orders the complete workflow. `cancel` deliberately checks everything before the first removal, so an unknown ID or wrong organizer changes neither the Room nor the global index.
+
+<JavaFile name="MeetingScheduler.java" purpose="Coordinates room selection, accepted IDs, meeting lookup, and owner-only cancellation.">
+{`import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+public final class MeetingScheduler {
+    private final List<Room> rooms;
+    private final Map<String, Room> roomsById;
+    private final Map<String, Meeting> meetingsById = new LinkedHashMap<>();
+    private final RoomSelectionStrategy strategy;
+    private int nextMeetingNumber = 1;
+
+    public MeetingScheduler(
+            List<Room> rooms,
+            RoomSelectionStrategy strategy
+    ) {
+        if (rooms == null || rooms.isEmpty() || strategy == null) {
+            throw new IllegalArgumentException("Rooms and strategy are required");
+        }
+        this.rooms = List.copyOf(rooms);
+        this.strategy = strategy;
+        this.roomsById = new LinkedHashMap<>();
+        for (Room room : rooms) {
+            if (roomsById.putIfAbsent(room.id(), room) != null) {
+                throw new IllegalArgumentException("Duplicate room: " + room.id());
+            }
+        }
+    }
+
+    public ScheduleResult schedule(MeetingRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request is required");
+        }
+
+        Optional<Room> selected = strategy.select(rooms, request);
+        if (selected.isEmpty()) {
+            return ScheduleResult.rejected();
+        }
+
+        Room room = selected.get();
+        String meetingId = "M" + nextMeetingNumber;
+        Meeting meeting = new Meeting(
+                meetingId,
+                request.title(),
+                request.organizerId(),
+                room.id(),
+                request.slot(),
+                request.attendeeCount(),
+                request.requiredEquipment()
+        );
+
+        if (!room.reserve(meeting)) {
+            return ScheduleResult.rejected();
+        }
+        nextMeetingNumber++;
+        meetingsById.put(meeting.id(), meeting);
+        return ScheduleResult.accepted(meeting);
+    }
+
+    public CancellationStatus cancel(
+            String meetingId,
+            String organizerId
+    ) {
+        Meeting meeting = meetingsById.get(meetingId);
+        if (meeting == null) {
+            return CancellationStatus.MEETING_NOT_FOUND;
+        }
+        if (!meeting.organizerId().equals(organizerId)) {
+            return CancellationStatus.NOT_ORGANIZER;
+        }
+
+        Room room = roomsById.get(meeting.roomId());
+        if (!room.remove(meeting)) {
+            throw new IllegalStateException("Meeting index and room disagree");
+        }
+        meetingsById.remove(meetingId);
+        return CancellationStatus.CANCELED;
+    }
+
+    public List<Meeting> meetingsForRoom(String roomId) {
+        Room room = roomsById.get(roomId);
+        return room == null ? List.of() : room.meetings();
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="MeetingRoomSchedulerDemo.java" purpose="Exercises boundaries, fallback selection, rejection, cancellation, and reuse.">
+{`import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Set;
+
+public final class MeetingRoomSchedulerDemo {
+    public static void main(String[] args) {
+        LocalDate day = LocalDate.of(2026, 8, 14);
+        MeetingScheduler scheduler = sampleScheduler();
+
+        TimeSlot firstSlot = slot(day, 9, 0, 10, 0);
+        TimeSlot touchingSlot = slot(day, 10, 0, 10, 30);
+        System.out.println("back-to-back overlap: "
+                + firstSlot.overlaps(touchingSlot));
+
+        ScheduleResult first = scheduler.schedule(request(
+                "Daily sync", "organizer-a", firstSlot, 4
+        ));
+        System.out.println("first room: "
+                + first.meeting().orElseThrow().roomId());
+
+        ScheduleResult touching = scheduler.schedule(request(
+                "Design review", "organizer-b", touchingSlot, 4
+        ));
+        System.out.println("back-to-back room: "
+                + touching.meeting().orElseThrow().roomId());
+
+        ScheduleResult fallback = scheduler.schedule(request(
+                "Interview", "organizer-c", slot(day, 9, 30, 10, 0), 4
+        ));
+        System.out.println("conflict fallback room: "
+                + fallback.meeting().orElseThrow().roomId());
+
+        ScheduleResult rejected = scheduler.schedule(request(
+                "Urgent review", "organizer-d", slot(day, 9, 45, 10, 0), 4
+        ));
+        System.out.println("fully occupied: " + rejected.status());
+
+        String firstId = first.meeting().orElseThrow().id();
+        System.out.println("wrong cancellation: "
+                + scheduler.cancel(firstId, "organizer-b"));
+        System.out.println("owner cancellation: "
+                + scheduler.cancel(firstId, "organizer-a"));
+
+        ScheduleResult reopened = scheduler.schedule(request(
+                "Replacement", "organizer-e", slot(day, 9, 0, 9, 30), 4
+        ));
+        System.out.println("reopened room: "
+                + reopened.meeting().orElseThrow().roomId());
+    }
+
+    private static MeetingScheduler sampleScheduler() {
+        Room focus = new Room(
+                "R1", "Focus", 4,
+                Set.of(Equipment.PROJECTOR, Equipment.WHITEBOARD)
+        );
+        Room cedar = new Room(
+                "R2", "Cedar", 6,
+                Set.of(Equipment.WHITEBOARD)
+        );
+        Room atlas = new Room(
+                "R3", "Atlas", 10,
+                Set.of(
+                        Equipment.PROJECTOR,
+                        Equipment.WHITEBOARD,
+                        Equipment.VIDEO
+                )
+        );
+        return new MeetingScheduler(
+                List.of(focus, cedar, atlas),
+                new SmallestSuitableRoomStrategy()
+        );
+    }
+
+    private static MeetingRequest request(
+            String title,
+            String organizer,
+            TimeSlot slot,
+            int attendees
+    ) {
+        return new MeetingRequest(
+                title,
+                organizer,
+                slot,
+                attendees,
+                Set.of(Equipment.PROJECTOR)
+        );
+    }
+
+    private static TimeSlot slot(
+            LocalDate day,
+            int startHour,
+            int startMinute,
+            int endHour,
+            int endMinute
+    ) {
+        return new TimeSlot(
+                LocalDateTime.of(day, LocalTime.of(startHour, startMinute)),
+                LocalDateTime.of(day, LocalTime.of(endHour, endMinute))
+        );
+    }
+}`}
+</JavaFile>
+
+### Trace the compiled behavior
+
+<ScenarioTrace steps={[
+  "The first [09:00, 10:00) request needs four seats and a projector. Focus is the smallest qualified room, so M1 is inserted there.",
+  "The [10:00, 10:30) request touches M1's end but does not overlap. Focus is selected again.",
+  "A [09:30, 10:00) request conflicts in Focus. Cedar lacks a projector, so Atlas becomes the valid fallback.",
+  "A [09:45, 10:00) request now conflicts in Focus and Atlas while Cedar is unsuitable. It returns NO_ROOM_AVAILABLE and creates no ID.",
+  "A different organizer tries to cancel M1. The scheduler returns NOT_ORGANIZER and both indexes stay unchanged.",
+  "The real organizer cancels M1. Room.remove frees [09:00, 10:00), and a replacement request chooses Focus again."
+]} />
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+Each follow-up begins by changing one requirement, then changing the smallest responsible boundary.
+
+### Add room setup and cleanup buffers
+
+If every meeting needs ten minutes of preparation, the requested interval used for conflict checking expands before selection. `TimeSlot` can expose a buffered copy, while the Meeting still stores the visible start and end. Clarify whether back-to-back meetings are still allowed before changing the formula.
+
+### Add recurring meetings
+
+A recurring request is not one Meeting. Add a recurrence rule that expands into a finite set of TimeSlots for a stated date range. Scheduling must validate **all** occurrences before reserving any, or roll back earlier inserts if a later date fails. Do not store “forever” recurrence without a boundary.
+
+### Add attendee calendars
+
+The new requirement creates an Attendee calendar owner. Room availability and person availability become separate checks. MeetingScheduler coordinates both, but each calendar should still own its own overlap rule. Invitations and response states enter only if the interviewer asks for them.
+
+### Handle simultaneous requests
+
+The current check-then-reserve flow assumes sequential calls. In one Java process, `Room.reserve` could protect its neighbour check and insert with a lock. Across application servers, use a shared database transaction or constraint. A Strategy result alone is never a distributed reservation guarantee.
+
+### Search a large organization efficiently
+
+With thousands of rooms, first index fixed properties such as building, capacity, and equipment. The scheduler retrieves a smaller candidate set, then checks each candidate's ordered schedule. Keep the exact capacity and room-ID tie-breakers so the result remains deterministic.
+
+<Insight title="A strong spoken interview explanation" tone="mint">
+  “I treat every meeting as a half-open interval, so touching boundaries are allowed. Each Room owns a non-overlapping TreeMap schedule and checks only the predecessor and successor before insertion. A Strategy chooses the smallest qualified room, while MeetingScheduler handles IDs and owner-only cancellation. This version is sequential and in memory; concurrency or recurrence would change the boundary explicitly.”
+</Insight>

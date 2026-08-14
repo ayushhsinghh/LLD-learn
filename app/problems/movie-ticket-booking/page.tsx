@@ -16,5 +16,5 @@ const toc = [
 ];
 
 export default function MovieTicketBookingPage() {
-  return <LessonShell title="Movie Ticket Booking" eyebrow="Problem 04 · Complete walkthrough" difficulty="Intermediate" duration="50 min" toc={toc} previous={{ href: "/problems/parking-lot/", label: "Parking Lot" }}><MovieTicketBookingLesson /></LessonShell>;
+  return <LessonShell title="Movie Ticket Booking" eyebrow="Problem 04 · Complete walkthrough" difficulty="Intermediate" duration="50 min" toc={toc} previous={{ href: "/problems/parking-lot/", label: "Parking Lot" }} next={{ href: "/problems/meeting-room-scheduler/", label: "Meeting Room Scheduler" }}><MovieTicketBookingLesson /></LessonShell>;
 }
