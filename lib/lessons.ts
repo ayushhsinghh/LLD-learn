@@ -54,6 +54,15 @@ export const lessons: Lesson[] = [
     summary: "Turn time ranges into precise interval rules, choose the smallest suitable available room, and test the design with complete Java and an interactive schedule.",
     accent: "#7fc7ae",
   },
+  {
+    slug: "splitwise",
+    title: "Splitwise",
+    eyebrow: "Complete walkthrough",
+    difficulty: "Intermediate",
+    duration: "50 min",
+    summary: "Turn shared bills into exact split rules, net pairwise debts safely, and simplify repayments with complete Java and an interactive expense lab.",
+    accent: "#8fb8d0",
+  },
 ];
 
 export const lessonHref = (slug: string) => `/problems/${slug}/`;

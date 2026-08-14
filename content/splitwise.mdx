@@ -1,0 +1,1001 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { SplitwiseSimulator } from "@/components/simulations/splitwise-simulator"
+
+<Lead>Design a shared-expense system that records who paid, calculates each person's fair share, shows who owes whom, and helps a group settle with fewer payments.</Lead>
+
+<ConceptImage
+  src="/images/splitwise-overview.png"
+  alt="Ava pays a 120 dollar restaurant bill for Ava, Ben, and Cara, Ben pays a 60 dollar taxi bill for Ben and Cara, and their final net amounts show Ben owing Ava 10 dollars and Cara owing Ava 70 dollars"
+  caption="Two bills create several debts, but the final question is simple: after every person's paid amount and fair share are combined, who should pay whom?"
+  width={1536}
+  height={1024}
+  eager={true}
+/>
+
+<FrameworkMap />
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The interview prompt is often only:
+
+> “Design Splitwise.”
+
+That sentence does not yet tell us what to build. Does one person pay the complete bill? Are unequal shares allowed? Should `33.33% + 33.33% + 33.34%` be supported? Does “simplify” change old expenses? What happens when an invalid split is submitted?
+
+Do not begin by drawing `User`, `Expense`, and `Group`. First make the money rules exact enough that two interviewers would calculate the same answer.
+
+<QuestionGuide />
+
+### Ask questions and record what each answer changes
+
+<QuestionAnswer
+  ask="Which actions must the first version support?"
+  why="Recording bills, editing history, sending money, and tracking bank payments are different workflows."
+  answer="Pre-created users in one group can record an expense, view pairwise balances, view a simplified payment plan, and settle a direct debt fully."
+  derived="Provide recordExpense(...), balances(), simplifiedDebts(), and settle(debtorId, creditorId, amount). Leave editing and real payment processing out."
+/>
+
+<QuestionAnswer
+  ask="Who pays an expense, and who shares it?"
+  why="The payer and the participants are not the same idea. A parent may pay for others without taking a share."
+  answer="One registered user pays the complete expense. One or more registered participants receive shares; the payer may or may not be among them."
+  derived="Expense stores one payerId and a participant-to-share map. Every participant except the payer owes their share to the payer."
+/>
+
+<QuestionAnswer
+  ask="Which split rules are required?"
+  why="Equal, exact, and percentage splits need different inputs and validation."
+  answer="Support EQUAL, EXACT, and PERCENTAGE. Exact amounts must total the bill. Percentages use basis points and must total 10,000 basis points, which means 100%."
+  derived="Create one SplitStrategy implementation per rule. Every strategy returns shares whose cents add exactly to the expense total."
+/>
+
+<QuestionAnswer
+  ask="How should fractions of one cent be handled?"
+  why="A $10 bill divided by three cannot produce three identical whole-cent values. Silently dropping a cent corrupts the ledger."
+  answer="Store money as integer cents. Allocate leftover cents deterministically: for equal splits use sorted user IDs; for percentage splits use the largest fractional remainder, then user ID."
+  derived="$10.00 split equally becomes $3.34, $3.33, and $3.33 in sorted user-ID order, and every calculation still totals $10.00."
+/>
+
+<QuestionAnswer
+  ask="If Ava owes Ben $30 and a later expense makes Ben owe Ava $50, what should the balance show?"
+  why="Keeping both directions makes balances noisy and makes settlement harder to understand."
+  answer="Net debt between the same pair immediately. The result is one direction only: Ava is owed $20 by Ben."
+  derived="BalanceSheet stores one signed value for each unordered user pair and removes the entry when the value becomes zero."
+/>
+
+<QuestionAnswer
+  ask="What does simplifying debts mean?"
+  why="Pairwise history and the smallest-looking repayment plan answer different questions."
+  answer="Keep the accepted Expense history and pairwise BalanceSheet unchanged. Compute a separate suggested plan that preserves each user's net position and usually uses fewer payments."
+  derived="DebtSimplifier reads current debts, calculates each user's net amount, and returns deterministic suggestions without mutating expenses or balances."
+/>
+
+<QuestionAnswer
+  ask="What happens when an amount, user, exact split, or percentage split is invalid?"
+  why="A rejected expense must not leave half of its debts in the ledger."
+  answer="Return a clear rejected result. Do not create an expense ID, append history, or change any balance."
+  derived="Validate users and calculate every share before constructing Expense or calling BalanceSheet.addDebt."
+/>
+
+<QuestionAnswer
+  ask="Which currency, group, storage, notification, and concurrency rules are in scope?"
+  why="These choices can expand one object-design exercise into accounting or distributed systems."
+  answer="Use one pre-created group, USD only, and sequential calls in one in-memory process. Leave persistence, exchange rates, notifications, and simultaneous writers for extensions."
+  derived="Money stores cents without a currency field in this version. Do not add repositories, APIs, locks, or payment-gateway objects."
+/>
+
+### Confirm the specification
+
+<RequirementBox requirements={[
+  "Users are pre-created with unique IDs; the first version handles one group and USD only.",
+  "One registered payer records a positive expense for one or more registered participants.",
+  "EQUAL splits divide cents evenly and give leftover cents to sorted user IDs.",
+  "EXACT shares must be positive and add to the expense total.",
+  "PERCENTAGE shares use positive basis points totaling 10,000 and allocate rounding cents deterministically.",
+  "Every participant except the payer owes their calculated share to the payer.",
+  "Opposite debts between the same pair cancel, so only one direction remains.",
+  "Invalid input returns a clear status and changes neither expense history nor balances.",
+  "The system can return pairwise balances and a non-mutating simplified payment plan.",
+  "A direct debt may be partially or fully settled, but a user cannot settle more than is owed."
+]} outOfScope={["Multiple groups and group membership changes", "Multiple currencies and exchange rates", "Receipt images", "Editing or deleting accepted expenses", "Recurring expenses", "Real bank or card payments", "Persistent storage and APIs", "Notifications", "Concurrent or multi-server writes", "Globally minimal number of settlements"]} />
+
+<Insight title="Requirements are ready when every cent has one owner" tone="mint">
+  Read this example back: “Ava pays $10.00 for Ava, Ben, and Cara equally.” The shares are $3.34, $3.33, and $3.33 in sorted ID order. Ben owes Ava $3.33 and Cara owes Ava $3.33. If the interviewer agrees, both the rounding rule and the ledger change are now testable.
+</Insight>
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+Extract the nouns from the confirmed requirements: user, group, payer, participant, money, expense, split type, split rule, balance, debt, settlement, and receipt. A noun is only a candidate. It deserves a class when it owns meaningful state or an important rule.
+
+<CandidateWalkthrough
+  name="Money"
+  fromRequirement="Every accepted share must use whole cents and all shares must add to the bill."
+  question="Is an amount only a long, or does it have a rule that must be true everywhere?"
+  reasoning="Negative expense and debt amounts are invalid in this scope. A Money value keeps that rule beside cents and avoids floating-point values such as 9.999999."
+  decision="Class"
+>
+  Use an immutable `Money` record containing non-negative `long cents`. Split strategies perform integer arithmetic and return Money values.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="User"
+  fromRequirement="Payers, participants, debtors, and creditors must all be registered users."
+  question="What stable identity is reused across expenses and balances?"
+  reasoning="Names may be duplicated or changed, but a user ID must remain stable. The first version does not need profiles or contact behavior."
+  decision="Class"
+>
+  `User` is a small immutable record with `id` and `name`. Other objects store the stable ID rather than copying a mutable profile.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Expense"
+  fromRequirement="An accepted bill must remember who paid, the total, the chosen split rule, and every final share."
+  question="Which facts must remain together so history can explain a balance?"
+  reasoning="The calculated shares are part of the accepted fact. Re-running a future version of the strategy must not change an old bill."
+  decision="Class"
+>
+  Use an immutable `Expense`. It stores the final share map, not only the inputs used to calculate it.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="SplitStrategy"
+  fromRequirement="Equal, exact, and percentage splits use different calculations but produce the same kind of share map."
+  question="Which behavior changes while expense recording and balance updates remain the same?"
+  reasoning="Only share calculation varies. ExpenseService should not contain a growing switch with three unrelated algorithms."
+  decision="Interface"
+>
+  `SplitStrategy.calculate` is the common boundary. Equal, exact, and percentage implementations each validate their own inputs.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="BalanceSheet"
+  fromRequirement="Opposite debts between a pair must cancel and settlement must change only that pair."
+  question="Which object owns the current pairwise debt and therefore has enough information to net it safely?"
+  reasoning="Expense knows one historical bill, but not all earlier bills. BalanceSheet sees the current signed amount for every pair and protects the one-direction invariant."
+  decision="Class"
+>
+  `BalanceSheet` owns a private map keyed by an unordered pair. It exposes Debt values, not its mutable map.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Debt"
+  fromRequirement="Callers need a readable current balance with one debtor, one creditor, and one positive amount."
+  question="Should callers interpret the private signed map, or receive one meaningful value?"
+  reasoning="The signed pair is an internal storage choice. A Debt gives direction a clear name and keeps the private representation from leaking into the rest of the design."
+  decision="Class"
+>
+  Use an immutable `Debt` record as a snapshot returned by BalanceSheet and DebtSimplifier. It does not own ledger mutation.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Split type and result values"
+  fromRequirement="Callers choose one supported split rule and need clear accepted or rejected outcomes."
+  question="Do these values need identity or changing behavior?"
+  reasoning="No. Each comes from a small fixed set, so free-form strings would only permit invalid spellings and unclear failure handling."
+  decision="Enum"
+>
+  Use enums for `SplitType`, `ExpenseStatus`, and `SettlementStatus`.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="DebtSimplifier"
+  fromRequirement="The simplified plan must preserve net positions without rewriting BalanceSheet or Expense history."
+  question="Should BalanceSheet mutate itself into the suggested plan?"
+  reasoning="No. Pairwise balances explain real accepted bills; suggestions are a calculated view. A separate object makes the read-only boundary visible."
+  decision="Class"
+>
+  `DebtSimplifier.simplify` receives immutable Debt values and returns new suggestions. It owns no long-lived state.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Group"
+  fromRequirement="The interviewer limits the first version to one pre-created group."
+  question="What changing state or group-specific rule would a Group class own now?"
+  reasoning="None. There is no group creation, membership update, or cross-group lookup. Every object would carry the same unused group ID."
+  decision="Leave out"
+>
+  Keep the one-group boundary in ExpenseService. Add Group when the requirements introduce several groups or membership rules.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Receipt"
+  fromRequirement="A user types a description and total; receipt upload is explicitly out of scope."
+  question="Does a physical receipt own any state or behavior required by this program?"
+  reasoning="No. Modeling it would invent image storage and extraction workflows that the interviewer did not ask for."
+  decision="Leave out"
+>
+  Keep only `description` on Expense. A Receipt class belongs in a later receipt-upload feature.
+</CandidateWalkthrough>
+
+### See one expense move through the objects
+
+<ConceptImage
+  src="/images/splitwise-entity-flow.png"
+  alt="A member records an expense through ExpenseService, which asks SplitStrategy for validated shares, creates Expense, applies debts to BalanceSheet, and lets DebtSimplifier read balances and suggest fewer payments"
+  caption="Share calculation happens before state changes; BalanceSheet owns pairwise debt, while DebtSimplifier only reads it to produce another view."
+  width={1774}
+  height={887}
+  mobileScrollable={true}
+/>
+
+Read the orange arrows first. A **Member** asks **ExpenseService** to record a bill. ExpenseService asks **SplitStrategy** to calculate every share. Only after validated shares return does it create **Expense** and apply debts to **BalanceSheet**.
+
+Now read the teal arrows. BalanceSheet returns current pairwise debts. **DebtSimplifier** reads those values and returns suggested payments. It never writes back. This flow explains the ownership boundary: Strategy owns calculation, BalanceSheet owns current debt, and ExpenseService only orders the work.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+Move from requirements to code with the same chain:
+
+> requirement → responsible object → state it remembers → method that changes or reads that state
+
+Start with `ExpenseService.recordExpense` because it is the caller-visible action. Then follow its questions downward: are the users valid, which strategy calculates shares, and how does BalanceSheet apply them?
+
+### Derive the coordinating workflow
+
+“Reject before changing state” determines the order. ExpenseService validates identities and asks Strategy to calculate the *complete* share map before it generates an ID or touches BalanceSheet.
+
+<DerivationTable rows={[
+  ["Receive one expense action", "ExpenseService", "recordExpense(...)"],
+  ["Recognize only registered users", "ExpenseService", "usersById"],
+  ["Choose calculation by split type", "ExpenseService", "Map<SplitType, SplitStrategy>"],
+  ["Do not consume IDs on rejection", "ExpenseService", "nextExpenseNumber after validation"],
+  ["Keep accepted history", "ExpenseService", "List<Expense> expenses"],
+  ["Return balances and suggestions", "ExpenseService", "balances() and simplifiedDebts()"],
+  ["Settle through the state owner", "ExpenseService", "delegate to BalanceSheet.settle"]
+]} />
+
+### Derive the ledger's state and methods
+
+The current debt between Ava and Ben needs only one stored number. Use a sorted pair key `(AVA, BEN)`. A positive signed amount can mean the first user owes the second; a negative amount means the second owes the first. The sign gives direction without storing two entries.
+
+<DerivationTable rows={[
+  ["Keep one value per pair", "BalanceSheet", "Map<PairKey, Long> signedByPair"],
+  ["Turn a share into debt", "BalanceSheet", "addDebt(debtor, creditor, amount)"],
+  ["Cancel opposite directions", "BalanceSheet", "merge a signed delta into the pair"],
+  ["Remove zero balances", "BalanceSheet", "delete the pair when signed value is zero"],
+  ["Expose readable direction", "BalanceSheet", "balances() returns List<Debt>"],
+  ["Protect settlement limits", "BalanceSheet", "settle(...) returns SettlementStatus"]
+]} />
+
+### Money concept: cents, remainders, and exact totals
+
+The practical problem is a $10.00 bill shared by three users. Decimal division says `$3.333...`, but nobody can pay a fraction of one cent.
+
+If we round every share to `$3.33`, the stored shares total `$9.99`. One cent disappears. If this happens across many bills, the balance sheet no longer matches the expense history.
+
+The core rule is **conservation of money**: the sum of calculated shares must equal the original total exactly.
+
+For an equal split, integer arithmetic makes the rule visible:
+
+```text
+total = 1000 cents, people = 3
+base = 1000 / 3 = 333 cents
+remainder = 1000 % 3 = 1 cent
+shares in sorted ID order = 334, 333, 333 cents
+```
+
+For percentages, each user first receives the whole-cent floor. Leftover cents go to the users with the largest fractional remainders; equal remainders use user ID. This is called the **largest remainder method**. It is deterministic and keeps the total exact.
+
+Calculating `N` shares costs `O(N log N)` because the implementation sorts participant IDs or fractional remainders. A hash-map approach could reduce some work, but deterministic rounding would still need an ordering.
+
+### Balance concept: net opposite debts immediately
+
+Suppose Ava owes Ben `$30`, then a new expense makes Ben owe Ava `$50`. Storing both arrows is valid history but a poor current balance.
+
+BalanceSheet converts both updates to one signed value on the same sorted pair:
+
+```text
+AVA → BEN $30  becomes +3000 on pair (AVA, BEN)
+BEN → AVA $50  becomes -5000 on pair (AVA, BEN)
+combined value = -2000
+meaning: BEN owes AVA $20
+```
+
+This creates an invariant—something that must remain true after every operation: for one user pair, at most one debt direction exists. `addDebt` owns this rule because it owns the signed pair map.
+
+Adding one debt is expected `O(1)` with the hash map. Returning balances costs `O(P log P)` to sort `P` non-zero pairs for predictable display.
+
+### Simplification concept: preserve net position, change the route
+
+After the illustrated dinner and taxi, pairwise history says:
+
+- Ben owes Ava `$40`.
+- Cara owes Ava `$40`.
+- Cara owes Ben `$30`.
+
+For each person, add money they should receive and subtract money they owe. Ava's net position is `+$80`, Ben's is `-$10`, and Cara's is `-$70`. A positive number means the group owes that user; a negative number means that user owes the group.
+
+DebtSimplifier keeps two ordered groups: debtors and creditors. It repeatedly matches the largest remaining debtor with the largest remaining creditor and transfers the smaller remaining amount. The result is Cara → Ava `$70` and Ben → Ava `$10`.
+
+With `U` users and `P` pairwise debts, building net positions costs `O(P)`. Priority queues make matching cost `O(U log U)`, and the result uses at most `U - 1` transfers. This greedy result is deterministic, but it is not promised to be the mathematically smallest possible number of payments for every input. That harder optimization is deliberately out of scope.
+
+<ScenarioTrace steps={[
+  ["Start", "Ava, Ben, and Cara all have net position $0."],
+  ["Dinner", "Ava pays $120 equally. Ben owes Ava $40; Cara owes Ava $40."],
+  ["Taxi", "Ben pays $60 for Ben and Cara. Cara gains a new $30 debt to Ben."],
+  ["Compute nets", "Ava is +$80, Ben is -$10, and Cara is -$70."],
+  ["Match", "Cara pays Ava $70, then Ben pays Ava $10."],
+  ["Verify", "Every user's final net amount is unchanged, while three pairwise debts become two suggestions."]
+]} />
+
+### Decide whether patterns help
+
+<PatternDecision name="Strategy for split calculation" useIt={true}>
+  The rule truly has several versions now. `SplitStrategy.calculate(total, participants, inputs)` is the boundary. Equal, exact, and percentage strategies validate different inputs but all return `Map&lt;String, Money&gt;`. ExpenseService can add another split rule without changing history or BalanceSheet.
+</PatternDecision>
+
+<PatternDecision name="Factory for Expense" useIt={false}>
+  There is one immutable Expense shape and one visible construction point after validation. A factory would hide simple fields without solving a creation rule. Introduce one only if several expense types later require different construction workflows.
+</PatternDecision>
+
+<PatternDecision name="Observer for notifications" useIt={false}>
+  The confirmed version sends no notifications. There are no reactions to publish. Add events only when email, push, audit, or analytics consumers become real requirements.
+</PatternDecision>
+
+<PatternDecision name="Singleton ExpenseService" useIt={false}>
+  A global instance would make tests share mutable balances and would not coordinate several application servers. Normal construction keeps users and strategies explicit.
+</PatternDecision>
+
+### Prove the rules interactively
+
+Record the default dinner, then load and record the taxi. Compare the three pairwise debts with the two simplified suggestions. Finally load the invalid exact split: its shares total `$85`, not `$90`, so the simulator must reject it without changing balances.
+
+<SplitwiseSimulator />
+
+<h2 id="implementation">4. Java implementation (~10 minutes)</h2>
+
+<ImplementationGuide
+  what="This Java 17 program records equal, exact, and percentage expenses; preserves every cent; nets pairwise debt; settles direct balances; and calculates a deterministic simplified payment plan."
+  why="Money protects cents, each Strategy owns one split algorithm, BalanceSheet protects current debt, and DebtSimplifier stays a read-only calculation. ExpenseService coordinates them without copying their rules."
+  flow={[
+    "ExpenseService validates the payer and every participant.",
+    "The selected SplitStrategy calculates all shares before any mutation.",
+    "ExpenseService creates the accepted Expense and its ID.",
+    "For every participant except the payer, BalanceSheet applies one debt.",
+    "BalanceSheet combines the signed amount with any opposite debt.",
+    "DebtSimplifier may later read balances and produce suggestions without rewriting them."
+  ]}
+/>
+
+### Code concepts to understand
+
+<ConceptDropdown title="Money as integer cents" summary="Whole cents avoid floating-point surprises and make exact totals testable." defaultOpen={true}>
+  `Money` stores a non-negative `long`. EqualSplitStrategy uses quotient and remainder. PercentageSplitStrategy uses basis points and integer numerators. No code stores `double` amounts, so `$0.10 + $0.20` cannot become an imprecise binary fraction.
+</ConceptDropdown>
+
+<ConceptDropdown title="Strategy call flow" summary="The pattern isolates only the share calculation that actually varies.">
+  ExpenseService selects a strategy from an `EnumMap`, then calls `calculate`. The returned share map has one common shape. The strategies never edit balances; BalanceSheet does not know which split type produced an amount.
+</ConceptDropdown>
+
+<ConceptDropdown title="Signed canonical pair" summary="One sorted key stores either direction of debt between two users.">
+  `PairKey.of` always puts the lower user ID first. `addDebt` chooses a positive or negative delta from the actual debtor direction. Adding the delta automatically cancels opposite debt, and a zero result removes the map entry.
+</ConceptDropdown>
+
+<ConceptDropdown title="Validation before mutation" summary="An invalid split cannot create an ID, history entry, or partial debt.">
+  ExpenseService checks identities and asks Strategy for the complete share map first. It catches strategy input errors and returns `INVALID_SPLIT`. Only then does it increment the ID, append Expense, and call BalanceSheet.
+</ConceptDropdown>
+
+<ConceptDropdown title="Priority queues in simplification" summary="The largest remaining debtor and creditor can be selected repeatedly without re-sorting every time.">
+  DebtSimplifier turns pairwise debts into net positions, adds non-zero users to two priority queues, and matches the queue heads. Each match clears at least one user, so there are at most `U - 1` suggestions.
+</ConceptDropdown>
+
+<ConceptDropdown title="Why simplified debts are not stored" summary="A suggestion is a view of current obligations, not the source of truth.">
+  Expense history explains why balances exist. Pairwise BalanceSheet explains which real user pairs owe money. Replacing those with suggestions would discard that relationship. The simplifier therefore returns new Debt values and never mutates its input.
+</ConceptDropdown>
+
+### Start with values shared by every layer
+
+Read `Money` first because every algorithm depends on its whole-cent rule. Then read the identity, split type, Expense, and Debt records. They are immutable snapshots, so callers cannot edit an accepted share map later.
+
+<JavaFile name="Money.java" purpose="Represents a non-negative amount using exact integer cents.">
+{`import java.util.Locale;
+
+public record Money(long cents) {
+    public Money {
+        if (cents < 0) {
+            throw new IllegalArgumentException("Money cannot be negative");
+        }
+    }
+
+    public static Money ofCents(long cents) {
+        return new Money(cents);
+    }
+
+    public String format() {
+        return String.format(Locale.ROOT, "$%.2f", cents / 100.0);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="User.java" purpose="Stores the stable identity and display name of one registered user.">
+{`public record User(String id, String name) {
+    public User {
+        if (id == null || id.isBlank() || name == null || name.isBlank()) {
+            throw new IllegalArgumentException("User id and name are required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="SplitType.java" purpose="Names the three supported share-calculation rules.">
+{`public enum SplitType {
+    EQUAL,
+    EXACT,
+    PERCENTAGE
+}`}
+</JavaFile>
+
+<JavaFile name="Expense.java" purpose="Stores the immutable facts and final shares of one accepted expense.">
+{`import java.util.Map;
+
+public record Expense(
+        String id,
+        String description,
+        String payerId,
+        Money total,
+        SplitType splitType,
+        Map<String, Money> shares
+) {
+    public Expense {
+        if (id == null || id.isBlank()
+                || description == null || description.isBlank()
+                || payerId == null || payerId.isBlank()
+                || total == null || total.cents() == 0
+                || splitType == null || shares == null || shares.isEmpty()) {
+            throw new IllegalArgumentException("Valid expense fields are required");
+        }
+        shares = Map.copyOf(shares);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Debt.java" purpose="Presents one immutable amount from a debtor to a creditor.">
+{`public record Debt(
+        String debtorId,
+        String creditorId,
+        Money amount
+) {
+    public Debt {
+        if (debtorId == null || debtorId.isBlank()
+                || creditorId == null || creditorId.isBlank()
+                || debtorId.equals(creditorId)
+                || amount == null || amount.cents() == 0) {
+            throw new IllegalArgumentException("Valid debt fields are required");
+        }
+    }
+}`}
+</JavaFile>
+
+### Implement the three split rules
+
+The interface accepts one generic values map: exact strategies read cents; percentage strategies read basis points; equal strategy needs no values. ExpenseService hides this input detail from BalanceSheet.
+
+<JavaFile name="SplitStrategy.java" purpose="Defines the common boundary for every share calculation.">
+{`import java.util.List;
+import java.util.Map;
+
+public interface SplitStrategy {
+    Map<String, Money> calculate(
+            Money total,
+            List<String> participantIds,
+            Map<String, Long> values
+    );
+}`}
+</JavaFile>
+
+<JavaFile name="EqualSplitStrategy.java" purpose="Divides cents equally and assigns leftover cents by sorted user ID.">
+{`import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class EqualSplitStrategy implements SplitStrategy {
+    @Override
+    public Map<String, Money> calculate(
+            Money total,
+            List<String> participantIds,
+            Map<String, Long> ignored
+    ) {
+        List<String> ordered = participantIds.stream().sorted().toList();
+        if (ordered.isEmpty()) {
+            throw new IllegalArgumentException("Participants are required");
+        }
+
+        long base = total.cents() / ordered.size();
+        long remainder = total.cents() % ordered.size();
+        Map<String, Money> shares = new LinkedHashMap<>();
+        for (int index = 0; index < ordered.size(); index++) {
+            long cents = base + (index < remainder ? 1 : 0);
+            if (cents == 0) {
+                throw new IllegalArgumentException("Every share must be positive");
+            }
+            shares.put(ordered.get(index), Money.ofCents(cents));
+        }
+        return Map.copyOf(shares);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="ExactSplitStrategy.java" purpose="Accepts positive cent amounts only when they exactly total the bill.">
+{`import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public final class ExactSplitStrategy implements SplitStrategy {
+    @Override
+    public Map<String, Money> calculate(
+            Money total,
+            List<String> participantIds,
+            Map<String, Long> values
+    ) {
+        Set<String> expected = Set.copyOf(participantIds);
+        if (expected.isEmpty() || expected.size() != participantIds.size()
+                || values == null || !values.keySet().equals(expected)) {
+            throw new IllegalArgumentException("One exact value per participant is required");
+        }
+
+        long sum = 0;
+        Map<String, Money> shares = new LinkedHashMap<>();
+        for (String id : expected.stream().sorted().toList()) {
+            long cents = values.get(id);
+            if (cents <= 0) {
+                throw new IllegalArgumentException("Exact shares must be positive");
+            }
+            sum = Math.addExact(sum, cents);
+            shares.put(id, Money.ofCents(cents));
+        }
+        if (sum != total.cents()) {
+            throw new IllegalArgumentException("Exact shares must equal total");
+        }
+        return Map.copyOf(shares);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="PercentageSplitStrategy.java" purpose="Uses basis points and the largest remainders to preserve every cent.">
+{`import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public final class PercentageSplitStrategy implements SplitStrategy {
+    private record Fraction(String userId, long remainder) {}
+
+    @Override
+    public Map<String, Money> calculate(
+            Money total,
+            List<String> participantIds,
+            Map<String, Long> basisPointsByUser
+    ) {
+        Set<String> expected = Set.copyOf(participantIds);
+        if (expected.isEmpty() || expected.size() != participantIds.size()
+                || basisPointsByUser == null
+                || !basisPointsByUser.keySet().equals(expected)) {
+            throw new IllegalArgumentException("One percentage per participant is required");
+        }
+
+        long basisPointSum = 0;
+        long allocated = 0;
+        Map<String, Long> centsByUser = new LinkedHashMap<>();
+        List<Fraction> fractions = new ArrayList<>();
+
+        for (String id : expected.stream().sorted().toList()) {
+            long basisPoints = basisPointsByUser.get(id);
+            if (basisPoints <= 0) {
+                throw new IllegalArgumentException("Percentages must be positive");
+            }
+            basisPointSum = Math.addExact(basisPointSum, basisPoints);
+            long numerator = Math.multiplyExact(total.cents(), basisPoints);
+            long cents = numerator / 10_000;
+            centsByUser.put(id, cents);
+            allocated += cents;
+            fractions.add(new Fraction(id, numerator % 10_000));
+        }
+        if (basisPointSum != 10_000) {
+            throw new IllegalArgumentException("Percentages must total 100%");
+        }
+
+        fractions.sort(Comparator.comparingLong(Fraction::remainder)
+                .reversed().thenComparing(Fraction::userId));
+        long leftover = total.cents() - allocated;
+        for (int index = 0; index < leftover; index++) {
+            String id = fractions.get(index).userId();
+            centsByUser.put(id, centsByUser.get(id) + 1);
+        }
+
+        Map<String, Money> shares = new LinkedHashMap<>();
+        for (String id : expected.stream().sorted().toList()) {
+            long cents = centsByUser.get(id);
+            if (cents == 0) {
+                throw new IllegalArgumentException("Every share must be positive");
+            }
+            shares.put(id, Money.ofCents(cents));
+        }
+        return Map.copyOf(shares);
+    }
+}`}
+</JavaFile>
+
+### Add clear action results
+
+Invalid user actions are expected outcomes, not crashes. ExpenseService converts validation failures into `ExpenseStatus`. BalanceSheet returns a settlement status when no matching debt exists or the amount is too large.
+
+<JavaFile name="ExpenseStatus.java" purpose="Names every accepted or rejected record-expense outcome.">
+{`public enum ExpenseStatus {
+    RECORDED,
+    INVALID_INPUT,
+    UNKNOWN_USER,
+    INVALID_SPLIT
+}`}
+</JavaFile>
+
+<JavaFile name="RecordExpenseResult.java" purpose="Carries the accepted Expense only when recording succeeds.">
+{`import java.util.Optional;
+
+public record RecordExpenseResult(
+        ExpenseStatus status,
+        Optional<Expense> expense
+) {
+    public RecordExpenseResult {
+        if (status == null || expense == null) {
+            throw new IllegalArgumentException("Result fields are required");
+        }
+    }
+
+    public static RecordExpenseResult accepted(Expense expense) {
+        return new RecordExpenseResult(
+                ExpenseStatus.RECORDED,
+                Optional.of(expense)
+        );
+    }
+
+    public static RecordExpenseResult rejected(ExpenseStatus status) {
+        return new RecordExpenseResult(status, Optional.empty());
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="SettlementStatus.java" purpose="Names every expected direct-settlement outcome.">
+{`public enum SettlementStatus {
+    SETTLED,
+    INVALID_AMOUNT,
+    NO_MATCHING_DEBT,
+    AMOUNT_EXCEEDS_DEBT
+}`}
+</JavaFile>
+
+### Let BalanceSheet protect pairwise debt
+
+Read `addDebt` first. It turns a real direction into a signed delta on the canonical pair. Then read `balances`, which translates the private representation back into readable Debt values.
+
+<JavaFile name="BalanceSheet.java" purpose="Owns canonical pairwise debt, opposite-direction netting, and direct settlement.">
+{`import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class BalanceSheet {
+    private record PairKey(String first, String second) {
+        static PairKey of(String left, String right) {
+            return left.compareTo(right) < 0
+                    ? new PairKey(left, right)
+                    : new PairKey(right, left);
+        }
+    }
+
+    private final Map<PairKey, Long> signedByPair = new HashMap<>();
+
+    public void addDebt(String debtorId, String creditorId, Money amount) {
+        if (debtorId == null || creditorId == null || amount == null
+                || debtorId.equals(creditorId) || amount.cents() == 0) {
+            return;
+        }
+        PairKey key = PairKey.of(debtorId, creditorId);
+        long delta = debtorId.equals(key.first())
+                ? amount.cents()
+                : -amount.cents();
+        long combined = Math.addExact(signedByPair.getOrDefault(key, 0L), delta);
+        if (combined == 0) {
+            signedByPair.remove(key);
+        } else {
+            signedByPair.put(key, combined);
+        }
+    }
+
+    public SettlementStatus settle(
+            String debtorId,
+            String creditorId,
+            Money amount
+    ) {
+        if (amount == null || amount.cents() == 0
+                || debtorId == null || creditorId == null
+                || debtorId.equals(creditorId)) {
+            return SettlementStatus.INVALID_AMOUNT;
+        }
+        Debt current = balances().stream()
+                .filter(debt -> debt.debtorId().equals(debtorId)
+                        && debt.creditorId().equals(creditorId))
+                .findFirst()
+                .orElse(null);
+        if (current == null) {
+            return SettlementStatus.NO_MATCHING_DEBT;
+        }
+        if (amount.cents() > current.amount().cents()) {
+            return SettlementStatus.AMOUNT_EXCEEDS_DEBT;
+        }
+        addDebt(creditorId, debtorId, amount);
+        return SettlementStatus.SETTLED;
+    }
+
+    public List<Debt> balances() {
+        List<Debt> result = new ArrayList<>();
+        for (Map.Entry<PairKey, Long> entry : signedByPair.entrySet()) {
+            PairKey key = entry.getKey();
+            long signed = entry.getValue();
+            if (signed > 0) {
+                result.add(new Debt(key.first(), key.second(), Money.ofCents(signed)));
+            } else {
+                result.add(new Debt(key.second(), key.first(), Money.ofCents(-signed)));
+            }
+        }
+        result.sort(Comparator.comparing(Debt::debtorId)
+                .thenComparing(Debt::creditorId));
+        return List.copyOf(result);
+    }
+}`}
+</JavaFile>
+
+### Calculate a non-mutating simplified view
+
+The simplifier receives only Debt snapshots. Its priority-queue entries are immutable; after a match, it inserts a new entry for any remaining amount.
+
+<JavaFile name="DebtSimplifier.java" purpose="Preserves every user's net position while suggesting at most U - 1 payments.">
+{`import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+
+public final class DebtSimplifier {
+    private record Account(String userId, long cents) {}
+
+    public List<Debt> simplify(List<Debt> balances) {
+        Map<String, Long> net = new HashMap<>();
+        for (Debt debt : balances) {
+            net.merge(debt.debtorId(), -debt.amount().cents(), Long::sum);
+            net.merge(debt.creditorId(), debt.amount().cents(), Long::sum);
+        }
+
+        Comparator<Account> largestFirst = Comparator
+                .comparingLong(Account::cents).reversed()
+                .thenComparing(Account::userId);
+        PriorityQueue<Account> debtors = new PriorityQueue<>(largestFirst);
+        PriorityQueue<Account> creditors = new PriorityQueue<>(largestFirst);
+        for (Map.Entry<String, Long> entry : net.entrySet()) {
+            if (entry.getValue() < 0) {
+                debtors.add(new Account(entry.getKey(), -entry.getValue()));
+            } else if (entry.getValue() > 0) {
+                creditors.add(new Account(entry.getKey(), entry.getValue()));
+            }
+        }
+
+        List<Debt> suggestions = new ArrayList<>();
+        while (!debtors.isEmpty() && !creditors.isEmpty()) {
+            Account debtor = debtors.remove();
+            Account creditor = creditors.remove();
+            long transfer = Math.min(debtor.cents(), creditor.cents());
+            suggestions.add(new Debt(
+                    debtor.userId(),
+                    creditor.userId(),
+                    Money.ofCents(transfer)
+            ));
+            if (debtor.cents() > transfer) {
+                debtors.add(new Account(debtor.userId(), debtor.cents() - transfer));
+            }
+            if (creditor.cents() > transfer) {
+                creditors.add(new Account(creditor.userId(), creditor.cents() - transfer));
+            }
+        }
+        return List.copyOf(suggestions);
+    }
+}`}
+</JavaFile>
+
+### Finish with the coordinator and executable demo
+
+`recordExpense` shows the validation boundary. Notice that `nextExpenseNumber++`, history append, and debt updates all occur after Strategy succeeds.
+
+<JavaFile name="ExpenseService.java" purpose="Coordinates registered users, split strategies, accepted history, balances, settlement, and simplification.">
+{`import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public final class ExpenseService {
+    private final Map<String, User> usersById = new LinkedHashMap<>();
+    private final Map<SplitType, SplitStrategy> strategies = new EnumMap<>(SplitType.class);
+    private final List<Expense> expenses = new ArrayList<>();
+    private final BalanceSheet balanceSheet = new BalanceSheet();
+    private final DebtSimplifier simplifier = new DebtSimplifier();
+    private int nextExpenseNumber = 1;
+
+    public ExpenseService(List<User> users) {
+        if (users == null || users.isEmpty()) {
+            throw new IllegalArgumentException("Users are required");
+        }
+        for (User user : users) {
+            if (usersById.putIfAbsent(user.id(), user) != null) {
+                throw new IllegalArgumentException("Duplicate user: " + user.id());
+            }
+        }
+        strategies.put(SplitType.EQUAL, new EqualSplitStrategy());
+        strategies.put(SplitType.EXACT, new ExactSplitStrategy());
+        strategies.put(SplitType.PERCENTAGE, new PercentageSplitStrategy());
+    }
+
+    public RecordExpenseResult recordExpense(
+            String description,
+            String payerId,
+            Money total,
+            List<String> participantIds,
+            SplitType splitType,
+            Map<String, Long> values
+    ) {
+        if (description == null || description.isBlank()
+                || total == null || total.cents() == 0
+                || participantIds == null || participantIds.isEmpty()
+                || splitType == null || values == null
+                || Set.copyOf(participantIds).size() != participantIds.size()) {
+            return RecordExpenseResult.rejected(ExpenseStatus.INVALID_INPUT);
+        }
+        if (!usersById.containsKey(payerId)
+                || participantIds.stream().anyMatch(id -> !usersById.containsKey(id))) {
+            return RecordExpenseResult.rejected(ExpenseStatus.UNKNOWN_USER);
+        }
+
+        Map<String, Money> shares;
+        try {
+            shares = strategies.get(splitType)
+                    .calculate(total, List.copyOf(participantIds), Map.copyOf(values));
+        } catch (IllegalArgumentException | ArithmeticException error) {
+            return RecordExpenseResult.rejected(ExpenseStatus.INVALID_SPLIT);
+        }
+
+        Expense expense = new Expense(
+                "E" + nextExpenseNumber,
+                description,
+                payerId,
+                total,
+                splitType,
+                shares
+        );
+        nextExpenseNumber++;
+        expenses.add(expense);
+        for (Map.Entry<String, Money> share : shares.entrySet()) {
+            if (!share.getKey().equals(payerId)) {
+                balanceSheet.addDebt(share.getKey(), payerId, share.getValue());
+            }
+        }
+        return RecordExpenseResult.accepted(expense);
+    }
+
+    public SettlementStatus settle(
+            String debtorId,
+            String creditorId,
+            Money amount
+    ) {
+        return balanceSheet.settle(debtorId, creditorId, amount);
+    }
+
+    public List<Expense> expenses() {
+        return List.copyOf(expenses);
+    }
+
+    public List<Debt> balances() {
+        return balanceSheet.balances();
+    }
+
+    public List<Debt> simplifiedDebts() {
+        return simplifier.simplify(balanceSheet.balances());
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="SplitwiseDemo.java" purpose="Runs the illustrated dinner, taxi, invalid split, simplification, and settlement cases.">
+{`import java.util.List;
+import java.util.Map;
+
+public final class SplitwiseDemo {
+    public static void main(String[] args) {
+        ExpenseService service = new ExpenseService(List.of(
+                new User("AVA", "Ava"),
+                new User("BEN", "Ben"),
+                new User("CARA", "Cara")
+        ));
+
+        RecordExpenseResult dinner = service.recordExpense(
+                "Dinner", "AVA", Money.ofCents(12_000),
+                List.of("AVA", "BEN", "CARA"),
+                SplitType.EQUAL, Map.of()
+        );
+        System.out.println("dinner: " + dinner.status());
+
+        RecordExpenseResult taxi = service.recordExpense(
+                "Taxi", "BEN", Money.ofCents(6_000),
+                List.of("BEN", "CARA"),
+                SplitType.EQUAL, Map.of()
+        );
+        System.out.println("taxi: " + taxi.status());
+
+        System.out.println("pairwise:");
+        service.balances().forEach(debt -> System.out.println(
+                debt.debtorId() + " owes " + debt.creditorId()
+                        + " " + debt.amount().format()
+        ));
+
+        System.out.println("simplified:");
+        service.simplifiedDebts().forEach(debt -> System.out.println(
+                debt.debtorId() + " pays " + debt.creditorId()
+                        + " " + debt.amount().format()
+        ));
+
+        int debtCountBefore = service.balances().size();
+        RecordExpenseResult invalid = service.recordExpense(
+                "Groceries", "CARA", Money.ofCents(9_000),
+                List.of("AVA", "BEN", "CARA"),
+                SplitType.EXACT,
+                Map.of("AVA", 5_000L, "BEN", 3_000L, "CARA", 500L)
+        );
+        System.out.println("invalid exact: " + invalid.status());
+        System.out.println("unchanged debts: "
+                + (debtCountBefore == service.balances().size()));
+
+        System.out.println("settlement: " + service.settle(
+                "CARA", "BEN", Money.ofCents(3_000)
+        ));
+        System.out.println("remaining direct debts: "
+                + service.balances().size());
+    }
+}`}
+</JavaFile>
+
+<ScenarioTrace steps={[
+  ["Initial state", "Expense history and BalanceSheet are empty; next accepted ID is E1."],
+  ["Dinner call", "EqualSplitStrategy returns $40 for Ava, Ben, and Cara. E1 is created; Ben and Cara each gain a $40 debt to Ava."],
+  ["Taxi call", "EqualSplitStrategy returns $30 for Ben and Cara. E2 is created; Cara gains a $30 debt to Ben."],
+  ["Simplify", "DebtSimplifier reads three debts and returns Cara → Ava $70 plus Ben → Ava $10 without changing the three stored debts."],
+  ["Invalid call", "The $90 exact shares total only $85. ExpenseService returns INVALID_SPLIT before E3 or any debt is created."],
+  ["Settlement", "Cara settles the direct $30 debt to Ben. BalanceSheet removes that pair; expense history remains unchanged."]
+]} />
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+### “Now support several groups”
+
+The changed requirement adds group identity and membership. Today ExpenseService owns one user registry and one BalanceSheet. Introduce `Group` with members, expenses, and its own BalanceSheet, then let a thin service find a Group by ID. Do not put group IDs into every method while still sharing one global ledger.
+
+### “Allow users to edit or delete an expense”
+
+The affected rule is how accepted shares change balances. ExpenseService currently only applies debt forward. Add a reversible ledger operation: remove the old Expense contribution, validate and calculate the replacement completely, then apply the new contribution as one unit. An audit entry is useful because financial history should explain the change.
+
+### “Record expenses from simultaneous requests”
+
+The current scope assumes sequential calls. With two threads, expense IDs, history, and pair balances can race. In one Java process, protect the complete mutation boundary—ID allocation, history append, and all BalanceSheet updates—with one lock first. A database deployment needs a transaction and constraints; an in-process lock cannot protect several servers.
+
+### “Support several currencies”
+
+Money must now include a `Currency`, and expenses must state whether balances stay separated per currency or use an exchange rate. Keep rate lookup and conversion outside SplitStrategy. Never add raw USD cents to EUR cents.
+
+### “Find the minimum possible number of payments”
+
+DebtSimplifier currently uses a deterministic greedy rule and promises preserved net positions, not a global minimum. The new requirement changes its algorithm only, so a `DebtSimplificationStrategy` interface becomes justified. Keep the greedy version for large groups and add an exact search only for small groups, with the higher time cost stated clearly.
+
+### A strong spoken summary
+
+> “I first clarified payer versus participants, the three split types, cent rounding, pairwise netting, and rejection behavior. Money stores integer cents. Split strategies calculate a complete, exact share map before any state changes. BalanceSheet owns one signed value per user pair, while DebtSimplifier is a read-only view that preserves each user's net position. The current version is one in-memory group with sequential calls; groups, currencies, editing, and concurrent persistence are extensions.”
