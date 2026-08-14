@@ -1,0 +1,1083 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { RideSharingSimulator } from "@/components/simulations/ride-sharing-simulator"
+
+<Lead>Design a ride-sharing service that finds the fastest available driver by road travel time, creates a ride only when both routes exist, and moves the ride safely from matched to completed.</Lead>
+
+<ConceptImage
+  src="/images/ride-sharing-overview.png"
+  alt="Driver A needs eight minutes to reach the rider while highlighted Driver B needs two minutes, after which a separate route continues from pickup to destination"
+  caption="Choosing a driver and routing the trip are separate questions: first find who can reach the pickup fastest, then find how that ride reaches the destination."
+  width={1690}
+  height={931}
+  eager={true}
+/>
+
+<FrameworkMap />
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The prompt usually begins with only:
+
+> “Design a ride-sharing system.”
+
+That could mean driver onboarding, live maps, pricing, payments, dispatch, safety, or a complete distributed platform. An LLD answer becomes useful only after we choose one complete workflow and make every rule observable.
+
+Do not start with `Rider`, `Driver`, and `Ride`. First ask what a request contains, how a driver wins, and which state must remain unchanged when no route exists.
+
+<QuestionGuide />
+
+### Ask questions and record what each answer changes
+
+<QuestionAnswer
+  ask="Which actions must the first version support?"
+  why="Requesting, accepting, canceling, pricing, and payment are different workflows."
+  answer="A registered rider requests one ride. The system matches an available driver. The ride can then start and complete."
+  derived="Provide requestRide(request), startRide(rideId), and completeRide(rideId). Leave driver acceptance, cancellation, fare, and payment out."
+/>
+
+<QuestionAnswer
+  ask="What locations does a ride request contain?"
+  why="Coordinates, postal addresses, and road intersections lead to different models."
+  answer="The interview version uses pre-created road-graph location IDs for pickup and destination. They must exist and be different."
+  derived="RideRequest stores riderId, pickupId, and destinationId. Unknown or equal locations return a rejected status before any driver changes."
+/>
+
+<QuestionAnswer
+  ask="How is the driver chosen?"
+  why="‘Nearest’ could mean straight-line distance, road distance, or estimated travel time."
+  answer="Consider only AVAILABLE drivers who can reach the pickup. Choose the smallest road travel time; break equal times by driver ID."
+  derived="DriverMatchingStrategy asks RoutingStrategy for each available driver's route to pickup, then compares route minutes and driver ID."
+/>
+
+<QuestionAnswer
+  ask="Do we also need a route from pickup to destination before matching?"
+  why="A driver should not become busy for a trip the road graph cannot complete."
+  answer="Yes. Validate the trip route first. If pickup cannot reach destination, reject without matching or changing a driver."
+  derived="RideService calculates pickup-to-destination before driver selection. State changes only after both tripRoute and pickupRoute exist."
+/>
+
+<QuestionAnswer
+  ask="What road information is available, and may weights be negative?"
+  why="The graph shape and weight rules decide which shortest-path algorithm is correct."
+  answer="Intersections are locations, directed road segments are edges, and each positive integer weight is travel minutes. Some roads may be two-way."
+  derived="RoadGraph stores directed Road values with minutes > 0. Dijkstra is valid because every edge weight is non-negative."
+/>
+
+<QuestionAnswer
+  ask="What changes when a driver is matched and when the ride completes?"
+  why="Matching the same available driver twice would create two active rides."
+  answer="A matched driver becomes BUSY. On completion, the ride becomes COMPLETED, the driver moves to the destination, and becomes AVAILABLE."
+  derived="Driver owns status and currentLocationId. Ride owns MATCHED → IN_PROGRESS → COMPLETED. RideService coordinates the two objects."
+/>
+
+<QuestionAnswer
+  ask="What happens if the trip is unreachable or no available driver can reach pickup?"
+  why="A failed request must not consume a ride ID or leave one driver busy."
+  answer="Return UNREACHABLE_TRIP or NO_DRIVER_AVAILABLE. Do not create Ride and do not change any Driver."
+  derived="Perform all route and match calculations before incrementing nextRideNumber, calling driver.assign(), or adding to ridesById."
+/>
+
+<QuestionAnswer
+  ask="Which map, traffic, scale, storage, and concurrency concerns are in scope?"
+  why="Production ride sharing is a distributed geospatial system; this interview task is object design plus honest routing."
+  answer="Use one fixed in-memory graph, pre-created users, static travel minutes, and sequential calls. Exclude GPS streaming, traffic, spatial indexes, persistence, and concurrent dispatch."
+  derived="Keep the core deterministic and local. Discuss live traffic, A*, geographic lookup, locks, and transactions only as extensions."
+/>
+
+### Confirm the specification
+
+<RequirementBox requirements={[
+  "Riders, drivers, locations, and roads are pre-created in one in-memory process.",
+  "A request contains a registered rider ID plus different, known pickup and destination IDs.",
+  "Roads are directed edges with positive integer travel minutes; two-way roads are stored as two directed edges.",
+  "A valid trip route from pickup to destination must exist before driver matching begins.",
+  "Only AVAILABLE drivers with a route to pickup are candidates.",
+  "Choose the candidate with the smallest pickup-route minutes; break ties by driver ID.",
+  "A successful request creates one Ride containing both routes and changes its Driver to BUSY.",
+  "A ride follows MATCHED → IN_PROGRESS → COMPLETED; other transitions are rejected.",
+  "Completion moves the driver to the destination and makes the driver AVAILABLE.",
+  "Any rejected request leaves ride IDs, ride storage, and every driver unchanged."
+]} outOfScope={["Driver acceptance and cancellation", "Fare calculation and surge pricing", "Payments and refunds", "Live GPS updates and map matching", "Live traffic and road closures", "Turn restrictions and toll preferences", "Geographic or nearest-neighbor indexes", "Persistent storage and APIs", "Concurrent or multi-server dispatch", "Notifications, safety, ratings, and support"]} />
+
+<Insight title="Requirements are ready when matching and routing have different sentences" tone="mint">
+  Say this aloud: “Matching chooses **which available driver** has the cheapest route to pickup. Routing calculates **how to travel** between two graph locations.” If those responsibilities are clear, DriverMatchingStrategy will not become a hidden map algorithm and RoutingStrategy will not decide driver business rules.
+</Insight>
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+Scan the specification for nouns: rider, driver, location, road, graph, ride request, route, match, ride, status, vehicle, payment, and map. These are candidates, not automatic classes. Ask what each must remember or decide.
+
+<CandidateWalkthrough
+  name="Location"
+  fromRequirement="Requests and routes refer to pre-created road intersections by stable ID."
+  question="Is a location only a string, or do several values form one meaningful identity?"
+  reasoning="An ID and display name belong together and need value equality. Coordinates are not required by the chosen routing algorithm."
+  decision="Class"
+>
+  Use an immutable `Location` record with `id` and `name`. Add coordinates only when A* or geographic lookup becomes a requirement.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Road"
+  fromRequirement="Each directed road connects two known locations and owns a positive travel-time weight."
+  question="Which values must travel together whenever the graph examines a neighbour?"
+  reasoning="From, to, and minutes describe one edge. Keeping them separate would make it easy to lose the weight or reverse a one-way road."
+  decision="Class"
+>
+  Use an immutable `Road` record. A two-way street becomes two Road values rather than a special case in Dijkstra.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="RoadGraph"
+  fromRequirement="Routing repeatedly asks which outgoing roads leave a location."
+  question="Which object owns the locations and their directed adjacency lists?"
+  reasoning="Neither Driver nor Ride should build neighbour lists. RoadGraph has the state required to validate roads and answer that question."
+  decision="Class"
+>
+  `RoadGraph` owns locations and adjacency lists. It exposes immutable road lists so routing cannot edit the map.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Route"
+  fromRequirement="A match must explain the ordered path and total minutes for pickup and trip travel."
+  question="Are a node list and its total cost meaningful only together?"
+  reasoning="Yes. Returning only minutes loses the path; returning only nodes makes every caller recalculate the cost. Both are one immutable result."
+  decision="Class"
+>
+  `Route` stores an ordered location-ID list and `totalMinutes`.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="RoutingStrategy"
+  fromRequirement="The fixed graph currently uses Dijkstra, while a future map may use A* or an external route engine."
+  question="Which behavior can change without changing drivers or ride lifecycle?"
+  reasoning="Only finding a path between two locations varies. The result remains Route regardless of the algorithm."
+  decision="Interface"
+>
+  `RoutingStrategy.route(graph, start, target)` isolates the path algorithm. `DijkstraRoutingStrategy` is the complete first implementation.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Driver"
+  fromRequirement="Matching filters by availability, and completion changes both availability and current location."
+  question="Which object owns the state used by assign and complete?"
+  reasoning="Driver has exactly the information required to protect those changes. A service should ask Driver rather than writing status fields directly."
+  decision="Class"
+>
+  `Driver` owns `currentLocationId`, `DriverStatus`, `assign`, and `completeAt`.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Rider and RideRequest"
+  fromRequirement="A stable rider must exist, while each request carries one pickup and destination."
+  question="Which values are stable identity and which describe one action?"
+  reasoning="Rider identity is reused. RideRequest is short-lived input. Neither changes after construction in this scope."
+  decision="Class"
+>
+  Use immutable records for both. RideRequest describes intent; it does not claim a driver was assigned.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="DriverMatchingStrategy"
+  fromRequirement="Candidate filtering and the minutes-plus-ID comparison are business rules separate from route calculation."
+  question="Who chooses among drivers without owning graph traversal?"
+  reasoning="The matcher can ask RoutingStrategy for each pickup route, then compare Route results. It should not reimplement Dijkstra."
+  decision="Interface"
+>
+  `NearestDriverMatchingStrategy` implements the confirmed policy. A future rating-aware matcher can reuse the same RoutingStrategy.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Ride"
+  fromRequirement="A successful request must keep rider, driver, both routes, endpoints, ID, and lifecycle state together."
+  question="Which object has enough information to reject an invalid start or completion?"
+  reasoning="Ride owns its status and therefore owns transition guards. Driver still owns availability and location."
+  decision="Class"
+>
+  `Ride` owns MATCHED → IN_PROGRESS → COMPLETED. It keeps the accepted routes as historical facts.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Statuses"
+  fromRequirement="Driver, ride, matching, and ride actions each have small fixed outcome sets."
+  question="Would strings add behavior or only permit invalid values?"
+  reasoning="Only invalid values. Enums make both state and expected rejection reasons explicit."
+  decision="Enum"
+>
+  Use `DriverStatus`, `RideStatus`, `MatchStatus`, and `RideActionStatus`.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Vehicle and Payment"
+  fromRequirement="Vehicle details, pricing, and payment are absent from the confirmed workflow."
+  question="What rule would these classes perform in this version?"
+  reasoning="None. A Driver's car model does not affect matching, and no fare is charged. Adding these names would pretend unfinished features exist."
+  decision="Leave out"
+>
+  Add vehicle capability or payment objects only after a requirement uses them.
+</CandidateWalkthrough>
+
+### See one request move through the objects
+
+<ConceptImage
+  src="/images/ride-sharing-entity-flow.png"
+  alt="A Rider requests a ride from RideService, which uses RoutingStrategy and RoadGraph for routes, DriverMatchingStrategy and Drivers for matching, then creates Ride, marks the chosen Driver busy, and returns the match"
+  caption="Routing answers how to travel; matching uses those answers to choose a driver; RideService changes state only after both decisions succeed."
+  width={1692}
+  height={930}
+  mobileScrollable={true}
+/>
+
+Follow the orange arrows. **Rider** sends a request to **RideService**. The service first asks **RoutingStrategy** for a trip route, and RoutingStrategy reads **RoadGraph**. It then asks **DriverMatchingStrategy** to compare **Drivers**; the matcher calls the same RoutingStrategy for pickup routes.
+
+Now follow the teal returns. A valid trip route and a `driver + pickup route` return to RideService. Only then does it create **Ride**, tell the chosen Driver to become busy, and return the matched ride. The arrows teach the mutation boundary: route search is read-only; assignment is the final coordinated state change.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+Bridge the entities into code with the usual chain:
+
+> requirement → responsible object → state it remembers → method that changes or reads that state
+
+Start at `RideService.requestRide` because it receives the main user action. Then follow the questions it delegates: can the trip be routed, which driver wins, and which objects change after success?
+
+### Derive the request workflow
+
+“Reject without changing state” decides the order. Trip routing and driver comparison happen before ID creation and `Driver.assign`. The service coordinates those calls, but it does not traverse graph edges or edit Driver fields.
+
+<DerivationTable rows={[
+  ["Validate registered rider", "RideService", "ridersById and requestRide"],
+  ["Validate known, different locations", "RideService", "RoadGraph.containsLocation"],
+  ["Reject an impossible trip first", "RideService", "routing.route(pickup, destination)"],
+  ["Choose among available drivers", "RideService", "DriverMatchingStrategy"],
+  ["Keep successful IDs deterministic", "RideService", "nextRideNumber after all validation"],
+  ["Find rides for later actions", "RideService", "ridesById"],
+  ["Coordinate driver and ride changes", "RideService", "startRide and completeRide"]
+]} />
+
+### Derive state-owning objects
+
+“A driver cannot be matched twice” creates Driver status and `assign`. “Completion updates location” creates `completeAt`. “Ride transitions are ordered” creates status and guarded methods on Ride.
+
+<DerivationTable rows={[
+  ["Filter only available drivers", "Driver", "DriverStatus status"],
+  ["Route from current position", "Driver", "currentLocationId"],
+  ["Prevent double assignment", "Driver", "assign()"],
+  ["Become reusable at destination", "Driver", "completeAt(destinationId)"],
+  ["Keep accepted endpoints and routes", "Ride", "pickupId, destinationId, pickupRoute, tripRoute"],
+  ["Allow only ordered transitions", "Ride", "start() and complete()"],
+  ["Expose expected failures", "RideService", "MatchResult and RideActionStatus"]
+]} />
+
+### Routing concept: turn roads into a graph
+
+Imagine intersections `A`, `B`, and `C`. Each intersection becomes a **node**. A road from `A` to `B` becomes an **edge**. The number of travel minutes becomes the edge's **weight**—the cost of using that road.
+
+A straight line on a screen is not a route. A river, one-way street, or missing bridge can make a visually close driver slow or unreachable. This is why matching must compare road-route minutes, not coordinate distance.
+
+RoadGraph stores outgoing edges as an adjacency list: for each node, keep the roads that may be taken from it. A two-way street is two directed edges. This representation uses `O(V + E)` space for `V` locations and `E` road segments.
+
+### Routing and matching are not the same algorithm
+
+Routing receives two locations and returns a path. Matching receives many drivers, filters business state such as AVAILABLE, asks routing about each candidate, and selects one result.
+
+If we mix them, Dijkstra starts checking driver status and Driver begins knowing graph edges. Both classes become harder to test. The design therefore keeps this call direction:
+
+```text
+DriverMatchingStrategy
+  └─ for each AVAILABLE Driver
+       └─ RoutingStrategy.route(driver.location, pickup)
+```
+
+The simple matcher runs Dijkstra once per available driver. With `D` drivers, its cost is `O(D × (V + E) log V)`. That is honest and clear for an interview-sized graph. A production system would first use a geographic index or run a reverse/multi-source search to reduce candidates.
+
+### Why breadth-first search is not enough
+
+Breadth-first search, or BFS, minimizes the number of edges. It is correct when every road has equal cost. Here one road may take 1 minute and another 8 minutes.
+
+From `C` to `D`, BFS sees the direct one-edge road `C → D` and returns 8 minutes. But `C → B → D` has two edges and costs only `1 + 5 = 6` minutes. Fewer roads does not mean less travel time.
+
+### Dijkstra's algorithm in plain English
+
+Dijkstra works when every edge weight is non-negative. It grows the cheapest known region outward from the start.
+
+- A **distance estimate** is the best travel time found so far for a node.
+- The **frontier** contains discovered nodes whose outgoing roads may still improve other estimates.
+- A **priority queue** returns the frontier node with the smallest estimate first.
+- A **settled** node has been removed with its cheapest final distance.
+- **Relaxing an edge** means asking whether travelling through the current node gives its neighbour a cheaper estimate.
+- A **predecessor** records which previous node created an improved estimate, allowing the final path to be rebuilt backward.
+
+Trace `A` to pickup `D` on our graph:
+
+1. Start with `A = 0`; every other distance is infinity, written `∞`.
+2. Settle `A`. Roads discover `C = 2` and `B = 4`.
+3. Settle `C = 2`. `C → B` improves `B` from 4 to 3. It also discovers `D = 10` and `E = 12`.
+4. Settle `B = 3`. `B → D` improves `D` from 10 to 8.
+5. Settle `D = 8`. Stop and follow predecessors backward: `D ← B ← C ← A`.
+6. Reverse that chain to return `A → C → B → D`, 8 minutes.
+
+The priority queue may hold an older entry such as `B = 4` after `B = 3` is found. The implementation skips stale entries rather than trying to edit the queue in place.
+
+Dijkstra takes `O((V + E) log V)` time with adjacency lists and a binary priority queue, and `O(V + E)` space including the graph, estimates, predecessors, settled set, and queue.
+
+### Dijkstra's assumptions and alternatives
+
+Negative road weights would break the “settled means final” promise, but negative travel time has no physical meaning here. Static positive minutes therefore fit Dijkstra well.
+
+BFS is simpler for equal weights. A* can explore less of a large map by adding a **heuristic**, an estimate of remaining cost such as straight-line time. That heuristic must never overestimate if we want the normal shortest-path guarantee. Coordinates and a safe heuristic are not part of this first model, so forcing A* would add fields without a current need.
+
+<ScenarioTrace steps={[
+  ["Trip route", "RideService first finds D → E → F in 5 minutes, cheaper than direct D → F in 6."],
+  ["Maya", "Matching routes B → D in 5 minutes."],
+  ["Leo", "Matching routes E → D in 2 minutes."],
+  ["Noor", "Matching routes A → C → B → D in 8 minutes."],
+  ["Choose", "Leo has the smallest reachable pickup time, so Driver D2 wins and becomes BUSY."],
+  ["Complete", "Ride reaches F; Leo moves to F and becomes AVAILABLE again."]
+]} />
+
+### Decide whether patterns help
+
+<PatternDecision name="Strategy for routing" useIt={true}>
+  Path calculation can change independently of ride state. `RoutingStrategy.route` is the boundary, and `DijkstraRoutingStrategy` is the current implementation. A future A* or external map adapter can return the same Route without changing matching or Ride.
+</PatternDecision>
+
+<PatternDecision name="Strategy for driver matching" useIt={true}>
+  Driver choice is a separate varying business rule. `NearestDriverMatchingStrategy` currently filters AVAILABLE drivers and compares pickup minutes, then ID. A future rating-aware or vehicle-aware policy can change that comparison while reusing routing.
+</PatternDecision>
+
+<PatternDecision name="State pattern for Ride" useIt={false}>
+  Ride has three states and two short guarded transitions. An enum plus `start` and `complete` keeps the rule visible. Separate state classes would add indirection before states have different complex behavior.
+</PatternDecision>
+
+<PatternDecision name="Observer for ride events" useIt={false}>
+  Notifications and analytics are out of scope, so there are no listeners. Introduce domain events only when successful matching or completion has several confirmed reactions.
+</PatternDecision>
+
+<PatternDecision name="Singleton RideService" useIt={false}>
+  A global object would share mutable test state and would not coordinate multiple servers. Normal construction makes the graph, users, and strategies explicit.
+</PatternDecision>
+
+### Prove matching and routing interactively
+
+Request the default ride. The comparison should choose Leo at node `E` even though Maya at `B` appears visually closer to pickup `D`. Then advance Dijkstra one step at a time. Load the unreachable pickup to see a valid `G → F` trip rejected because no driver can enter one-way node `G`.
+
+<RideSharingSimulator />
+
+<h2 id="implementation">4. Java implementation (~10 minutes)</h2>
+
+<ImplementationGuide
+  what="This Java 17 program builds a directed weighted road graph, finds shortest routes with Dijkstra, compares available drivers by pickup time, creates matched rides, and enforces start and completion transitions."
+  why="RoadGraph owns map data, RoutingStrategy owns path calculation, DriverMatchingStrategy owns driver choice, Driver owns availability, Ride owns lifecycle, and RideService coordinates the successful mutation boundary."
+  flow={[
+    "RideService validates the rider and endpoint IDs.",
+    "DijkstraRoutingStrategy proves that pickup can reach destination.",
+    "NearestDriverMatchingStrategy routes every AVAILABLE driver to pickup.",
+    "The matcher chooses lower pickup minutes, then lower driver ID.",
+    "RideService creates Ride only after both routes exist and asks Driver to become BUSY.",
+    "Completion changes Ride first, then moves Driver to destination and makes it AVAILABLE."
+  ]}
+/>
+
+### Code concepts to understand
+
+<ConceptDropdown title="Adjacency lists and directed roads" summary="RoadGraph stores only outgoing roads, so one-way behavior is natural." defaultOpen={true}>
+  `addDirectedRoad` creates one Road. `addTwoWayRoad` deliberately creates two. `roadsFrom` returns an immutable copy, which lets Dijkstra read graph state without editing it.
+</ConceptDropdown>
+
+<ConceptDropdown title="Dijkstra's distance, predecessor, and settled maps" summary="Three small structures answer cost, path, and finality.">
+  `distance` stores the cheapest known minutes. `previous` stores the parent that produced an improvement. `settled` prevents a node's outgoing roads from being processed twice. The priority queue selects the lowest `(minutes, locationId)` entry deterministically.
+</ConceptDropdown>
+
+<ConceptDropdown title="Relaxation and stale queue entries" summary="A newly found path replaces an estimate only when it is strictly cheaper.">
+  The code computes `candidate = current.minutes + road.minutes`. When candidate is smaller, it updates distance and predecessor and adds another queue entry. If an older entry is later removed, its minutes no longer equal the current distance, so it is skipped.
+</ConceptDropdown>
+
+<ConceptDropdown title="Matching calls routing; routing does not match" summary="The two Strategy patterns isolate two different reasons to change.">
+  NearestDriverMatchingStrategy filters Driver status, calls RoutingStrategy once per candidate, and compares Route results. Dijkstra never sees Driver, Rider, or Ride. This is the exact separation shown by the entity diagram.
+</ConceptDropdown>
+
+<ConceptDropdown title="Validation before mutation" summary="An impossible route cannot consume an ID or busy a driver.">
+  RideService calculates tripRoute and DriverMatch before constructing Ride. Only after both exist does it allocate `R1`, call `driver.assign`, and update `ridesById`. Expected failures return MatchStatus values.
+</ConceptDropdown>
+
+<ConceptDropdown title="Why A* is an extension" summary="A* needs coordinates and a safe estimate that the confirmed model does not require.">
+  Dijkstra uses only road minutes. A* may visit fewer nodes, but its heuristic must be designed and tested. Adding latitude and longitude now only to name-drop A* would violate the rule that every field comes from a requirement.
+</ConceptDropdown>
+
+### Build the graph and immutable route values
+
+Read `RoadGraph` before Dijkstra. Its directed adjacency lists define which moves the algorithm is allowed to make. Then read Route, the immutable result shared by routing, matching, Ride, and the demo.
+
+<JavaFile name="Location.java" purpose="Stores one stable road-graph node identity and display name.">
+{`public record Location(String id, String name) {
+    public Location {
+        if (id == null || id.isBlank() || name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Location id and name are required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Road.java" purpose="Represents one directed road segment with positive travel minutes.">
+{`public record Road(String fromId, String toId, int minutes) {
+    public Road {
+        if (fromId == null || fromId.isBlank()
+                || toId == null || toId.isBlank()
+                || fromId.equals(toId) || minutes <= 0) {
+            throw new IllegalArgumentException("Valid directed road fields are required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="RoadGraph.java" purpose="Owns locations and immutable outgoing-road adjacency lists.">
+{`import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class RoadGraph {
+    private final Map<String, Location> locations = new LinkedHashMap<>();
+    private final Map<String, List<Road>> outgoing = new LinkedHashMap<>();
+
+    public void addLocation(Location location) {
+        if (location == null) {
+            throw new IllegalArgumentException("Location is required");
+        }
+        if (locations.putIfAbsent(location.id(), location) != null) {
+            throw new IllegalArgumentException("Duplicate location: " + location.id());
+        }
+        outgoing.put(location.id(), new ArrayList<>());
+    }
+
+    public void addDirectedRoad(String fromId, String toId, int minutes) {
+        requireLocation(fromId);
+        requireLocation(toId);
+        outgoing.get(fromId).add(new Road(fromId, toId, minutes));
+        outgoing.get(fromId).sort((left, right) -> left.toId().compareTo(right.toId()));
+    }
+
+    public void addTwoWayRoad(String firstId, String secondId, int minutes) {
+        addDirectedRoad(firstId, secondId, minutes);
+        addDirectedRoad(secondId, firstId, minutes);
+    }
+
+    public boolean containsLocation(String locationId) {
+        return locations.containsKey(locationId);
+    }
+
+    public List<Road> roadsFrom(String locationId) {
+        requireLocation(locationId);
+        return List.copyOf(outgoing.get(locationId));
+    }
+
+    private void requireLocation(String locationId) {
+        if (!locations.containsKey(locationId)) {
+            throw new IllegalArgumentException("Unknown location: " + locationId);
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Route.java" purpose="Carries an ordered path and its total travel minutes as one immutable result.">
+{`import java.util.List;
+
+public record Route(List<String> locationIds, int totalMinutes) {
+    public Route {
+        if (locationIds == null || locationIds.isEmpty() || totalMinutes < 0) {
+            throw new IllegalArgumentException("Valid route fields are required");
+        }
+        locationIds = List.copyOf(locationIds);
+    }
+}`}
+</JavaFile>
+
+### Implement routing as a complete Strategy
+
+Read the main loop from the priority-queue removal through edge relaxation. Path reconstruction is deliberately separate so the loop answers one question at a time.
+
+<JavaFile name="RoutingStrategy.java" purpose="Defines the replaceable route-calculation boundary.">
+{`import java.util.Optional;
+
+public interface RoutingStrategy {
+    Optional<Route> route(
+            RoadGraph graph,
+            String startId,
+            String targetId
+    );
+}`}
+</JavaFile>
+
+<JavaFile name="DijkstraRoutingStrategy.java" purpose="Finds the cheapest non-negative weighted route with deterministic priority-queue ordering.">
+{`import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.PriorityQueue;
+import java.util.Set;
+
+public final class DijkstraRoutingStrategy implements RoutingStrategy {
+    private record QueueEntry(String locationId, int minutes) {}
+
+    @Override
+    public Optional<Route> route(
+            RoadGraph graph,
+            String startId,
+            String targetId
+    ) {
+        if (graph == null || !graph.containsLocation(startId)
+                || !graph.containsLocation(targetId)) {
+            return Optional.empty();
+        }
+        if (startId.equals(targetId)) {
+            return Optional.of(new Route(List.of(startId), 0));
+        }
+
+        Map<String, Integer> distance = new HashMap<>();
+        Map<String, String> previous = new HashMap<>();
+        Set<String> settled = new HashSet<>();
+        PriorityQueue<QueueEntry> frontier = new PriorityQueue<>(
+                Comparator.comparingInt(QueueEntry::minutes)
+                        .thenComparing(QueueEntry::locationId)
+        );
+        distance.put(startId, 0);
+        frontier.add(new QueueEntry(startId, 0));
+
+        while (!frontier.isEmpty()) {
+            QueueEntry current = frontier.remove();
+            if (current.minutes() != distance.getOrDefault(
+                    current.locationId(), Integer.MAX_VALUE)) {
+                continue;
+            }
+            if (!settled.add(current.locationId())) {
+                continue;
+            }
+            if (current.locationId().equals(targetId)) {
+                return Optional.of(new Route(
+                        rebuildPath(previous, startId, targetId),
+                        current.minutes()
+                ));
+            }
+
+            for (Road road : graph.roadsFrom(current.locationId())) {
+                if (settled.contains(road.toId())) {
+                    continue;
+                }
+                int candidate = Math.addExact(current.minutes(), road.minutes());
+                int known = distance.getOrDefault(road.toId(), Integer.MAX_VALUE);
+                if (candidate < known) {
+                    distance.put(road.toId(), candidate);
+                    previous.put(road.toId(), current.locationId());
+                    frontier.add(new QueueEntry(road.toId(), candidate));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private List<String> rebuildPath(
+            Map<String, String> previous,
+            String startId,
+            String targetId
+    ) {
+        List<String> reversed = new ArrayList<>();
+        String current = targetId;
+        reversed.add(current);
+        while (!current.equals(startId)) {
+            current = previous.get(current);
+            if (current == null) {
+                throw new IllegalStateException("Predecessor chain is incomplete");
+            }
+            reversed.add(current);
+        }
+        Collections.reverse(reversed);
+        return List.copyOf(reversed);
+    }
+}`}
+</JavaFile>
+
+### Add rider, driver, request, and lifecycle state
+
+Driver methods keep availability changes beside Driver state. Ride methods do the same for lifecycle. Neither class knows how graph routing works.
+
+<JavaFile name="DriverStatus.java" purpose="Names the driver states required by matching and completion.">
+{`public enum DriverStatus {
+    AVAILABLE,
+    BUSY
+}`}
+</JavaFile>
+
+<JavaFile name="Driver.java" purpose="Owns driver identity, current graph location, availability, assignment, and completion.">
+{`public final class Driver {
+    private final String id;
+    private final String name;
+    private String currentLocationId;
+    private DriverStatus status = DriverStatus.AVAILABLE;
+
+    public Driver(String id, String name, String currentLocationId) {
+        if (id == null || id.isBlank() || name == null || name.isBlank()
+                || currentLocationId == null || currentLocationId.isBlank()) {
+            throw new IllegalArgumentException("Driver fields are required");
+        }
+        this.id = id;
+        this.name = name;
+        this.currentLocationId = currentLocationId;
+    }
+
+    public String id() { return id; }
+    public String name() { return name; }
+    public String currentLocationId() { return currentLocationId; }
+    public DriverStatus status() { return status; }
+
+    public boolean assign() {
+        if (status != DriverStatus.AVAILABLE) {
+            return false;
+        }
+        status = DriverStatus.BUSY;
+        return true;
+    }
+
+    public boolean completeAt(String destinationId) {
+        if (status != DriverStatus.BUSY
+                || destinationId == null || destinationId.isBlank()) {
+            return false;
+        }
+        currentLocationId = destinationId;
+        status = DriverStatus.AVAILABLE;
+        return true;
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Rider.java" purpose="Stores the stable identity and display name of a registered rider.">
+{`public record Rider(String id, String name) {
+    public Rider {
+        if (id == null || id.isBlank() || name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Rider fields are required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="RideRequest.java" purpose="Carries one rider's immutable pickup and destination intent.">
+{`public record RideRequest(
+        String riderId,
+        String pickupId,
+        String destinationId
+) {
+    public RideRequest {
+        if (riderId == null || riderId.isBlank()
+                || pickupId == null || pickupId.isBlank()
+                || destinationId == null || destinationId.isBlank()) {
+            throw new IllegalArgumentException("Ride request fields are required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="RideStatus.java" purpose="Names the three allowed points in the first ride lifecycle.">
+{`public enum RideStatus {
+    MATCHED,
+    IN_PROGRESS,
+    COMPLETED
+}`}
+</JavaFile>
+
+<JavaFile name="Ride.java" purpose="Owns accepted ride facts and guards MATCHED to IN_PROGRESS to COMPLETED.">
+{`public final class Ride {
+    private final String id;
+    private final String riderId;
+    private final Driver driver;
+    private final String pickupId;
+    private final String destinationId;
+    private final Route pickupRoute;
+    private final Route tripRoute;
+    private RideStatus status = RideStatus.MATCHED;
+
+    public Ride(
+            String id,
+            String riderId,
+            Driver driver,
+            String pickupId,
+            String destinationId,
+            Route pickupRoute,
+            Route tripRoute
+    ) {
+        if (id == null || id.isBlank() || riderId == null || riderId.isBlank()
+                || driver == null || pickupId == null || pickupId.isBlank()
+                || destinationId == null || destinationId.isBlank()
+                || pickupRoute == null || tripRoute == null) {
+            throw new IllegalArgumentException("Ride fields are required");
+        }
+        this.id = id;
+        this.riderId = riderId;
+        this.driver = driver;
+        this.pickupId = pickupId;
+        this.destinationId = destinationId;
+        this.pickupRoute = pickupRoute;
+        this.tripRoute = tripRoute;
+    }
+
+    public String id() { return id; }
+    public String riderId() { return riderId; }
+    public Driver driver() { return driver; }
+    public String pickupId() { return pickupId; }
+    public String destinationId() { return destinationId; }
+    public Route pickupRoute() { return pickupRoute; }
+    public Route tripRoute() { return tripRoute; }
+    public RideStatus status() { return status; }
+
+    public boolean start() {
+        if (status != RideStatus.MATCHED) {
+            return false;
+        }
+        status = RideStatus.IN_PROGRESS;
+        return true;
+    }
+
+    public boolean complete() {
+        if (status != RideStatus.IN_PROGRESS) {
+            return false;
+        }
+        status = RideStatus.COMPLETED;
+        return true;
+    }
+}`}
+</JavaFile>
+
+### Implement driver matching without hiding routing
+
+DriverMatch keeps the selected Driver beside the pickup Route that justified the selection. The matcher is deterministic: minutes first, then driver ID.
+
+<JavaFile name="DriverMatch.java" purpose="Returns the selected Driver together with the route that justified the match.">
+{`public record DriverMatch(Driver driver, Route pickupRoute) {
+    public DriverMatch {
+        if (driver == null || pickupRoute == null) {
+            throw new IllegalArgumentException("Driver and pickup route are required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="DriverMatchingStrategy.java" purpose="Defines the replaceable driver-choice boundary separately from routing.">
+{`import java.util.List;
+import java.util.Optional;
+
+public interface DriverMatchingStrategy {
+    Optional<DriverMatch> match(
+            List<Driver> drivers,
+            String pickupId,
+            RoadGraph graph,
+            RoutingStrategy routing
+    );
+}`}
+</JavaFile>
+
+<JavaFile name="NearestDriverMatchingStrategy.java" purpose="Chooses the reachable available Driver with the lowest pickup minutes, then ID.">
+{`import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+
+public final class NearestDriverMatchingStrategy
+        implements DriverMatchingStrategy {
+
+    @Override
+    public Optional<DriverMatch> match(
+            List<Driver> drivers,
+            String pickupId,
+            RoadGraph graph,
+            RoutingStrategy routing
+    ) {
+        List<DriverMatch> candidates = new ArrayList<>();
+        for (Driver driver : drivers) {
+            if (driver.status() != DriverStatus.AVAILABLE) {
+                continue;
+            }
+            routing.route(graph, driver.currentLocationId(), pickupId)
+                    .ifPresent(route -> candidates.add(new DriverMatch(driver, route)));
+        }
+        return candidates.stream().min(
+                Comparator.comparingInt(
+                                (DriverMatch match) -> match.pickupRoute().totalMinutes())
+                        .thenComparing(match -> match.driver().id())
+        );
+    }
+}`}
+</JavaFile>
+
+### Add explicit results and the coordinator
+
+Expected rejection is returned as data. `MatchResult` contains a Ride only for MATCHED. Ride actions use another enum because “unknown ride” and “wrong state” are normal caller mistakes.
+
+<JavaFile name="MatchStatus.java" purpose="Names every accepted or rejected ride-request outcome.">
+{`public enum MatchStatus {
+    MATCHED,
+    UNKNOWN_RIDER,
+    INVALID_REQUEST,
+    UNKNOWN_LOCATION,
+    UNREACHABLE_TRIP,
+    NO_DRIVER_AVAILABLE
+}`}
+</JavaFile>
+
+<JavaFile name="MatchResult.java" purpose="Carries the accepted Ride only when driver matching succeeds.">
+{`import java.util.Optional;
+
+public record MatchResult(MatchStatus status, Optional<Ride> ride) {
+    public MatchResult {
+        if (status == null || ride == null) {
+            throw new IllegalArgumentException("Result fields are required");
+        }
+    }
+
+    public static MatchResult accepted(Ride ride) {
+        return new MatchResult(MatchStatus.MATCHED, Optional.of(ride));
+    }
+
+    public static MatchResult rejected(MatchStatus status) {
+        return new MatchResult(status, Optional.empty());
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="RideActionStatus.java" purpose="Names every expected start or completion outcome.">
+{`public enum RideActionStatus {
+    STARTED,
+    COMPLETED,
+    RIDE_NOT_FOUND,
+    INVALID_STATE
+}`}
+</JavaFile>
+
+<JavaFile name="RideService.java" purpose="Coordinates validation, trip routing, matching, IDs, ride storage, and lifecycle actions.">
+{`import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+public final class RideService {
+    private final Map<String, Rider> ridersById = new LinkedHashMap<>();
+    private final List<Driver> drivers;
+    private final Map<String, Ride> ridesById = new LinkedHashMap<>();
+    private final RoadGraph graph;
+    private final RoutingStrategy routing;
+    private final DriverMatchingStrategy matching;
+    private int nextRideNumber = 1;
+
+    public RideService(
+            List<Rider> riders,
+            List<Driver> drivers,
+            RoadGraph graph,
+            RoutingStrategy routing,
+            DriverMatchingStrategy matching
+    ) {
+        if (riders == null || riders.isEmpty()
+                || drivers == null || drivers.isEmpty()
+                || graph == null || routing == null || matching == null) {
+            throw new IllegalArgumentException("Service dependencies are required");
+        }
+        for (Rider rider : riders) {
+            if (ridersById.putIfAbsent(rider.id(), rider) != null) {
+                throw new IllegalArgumentException("Duplicate rider: " + rider.id());
+            }
+        }
+        this.drivers = List.copyOf(drivers);
+        this.graph = graph;
+        this.routing = routing;
+        this.matching = matching;
+    }
+
+    public MatchResult requestRide(RideRequest request) {
+        if (request == null) {
+            return MatchResult.rejected(MatchStatus.INVALID_REQUEST);
+        }
+        if (!ridersById.containsKey(request.riderId())) {
+            return MatchResult.rejected(MatchStatus.UNKNOWN_RIDER);
+        }
+        if (!graph.containsLocation(request.pickupId())
+                || !graph.containsLocation(request.destinationId())) {
+            return MatchResult.rejected(MatchStatus.UNKNOWN_LOCATION);
+        }
+        if (request.pickupId().equals(request.destinationId())) {
+            return MatchResult.rejected(MatchStatus.INVALID_REQUEST);
+        }
+
+        Optional<Route> tripRoute = routing.route(
+                graph, request.pickupId(), request.destinationId());
+        if (tripRoute.isEmpty()) {
+            return MatchResult.rejected(MatchStatus.UNREACHABLE_TRIP);
+        }
+        Optional<DriverMatch> match = matching.match(
+                drivers, request.pickupId(), graph, routing);
+        if (match.isEmpty()) {
+            return MatchResult.rejected(MatchStatus.NO_DRIVER_AVAILABLE);
+        }
+
+        DriverMatch selected = match.get();
+        String rideId = "R" + nextRideNumber;
+        Ride ride = new Ride(
+                rideId,
+                request.riderId(),
+                selected.driver(),
+                request.pickupId(),
+                request.destinationId(),
+                selected.pickupRoute(),
+                tripRoute.get()
+        );
+        if (!selected.driver().assign()) {
+            return MatchResult.rejected(MatchStatus.NO_DRIVER_AVAILABLE);
+        }
+        nextRideNumber++;
+        ridesById.put(ride.id(), ride);
+        return MatchResult.accepted(ride);
+    }
+
+    public RideActionStatus startRide(String rideId) {
+        Ride ride = ridesById.get(rideId);
+        if (ride == null) {
+            return RideActionStatus.RIDE_NOT_FOUND;
+        }
+        return ride.start()
+                ? RideActionStatus.STARTED
+                : RideActionStatus.INVALID_STATE;
+    }
+
+    public RideActionStatus completeRide(String rideId) {
+        Ride ride = ridesById.get(rideId);
+        if (ride == null) {
+            return RideActionStatus.RIDE_NOT_FOUND;
+        }
+        if (ride.status() != RideStatus.IN_PROGRESS) {
+            return RideActionStatus.INVALID_STATE;
+        }
+        if (!ride.complete()) {
+            return RideActionStatus.INVALID_STATE;
+        }
+        if (!ride.driver().completeAt(ride.destinationId())) {
+            throw new IllegalStateException("Ride and driver state disagree");
+        }
+        return RideActionStatus.COMPLETED;
+    }
+
+    public Optional<Ride> ride(String rideId) {
+        return Optional.ofNullable(ridesById.get(rideId));
+    }
+
+    public List<Driver> drivers() {
+        return drivers;
+    }
+}`}
+</JavaFile>
+
+### Run the same map as the simulator
+
+The one-way `G → F` road makes the trip valid from G, while no driver can enter G. This lets the demo prove `NO_DRIVER_AVAILABLE` without confusing it with an unreachable trip.
+
+<JavaFile name="RideSharingDemo.java" purpose="Exercises routing, matching, lifecycle, driver reuse, and an unreachable-pickup rejection.">
+{`import java.util.List;
+
+public final class RideSharingDemo {
+    public static void main(String[] args) {
+        RoadGraph graph = sampleGraph();
+        Driver maya = new Driver("D1", "Maya", "B");
+        Driver leo = new Driver("D2", "Leo", "E");
+        Driver noor = new Driver("D3", "Noor", "A");
+        RideService service = new RideService(
+                List.of(new Rider("U1", "Riya")),
+                List.of(maya, leo, noor),
+                graph,
+                new DijkstraRoutingStrategy(),
+                new NearestDriverMatchingStrategy()
+        );
+
+        MatchResult matched = service.requestRide(
+                new RideRequest("U1", "D", "F")
+        );
+        Ride ride = matched.ride().orElseThrow();
+        System.out.println("match status: " + matched.status());
+        System.out.println("driver: " + ride.driver().id());
+        System.out.println("pickup: " + ride.pickupRoute().locationIds()
+                + " = " + ride.pickupRoute().totalMinutes());
+        System.out.println("trip: " + ride.tripRoute().locationIds()
+                + " = " + ride.tripRoute().totalMinutes());
+        System.out.println("start: " + service.startRide(ride.id()));
+        System.out.println("complete: " + service.completeRide(ride.id()));
+        System.out.println("driver after trip: " + leo.currentLocationId()
+                + " / " + leo.status());
+
+        boolean noSecondRideBeforeRequest = service.ride("R2").isEmpty();
+        MatchResult unreachablePickup = service.requestRide(
+                new RideRequest("U1", "G", "F")
+        );
+        System.out.println("unreachable pickup: " + unreachablePickup.status());
+        System.out.println("no new ride: "
+                + (noSecondRideBeforeRequest && service.ride("R2").isEmpty()));
+    }
+
+    private static RoadGraph sampleGraph() {
+        RoadGraph graph = new RoadGraph();
+        graph.addLocation(new Location("A", "West"));
+        graph.addLocation(new Location("B", "Market"));
+        graph.addLocation(new Location("C", "Park"));
+        graph.addLocation(new Location("D", "Museum"));
+        graph.addLocation(new Location("E", "Harbor"));
+        graph.addLocation(new Location("F", "Airport"));
+        graph.addLocation(new Location("G", "Hill"));
+        graph.addTwoWayRoad("A", "B", 4);
+        graph.addTwoWayRoad("A", "C", 2);
+        graph.addTwoWayRoad("C", "B", 1);
+        graph.addTwoWayRoad("B", "D", 5);
+        graph.addTwoWayRoad("C", "D", 8);
+        graph.addTwoWayRoad("C", "E", 10);
+        graph.addTwoWayRoad("D", "E", 2);
+        graph.addTwoWayRoad("D", "F", 6);
+        graph.addTwoWayRoad("E", "F", 3);
+        graph.addDirectedRoad("G", "F", 1);
+        return graph;
+    }
+}`}
+</JavaFile>
+
+<ScenarioTrace steps={[
+  ["Initial state", "Maya is AVAILABLE at B, Leo at E, Noor at A, and no ride ID exists."],
+  ["Trip validation", "Dijkstra returns D → E → F in 5 minutes, so the requested trip is possible."],
+  ["Driver comparison", "Pickup routes cost Maya 5, Leo 2, and Noor 8 minutes. NearestDriverMatchingStrategy chooses Leo."],
+  ["Mutation", "RideService creates R1, stores both routes, calls Leo.assign(), and records R1 as MATCHED."],
+  ["Lifecycle", "startRide returns STARTED. completeRide returns COMPLETED, moves Leo to F, and makes him AVAILABLE."],
+  ["Rejection", "G → F is a valid trip, but no driver can reach G. requestRide returns NO_DRIVER_AVAILABLE; R2 is not created and no driver changes."]
+]} />
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+### “Now include live traffic”
+
+The changed requirement alters edge weights while rides are being requested. RoadGraph currently owns static minutes. Introduce a traffic-aware weight provider or immutable graph snapshot used by one routing call. RoutingStrategy still owns path finding; do not let DriverMatchingStrategy read traffic feeds directly.
+
+### “Use A* on a large map”
+
+The affected rule is route search. Add coordinates to Location, define a safe travel-time heuristic, and implement `AStarRoutingStrategy` behind the existing interface. Keep Dijkstra as a reference and test that the heuristic never overestimates on the chosen road model.
+
+### “Find drivers efficiently across a city”
+
+The naive matcher runs a route for every available driver. Add a geographic index to find a bounded candidate set, then run exact road routing only for those drivers. The index narrows candidates; it does not replace final routing correctness.
+
+### “Allow two riders to request at the same time”
+
+The current sequential assumption prevents both requests from seeing one driver as AVAILABLE. In one Java process, protect candidate selection plus `assign` as one critical operation. Across servers, use a transactional or compare-and-set reservation in shared storage. A local lock alone cannot coordinate separate processes.
+
+### “Let a driver accept or reject”
+
+Ride currently enters MATCHED immediately. Add OFFERED and an offer timeout. The driver's temporary reservation belongs beside the offer state, and a rejection releases the driver before the next matching attempt. This is when a richer State design may become useful.
+
+### “Add pricing and payment”
+
+Fare calculation depends on distance, time, vehicle, and pricing policy; payment is a separate external workflow. Add a PricingStrategy only after its inputs and variations are confirmed. Keep payment failure from corrupting ride routing or driver availability.
+
+### A strong spoken summary
+
+> “I separated matching from routing. RoadGraph owns directed weighted edges. DijkstraRoutingStrategy returns the cheapest path using distance estimates, predecessors, a settled set, and a priority queue. NearestDriverMatchingStrategy calls routing for AVAILABLE drivers and compares pickup minutes, then ID. RideService validates the trip and match before creating a Ride or making a Driver busy. The first version uses static graph minutes and sequential in-memory calls; live traffic, A*, geographic indexing, and concurrent driver reservation are extensions.”

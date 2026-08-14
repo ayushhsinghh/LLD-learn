@@ -63,6 +63,15 @@ export const lessons: Lesson[] = [
     summary: "Turn shared bills into exact split rules, net pairwise debts safely, and simplify repayments with complete Java and an interactive expense lab.",
     accent: "#8fb8d0",
   },
+  {
+    slug: "ride-sharing",
+    title: "Ride Sharing",
+    eyebrow: "Complete walkthrough",
+    difficulty: "Intermediate",
+    duration: "60 min",
+    summary: "Separate driver matching from road routing, trace Dijkstra step by step, and complete a ride lifecycle with Java and an interactive dispatch lab.",
+    accent: "#6ab6a1",
+  },
 ];
 
 export const lessonHref = (slug: string) => `/problems/${slug}/`;
