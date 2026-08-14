@@ -335,6 +335,7 @@ For a topic with slug `<topic>`:
 6. Add `public/images/<topic>-entity-flow.png` using the required sketch style.
 7. Reuse shared lesson blocks; extend them only when the new component will remain useful for future topics.
 8. Update adjacent lesson pagination when needed.
+9. Update the lesson catalog and ordering in `README.md` so the public project documentation stays aligned with `lib/lessons.ts`.
 
 ## Validation before completion
 
