@@ -13,5 +13,5 @@ const toc = [
 ];
 
 export default function TicTacToePage() {
-  return <LessonShell title="Tic-Tac-Toe" eyebrow="Problem 02 · Complete walkthrough" difficulty="Beginner" duration="30 min" toc={toc} previous={{ href: "/problems/elevator/", label: "Elevator System" }}><TicTacToeLesson /></LessonShell>;
+  return <LessonShell title="Tic-Tac-Toe" eyebrow="Problem 02 · Complete walkthrough" difficulty="Beginner" duration="30 min" toc={toc} previous={{ href: "/problems/elevator/", label: "Elevator System" }} next={{ href: "/problems/parking-lot/", label: "Parking Lot" }}><TicTacToeLesson /></LessonShell>;
 }

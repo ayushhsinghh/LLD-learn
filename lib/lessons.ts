@@ -27,6 +27,24 @@ export const lessons: Lesson[] = [
     summary: "Turn interview answers into game rules, complete Java classes, and a move-by-move working simulation.",
     accent: "#52a78c",
   },
+  {
+    slug: "parking-lot",
+    title: "Parking Lot",
+    eyebrow: "Complete walkthrough",
+    difficulty: "Intermediate",
+    duration: "40 min",
+    summary: "Turn vague parking rules into spot ownership, a deterministic allocation strategy, complete Java code, and an interactive lot.",
+    accent: "#f7d66f",
+  },
+  {
+    slug: "movie-ticket-booking",
+    title: "Movie Ticket Booking",
+    eyebrow: "Complete walkthrough",
+    difficulty: "Intermediate",
+    duration: "50 min",
+    summary: "Derive seat holds and booking rules, make concurrent requests safe, and prove the design with complete Java and an interactive race lab.",
+    accent: "#ee9360",
+  },
 ];
 
 export const lessonHref = (slug: string) => `/problems/${slug}/`;

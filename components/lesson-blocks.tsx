@@ -95,12 +95,12 @@ export function LevelStrip({ junior, mid, senior }: { junior: string; mid: strin
   );
 }
 
-export function ConceptImage({ src, alt, caption, width = 1536, height = 1024, mobileScrollable = false }: { src: string; alt: string; caption: string; width?: number; height?: number; mobileScrollable?: boolean }) {
+export function ConceptImage({ src, alt, caption, width = 1536, height = 1024, mobileScrollable = false, eager = false }: { src: string; alt: string; caption: string; width?: number; height?: number; mobileScrollable?: boolean; eager?: boolean }) {
   return (
     <figure className="my-7">
       {mobileScrollable && <p className="mb-2 text-right text-[10px] font-bold uppercase tracking-wider text-[var(--faint)] sm:hidden">Swipe to follow the flow →</p>}
       <div className={cn("rounded-xl border border-[var(--line)] bg-[#fbfaf7]", mobileScrollable ? "overflow-x-auto" : "overflow-hidden")}>
-        <Image src={src} alt={alt} width={width} height={height} unoptimized className={cn("h-auto w-full", mobileScrollable && "min-w-[680px] sm:min-w-0")} />
+        <Image src={src} alt={alt} width={width} height={height} loading={eager ? "eager" : undefined} unoptimized className={cn("h-auto w-full", mobileScrollable && "min-w-[680px] sm:min-w-0")} />
       </div>
       <figcaption className="mt-2 text-center text-xs leading-5 text-[var(--faint)]">{caption}</figcaption>
     </figure>

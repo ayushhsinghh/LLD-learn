@@ -1,0 +1,849 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ParkingLotSimulator } from "@/components/simulations/parking-lot-simulator"
+
+<Lead>Design a parking lot that accepts a vehicle, chooses a suitable free spot, issues a ticket, and frees the same spot when the vehicle leaves.</Lead>
+
+<ConceptImage
+  src="/images/parking-lot-overview.png"
+  alt="A car entering a two-floor parking garage and following an assigned route to a highlighted compatible free spot"
+  caption="The real problem in one picture: find a spot that is both free and suitable, remember the assignment, and make that spot available again after exit."
+  width={1536}
+  height={1024}
+/>
+
+<FrameworkMap />
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The interview begins with a short prompt:
+
+> “Design a parking lot.”
+
+That sentence sounds concrete because we have all used a parking lot. But it leaves the rules undecided. Can a motorcycle use a compact spot? Are there several floors? Who chooses the spot? Do we calculate a fee? If we answer those questions silently, we may build a correct solution to the wrong problem.
+
+Start by turning the physical story into actions the program must perform. Do not name classes yet.
+
+<QuestionGuide />
+
+### Ask questions and record what each answer changes
+
+<QuestionAnswer
+  ask="Which vehicle and spot types must the first version support?"
+  why="Compatibility decides which requests may use which resources. It affects validation and the allocation rule."
+  answer="Support motorcycles and cars. Spots are motorcycle, compact, or large. A motorcycle fits any spot; a car fits compact or large."
+  derived="For every free spot, the program must be able to answer whether its type supports the entering vehicle type."
+/>
+
+<QuestionAnswer
+  ask="Does the lot have several floors, and what does nearest mean?"
+  why="‘Nearest’ is too vague to implement or test until the interviewer gives us an exact ordering."
+  answer="Yes. Floor 0 is closest to the entrance, then floor 1, and so on. On one floor, prefer the smallest suitable spot type and then the lowest spot ID."
+  derived="Choose by floor number, then vehicle-to-spot preference, then spot ID. The same input must always select the same spot."
+/>
+
+<QuestionAnswer
+  ask="Does the driver choose a spot, or does the system assign one?"
+  why="This decides where the main action begins and whether an allocation rule is required."
+  answer="The system assigns the nearest compatible free spot when a vehicle enters."
+  derived="park(vehicle) must either occupy exactly one selected spot and return a ticket, or reject the request without changing any spot."
+/>
+
+<QuestionAnswer
+  ask="What identifies an active parking session, and how does exit work?"
+  why="The exit operation needs a reliable way to find the exact occupied spot."
+  answer="Entry returns a unique ticket containing the vehicle plate, floor, and spot ID. Exit supplies that ticket ID."
+  derived="Keep active tickets by ticket ID. leave(ticketId) releases the spot recorded by that ticket and removes the active ticket."
+/>
+
+<QuestionAnswer
+  ask="Which invalid actions should be rejected?"
+  why="A rejected request must not accidentally consume a spot or remove a valid ticket."
+  answer="Reject a vehicle that is already parked, an entry with no compatible spot, and an unknown exit ticket."
+  derived="Return named result values. Check duplicate entry before allocation, and check the ticket before releasing a spot."
+/>
+
+<QuestionAnswer
+  ask="Will the assignment rule change?"
+  why="If selection is a replaceable business rule, ParkingLot should not contain one hard-coded sorting algorithm."
+  answer="Implement nearest compatible spot now, but keep the selection rule replaceable so another lot can use a different policy."
+  derived="ParkingLot receives a SpotAssignmentStrategy. The first implementation is NearestAvailableSpotStrategy."
+/>
+
+<QuestionAnswer
+  ask="Do we need payment, reservations, electric charging, several entrances, or persistent storage?"
+  why="Each addition brings separate rules that are not needed to prove the core allocation design."
+  answer="No. Keep them as follow-up discussions. Assume calls reach one in-memory process sequentially."
+  derived="The first version handles entry, assignment, tickets, and exit only. It does not claim to be safe across concurrent entrances or application servers."
+/>
+
+### Confirm the specification
+
+<RequirementBox requirements={[
+  "Support motorcycles and cars across motorcycle, compact, and large spots on multiple floors.",
+  "A motorcycle fits any spot; a car fits only a compact or large spot.",
+  "Assign the nearest compatible free spot: lower floor first, then smallest suitable type, then spot ID.",
+  "A successful entry occupies exactly one spot and returns a unique ticket containing the plate, floor, and spot ID.",
+  "Reject a duplicate vehicle or a vehicle with no compatible free spot without changing lot state.",
+  "A valid ticket releases its recorded spot; an unknown ticket changes nothing.",
+  "Keep the assignment rule replaceable, with nearest-compatible as the first strategy."
+]} outOfScope={["Payments and pricing", "Advance reservations", "Electric charging", "Several entrances acting concurrently", "Database or distributed consistency", "Pedestrian navigation and physical gates"]} />
+
+<Insight title="Requirements are complete when you can predict the result" tone="mint">
+  Ask the interviewer to test one example aloud: “A car arrives. Floor 0 has a motorcycle spot and a large spot; floor 1 has a compact spot.” Our rule chooses the large spot on floor 0 because floor distance is compared before spot size. If both people predict the same result, “nearest” is finally precise.
+</Insight>
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+Scan the confirmed requirements for candidate nouns: vehicle, parking lot, floor, spot, ticket, assignment rule, entrance gate, payment, and address. A noun from the real world is only a candidate. It becomes a class when it owns changing information or an important rule.
+
+<CandidateWalkthrough
+  name="Vehicle"
+  fromRequirement="Compatibility depends on the entering vehicle type, and duplicate entry is detected using its license plate."
+  question="Which values describe the vehicle throughout one parking session?"
+  reasoning="The plate and type always travel together. They do not change while the vehicle is parked, and two vehicle values with the same plate and type should compare as the same value."
+  decision="Class"
+>
+  Use an immutable `Vehicle` value class. In Java, a `record` gives us final components and value equality without mutable setters.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="ParkingSpot"
+  fromRequirement="A successful entry occupies exactly one compatible free spot, and exit frees that same spot."
+  question="What changes when a vehicle parks, and which object has enough information to protect that change?"
+  reasoning="Availability belongs to one spot. The spot knows its own type and current vehicle, so it can reject an incompatible vehicle or a second occupant before changing state."
+  decision="Class"
+>
+  `ParkingSpot` owns its ID, type, and current vehicle. It exposes `canFit`, `occupy`, and `release`; callers cannot set `occupied=true` directly.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="ParkingFloor"
+  fromRequirement="The lot contains spots on several ordered floors, and floor number is the first part of the nearest rule."
+  question="Is a floor only a number, or does it own a meaningful group?"
+  reasoning="The floor groups the spots that physically belong together. It can expose a safe read-only list and find a spot by ID during exit. The number alone cannot provide those operations."
+  decision="Class"
+>
+  `ParkingFloor` owns its floor number and spots. It does not decide the cross-floor assignment policy.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="ParkingLot"
+  fromRequirement="Entry must check duplicate vehicles, ask for one selection, occupy it, issue a ticket, and later coordinate exit."
+  question="Who sees enough of the workflow to perform those steps in the correct order?"
+  reasoning="No single spot knows active tickets or other floors. We need one public object that coordinates the transaction while letting each spot protect its own state."
+  decision="Class"
+>
+  `ParkingLot` is the entry point for `park` and `leave`. It owns the floors, active-ticket indexes, ticket sequence, and assignment strategy.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="ParkingTicket"
+  fromRequirement="Entry returns a unique ticket that remembers the vehicle, floor, and selected spot for a later exit."
+  question="Does this information have its own meaning and value equality?"
+  reasoning="These values form one stable receipt for a parking session. Keeping them together prevents exit from recomputing or guessing where the vehicle was placed."
+  decision="Class"
+>
+  Use an immutable `ParkingTicket` record. It contains facts about an accepted entry and has no setters.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="SpotAssignmentStrategy"
+  fromRequirement="The interviewer explicitly wants the selection policy to be replaceable while nearest-compatible is used now."
+  question="What behavior may change while the parking workflow stays the same?"
+  reasoning="Duplicate checks, ticket creation, and spot occupation do not change when selection changes. Only the rule that chooses one free spot varies, so that is the useful interface boundary."
+  decision="Interface"
+>
+  `SpotAssignmentStrategy` returns a `SpotSelection`. `NearestAvailableSpotStrategy` implements the exact floor, type, and ID ordering.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="VehicleType, SpotType, and result values"
+  fromRequirement="Vehicle and spot kinds come from small fixed sets, and entry or exit has a small set of expected outcomes."
+  question="Do these values have independent identity or changing state?"
+  reasoning="No. They name closed choices. Strings would permit invalid spellings, while booleans would not explain why an action failed."
+  decision="Enum"
+>
+  Use enums for `VehicleType`, `SpotType`, `ParkingStatus`, and `ExitStatus`.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="EntranceGate"
+  fromRequirement="The scope asks the software to park and release vehicles but gives no gate identity, gate state, or gate-specific rule."
+  question="What would an EntranceGate class remember or decide in this version?"
+  reasoning="Nothing yet. The gate is part of the physical story, but `ParkingLot.park` already represents the incoming action. A pass-through class would add a name without adding responsibility."
+  decision="Leave out"
+>
+  Do not create `EntranceGate`. Add it only when several entrances, gate hardware state, or per-gate queues enter the requirements.
+</CandidateWalkthrough>
+
+### See an entry flow through the objects
+
+<ConceptImage
+  src="/images/parking-lot-entity-flow.png"
+  alt="A vehicle enters ParkingLot, which asks SpotAssignmentStrategy to select a ParkingFloor and ParkingSpot, then receives a ticket or rejection"
+  caption="Follow the orange arrows: ParkingLot coordinates the request, the strategy chooses, and ParkingSpot owns the actual availability change."
+  width={1774}
+  height={887}
+  mobileScrollable={true}
+/>
+
+Read the arrows from left to right. A **Vehicle** enters through `ParkingLot.park`. **ParkingLot** checks whether that plate already has an active ticket, then asks **SpotAssignmentStrategy** for a selection. The strategy reads the ordered **ParkingFloor** groups and their spots. The chosen **ParkingSpot** performs `occupy(vehicle)` because it owns the changing availability. Only after that succeeds does ParkingLot return a **ParkingTicket**. If no selection exists, it returns a rejection and no spot changes.
+
+The flow teaches an important boundary: the strategy may *choose* a spot, but it does not *occupy* it or issue tickets. Selection policy and parking-session state are separate jobs.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+Bridge from the requirements using the same chain each time:
+
+> requirement → responsible object → state it remembers → method that changes or reads that state
+
+Start with `ParkingLot.park` because that is the main action visible to the caller. Then follow its needs downward into the strategy, floor, and spot.
+
+### Derive the coordinating class
+
+“Reject a vehicle already parked” creates an index by plate. “Exit by ticket ID” creates another index by ticket ID. “Issue a unique ticket” creates a sequence. These fields are not generic manager data; each one exists because of an observable rule.
+
+<DerivationTable rows={[
+  ["Coordinate entry across all floors", "ParkingLot", "park(Vehicle)"],
+  ["Reject a duplicate active vehicle", "ParkingLot", "activeTicketIdByPlate"],
+  ["Exit using a ticket ID", "ParkingLot", "activeTicketsById and leave(ticketId)"],
+  ["Issue a unique deterministic ticket", "ParkingLot", "nextTicketNumber"],
+  ["Keep selection replaceable", "ParkingLot", "SpotAssignmentStrategy strategy"],
+  ["Expose floors without allowing replacement", "ParkingLot", "getFloors() returns an unmodifiable list"]
+]} />
+
+### Derive floor and spot responsibilities
+
+`ParkingFloor` remembers which spots belong together. `ParkingSpot` remembers the one piece of state that changes during entry and exit: its occupant. Because `ParkingSpot` has both the type and occupant, it has everything needed to protect compatibility and availability.
+
+<DerivationTable rows={[
+  ["Order floors by closeness", "ParkingFloor", "int number"],
+  ["Group spots and find one during exit", "ParkingFloor", "spots and findSpot(id)"],
+  ["Know whether a vehicle fits", "ParkingSpot", "SpotType type and canFit(vehicle)"],
+  ["Prevent two occupants", "ParkingSpot", "Vehicle occupiedBy and occupy(vehicle)"],
+  ["Make the spot reusable after exit", "ParkingSpot", "release()"],
+  ["Do not expose mutable ownership", "ParkingSpot", "getVehicle() returns Optional"]
+]} />
+
+### Understand the allocation algorithm
+
+The practical problem is not merely finding an empty spot. It is finding the **first compatible** spot according to a rule both interviewer and code understand.
+
+Consider a car entering this lot:
+
+1. Floor 0 has `M-01` free and `L-01` free.
+2. Floor 1 has `C-11` free.
+3. `M-01` is rejected because a car cannot fit there.
+4. `L-01` is compatible and is on floor 0.
+5. `C-11` is a tighter fit, but floor 1 is farther away.
+6. The strategy chooses `L-01` because floor number is the first comparison.
+
+The implementation filters unusable spots, creates a `SpotSelection` containing the floor and spot, and sorts candidates by three keys:
+
+```text
+floor number → fit preference → spot ID
+```
+
+If there are `S` spots, filtering costs `O(S)` and sorting costs `O(S log S)`. The lesson uses sorting because the rule is easy to read in an interview. A large fixed lot could maintain ordered free-spot sets and make selection faster, but every occupation and release would then need to keep those indexes correct.
+
+<Insight title="Deterministic means ties have a rule" tone="warning">
+  “Choose any free spot” makes tests unpredictable. The final spot-ID comparison means two equally suitable spots always produce the same answer. This is not a performance trick; it is a clarity and correctness rule.
+</Insight>
+
+### Decide whether a pattern helps
+
+<PatternDecision name="Strategy for spot assignment" useIt={true}>
+  The exact behavior expected to vary is `select(floors, vehicle)`. `ParkingLot` depends on the `SpotAssignmentStrategy` interface, and the current implementation is `NearestAvailableSpotStrategy`. If another lot later prefers the cheapest floor or reserves large spots, that rule changes in one implementation while duplicate checks, occupation, ticket creation, and exit remain untouched.
+</PatternDecision>
+
+<PatternDecision name="Factory for vehicles and spots" useIt={false}>
+  Construction is simple and visible: each value needs an ID or plate and an enum type. A factory would hide straightforward constructors without resolving a current rule. Introduce one only if creation later needs several steps or configuration.
+</PatternDecision>
+
+<PatternDecision name="Singleton for ParkingLot" useIt={false}>
+  Tests may create several independent lots, and a company may operate several locations. A normal object models that naturally. Global singleton state would make isolation harder and is not required by “one parking lot” in the prompt.
+</PatternDecision>
+
+<h2 id="implementation">4. Implementation (~10 minutes)</h2>
+
+The code below is a complete Java 17 program. Expected user failures return named results. Invalid construction, such as a blank spot ID, throws an exception because that is a programmer mistake rather than a normal parking outcome.
+
+<ImplementationGuide
+  what="It models compatible spots on several floors, selects the nearest suitable free spot, prevents duplicate entry, issues active tickets, and releases the recorded spot on exit."
+  why="ParkingLot owns the workflow and ticket indexes, the strategy owns only selection, ParkingFloor owns its spot group, and ParkingSpot owns availability. Each rule stays beside the state it needs."
+  flow={[
+    "A caller sends ParkingLot.park with an immutable Vehicle.",
+    "ParkingLot rejects an already-active plate before asking for a spot.",
+    "NearestAvailableSpotStrategy filters and orders compatible free spots.",
+    "The selected ParkingSpot validates and records the vehicle.",
+    "ParkingLot creates a ticket and updates both active-ticket indexes."
+  ]}
+/>
+
+### Code concepts to understand
+
+<ConceptDropdown title="How Strategy is used here" summary="ParkingLot controls the workflow; the strategy answers only one question: which spot should be tried?" defaultOpen={true}>
+
+`ParkingLot.park` calls `strategy.select(floors, vehicle)`. The strategy returns `Optional.empty()` when no candidate exists, or a `SpotSelection` containing the chosen floor and spot.
+
+The strategy does not occupy the spot, create the ticket, or update active sessions. Those steps remain in `ParkingLot`, so replacing the selection rule cannot accidentally replace the rest of the parking workflow.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Why SpotSelection contains both floor and spot" summary="Exit and ticket creation need the floor that owns the chosen spot.">
+
+Returning only `ParkingSpot` would force `ParkingLot` to scan every floor again to discover where it came from. `SpotSelection` is an immutable pair that keeps the result of the search together. It has value equality because it is a Java record.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Validation order protects state" summary="Every expected rejection happens before a ticket or spot is changed.">
+
+`park` checks duplicate plate, then asks for a selection, then occupies the selected spot, and only then creates ticket indexes. `leave` finds the active ticket before releasing anything. Therefore an unknown ticket and a full-lot rejection leave all existing sessions unchanged.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="Why Optional is useful for a missing selection" summary="No suitable spot is an expected search result, not a broken program.">
+
+`SpotAssignmentStrategy.select` returns `Optional<SpotSelection>`. The caller must handle “nothing found” explicitly. Exceptions are reserved for impossible internal states or invalid object construction.
+
+</ConceptDropdown>
+
+<ConceptDropdown title="What this code does not guarantee about concurrency" summary="The current scope processes one request at a time inside one in-memory model.">
+
+Two entrances could both select the same free spot before either calls `occupy`. That is a race condition: the result depends on how the operations interleave. `occupy` prevents the second mutation inside one sequential call, but the complete select → occupy → ticket operation is not protected as one unit.
+
+If concurrent entrances become a requirement, protect that critical section with a lock in one Java process and add a deterministic two-caller test. Across several application servers, use a shared transaction, unique database constraint, optimistic version, or another shared consistency mechanism. An in-process Java lock cannot protect another server.
+
+</ConceptDropdown>
+
+### Fixed value types
+
+Read these first. They define the vocabulary used by the rest of the model. `SpotType.canFit` contains the compatibility table, so the same rule is not repeated inside every strategy.
+
+<JavaFile name="VehicleType.java" purpose="The supported kinds of entering vehicles">
+
+```java
+public enum VehicleType {
+    MOTORCYCLE,
+    CAR
+}
+```
+
+</JavaFile>
+
+<JavaFile name="SpotType.java" purpose="Compatibility and smallest-fit preference for each spot kind">
+
+```java
+public enum SpotType {
+    MOTORCYCLE,
+    COMPACT,
+    LARGE;
+
+    public boolean canFit(VehicleType vehicleType) {
+        return switch (vehicleType) {
+            case MOTORCYCLE -> true;
+            case CAR -> this == COMPACT || this == LARGE;
+        };
+    }
+
+    public int preferenceFor(VehicleType vehicleType) {
+        if (!canFit(vehicleType)) return Integer.MAX_VALUE;
+        return switch (this) {
+            case MOTORCYCLE -> 0;
+            case COMPACT -> vehicleType == VehicleType.CAR ? 0 : 1;
+            case LARGE -> vehicleType == VehicleType.CAR ? 1 : 2;
+        };
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="ParkingStatus.java" purpose="Every expected result of an entry request">
+
+```java
+public enum ParkingStatus {
+    PARKED,
+    ALREADY_PARKED,
+    NO_COMPATIBLE_SPOT
+}
+```
+
+</JavaFile>
+
+<JavaFile name="ExitStatus.java" purpose="Every expected result of an exit request">
+
+```java
+public enum ExitStatus {
+    RELEASED,
+    TICKET_NOT_FOUND
+}
+```
+
+</JavaFile>
+
+### Immutable request and result values
+
+`Vehicle`, `SpotSelection`, `ParkingTicket`, and `ParkingResult` are records. Read their compact constructors as boundary checks: a valid object can never contain a blank ID or a contradictory result such as `PARKED` without a ticket.
+
+<JavaFile name="Vehicle.java" purpose="Stable plate and type for one vehicle">
+
+```java
+import java.util.Locale;
+import java.util.Objects;
+
+public record Vehicle(String licensePlate, VehicleType type) {
+    public Vehicle {
+        if (licensePlate == null || licensePlate.isBlank()) {
+            throw new IllegalArgumentException("license plate is required");
+        }
+        licensePlate = licensePlate.trim().toUpperCase(Locale.ROOT);
+        type = Objects.requireNonNull(type, "vehicle type is required");
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="SpotSelection.java" purpose="The floor and spot chosen by an assignment strategy">
+
+```java
+import java.util.Objects;
+
+public record SpotSelection(ParkingFloor floor, ParkingSpot spot) {
+    public SpotSelection {
+        floor = Objects.requireNonNull(floor);
+        spot = Objects.requireNonNull(spot);
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="ParkingTicket.java" purpose="Immutable receipt for one accepted parking session">
+
+```java
+import java.util.Objects;
+
+public record ParkingTicket(
+        String id,
+        String licensePlate,
+        int floorNumber,
+        String spotId) {
+
+    public ParkingTicket {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("ticket id is required");
+        }
+        if (licensePlate == null || licensePlate.isBlank()) {
+            throw new IllegalArgumentException("license plate is required");
+        }
+        if (floorNumber < 0) {
+            throw new IllegalArgumentException("floor number cannot be negative");
+        }
+        if (spotId == null || spotId.isBlank()) {
+            throw new IllegalArgumentException("spot id is required");
+        }
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="ParkingResult.java" purpose="Entry outcome with a ticket only when parking succeeded">
+
+```java
+import java.util.Objects;
+import java.util.Optional;
+
+public record ParkingResult(ParkingStatus status, ParkingTicket ticket) {
+    public ParkingResult {
+        status = Objects.requireNonNull(status);
+        if (status == ParkingStatus.PARKED && ticket == null) {
+            throw new IllegalArgumentException("PARKED requires a ticket");
+        }
+        if (status != ParkingStatus.PARKED && ticket != null) {
+            throw new IllegalArgumentException("Rejected parking cannot have a ticket");
+        }
+    }
+
+    public static ParkingResult parked(ParkingTicket ticket) {
+        return new ParkingResult(ParkingStatus.PARKED, Objects.requireNonNull(ticket));
+    }
+
+    public static ParkingResult rejected(ParkingStatus status) {
+        if (status == ParkingStatus.PARKED) {
+            throw new IllegalArgumentException("Use parked() for success");
+        }
+        return new ParkingResult(status, null);
+    }
+
+    public Optional<ParkingTicket> optionalTicket() {
+        return Optional.ofNullable(ticket);
+    }
+}
+```
+
+</JavaFile>
+
+### State-owning objects
+
+Read `ParkingSpot.occupy` before `ParkingFloor`. It shows the most important state rule: check compatibility and availability before storing the vehicle. `ParkingFloor` then provides a safe group and lookup without exposing a mutable list.
+
+<JavaFile name="ParkingSpot.java" purpose="Owns compatibility and the current occupant of one spot">
+
+```java
+import java.util.Objects;
+import java.util.Optional;
+
+public final class ParkingSpot {
+    private final String id;
+    private final SpotType type;
+    private Vehicle occupiedBy;
+
+    public ParkingSpot(String id, SpotType type) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("spot id is required");
+        }
+        this.id = id;
+        this.type = Objects.requireNonNull(type);
+    }
+
+    public boolean canFit(Vehicle vehicle) {
+        return vehicle != null && type.canFit(vehicle.type());
+    }
+
+    public boolean occupy(Vehicle vehicle) {
+        if (occupiedBy != null || !canFit(vehicle)) return false;
+        occupiedBy = vehicle;
+        return true;
+    }
+
+    public boolean release() {
+        if (occupiedBy == null) return false;
+        occupiedBy = null;
+        return true;
+    }
+
+    public boolean isAvailable() {
+        return occupiedBy == null;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public SpotType getType() {
+        return type;
+    }
+
+    public Optional<Vehicle> getVehicle() {
+        return Optional.ofNullable(occupiedBy);
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="ParkingFloor.java" purpose="Owns one numbered group of spots and safe spot lookup">
+
+```java
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+
+public final class ParkingFloor {
+    private final int number;
+    private final List<ParkingSpot> spots;
+
+    public ParkingFloor(int number, List<ParkingSpot> spots) {
+        if (number < 0) {
+            throw new IllegalArgumentException("floor number cannot be negative");
+        }
+        Objects.requireNonNull(spots);
+        if (spots.isEmpty()) {
+            throw new IllegalArgumentException("a floor needs at least one spot");
+        }
+
+        Set<String> ids = new HashSet<>();
+        for (ParkingSpot spot : spots) {
+            Objects.requireNonNull(spot);
+            if (!ids.add(spot.getId())) {
+                throw new IllegalArgumentException("duplicate spot id on floor: " + spot.getId());
+            }
+        }
+        this.number = number;
+        this.spots = List.copyOf(spots);
+    }
+
+    public Optional<ParkingSpot> findSpot(String spotId) {
+        return spots.stream()
+                .filter(spot -> spot.getId().equals(spotId))
+                .findFirst();
+    }
+
+    public int availableSpotCount() {
+        return (int) spots.stream().filter(ParkingSpot::isAvailable).count();
+    }
+
+    public int getNumber() {
+        return number;
+    }
+
+    public List<ParkingSpot> getSpots() {
+        return spots;
+    }
+}
+```
+
+</JavaFile>
+
+### Assignment policy
+
+The interface is intentionally small. The current strategy reads every spot, removes occupied or incompatible candidates, and applies the exact ordering agreed in Requirements. The final spot-ID comparison is the deterministic tie-breaker.
+
+<JavaFile name="SpotAssignmentStrategy.java" purpose="Replaceable boundary for choosing one spot">
+
+```java
+import java.util.List;
+import java.util.Optional;
+
+public interface SpotAssignmentStrategy {
+    Optional<SpotSelection> select(List<ParkingFloor> floors, Vehicle vehicle);
+}
+```
+
+</JavaFile>
+
+<JavaFile name="NearestAvailableSpotStrategy.java" purpose="Chooses by floor, smallest suitable type, then spot ID">
+
+```java
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+public final class NearestAvailableSpotStrategy implements SpotAssignmentStrategy {
+    @Override
+    public Optional<SpotSelection> select(List<ParkingFloor> floors, Vehicle vehicle) {
+        Objects.requireNonNull(floors);
+        Objects.requireNonNull(vehicle);
+
+        Comparator<SpotSelection> nearestFirst = Comparator
+                .comparingInt((SpotSelection selection) -> selection.floor().getNumber())
+                .thenComparingInt(selection ->
+                        selection.spot().getType().preferenceFor(vehicle.type()))
+                .thenComparing(selection -> selection.spot().getId());
+
+        return floors.stream()
+                .flatMap(floor -> floor.getSpots().stream()
+                        .filter(ParkingSpot::isAvailable)
+                        .filter(spot -> spot.canFit(vehicle))
+                        .map(spot -> new SpotSelection(floor, spot)))
+                .min(nearestFirst);
+    }
+}
+```
+
+</JavaFile>
+
+### Parking workflow and demo
+
+Read `ParkingLot.park` from top to bottom. Its order mirrors the requirement discussion: reject duplicate, select, occupy, issue ticket, index the session. `leave` reverses only the state recorded by a known ticket. `ParkingLotDemo` exercises success and both important rejection paths.
+
+<JavaFile name="ParkingLot.java" purpose="Coordinates entry, tickets, spot occupation, and exit">
+
+```java
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+public final class ParkingLot {
+    private final List<ParkingFloor> floors;
+    private final SpotAssignmentStrategy strategy;
+    private final Map<String, ParkingTicket> activeTicketsById = new LinkedHashMap<>();
+    private final Map<String, String> activeTicketIdByPlate = new HashMap<>();
+    private int nextTicketNumber = 1;
+
+    public ParkingLot(List<ParkingFloor> floors, SpotAssignmentStrategy strategy) {
+        Objects.requireNonNull(floors);
+        if (floors.isEmpty()) {
+            throw new IllegalArgumentException("parking lot needs at least one floor");
+        }
+        validateUniqueFloorAndSpotIds(floors);
+        this.floors = List.copyOf(floors);
+        this.strategy = Objects.requireNonNull(strategy);
+    }
+
+    public ParkingResult park(Vehicle vehicle) {
+        Objects.requireNonNull(vehicle);
+        if (activeTicketIdByPlate.containsKey(vehicle.licensePlate())) {
+            return ParkingResult.rejected(ParkingStatus.ALREADY_PARKED);
+        }
+
+        SpotSelection selection = strategy.select(floors, vehicle).orElse(null);
+        if (selection == null) {
+            return ParkingResult.rejected(ParkingStatus.NO_COMPATIBLE_SPOT);
+        }
+        if (!selection.spot().occupy(vehicle)) {
+            throw new IllegalStateException("strategy returned an unusable spot");
+        }
+
+        String ticketId = String.format("T%03d", nextTicketNumber++);
+        ParkingTicket ticket = new ParkingTicket(
+                ticketId,
+                vehicle.licensePlate(),
+                selection.floor().getNumber(),
+                selection.spot().getId());
+        activeTicketsById.put(ticketId, ticket);
+        activeTicketIdByPlate.put(vehicle.licensePlate(), ticketId);
+        return ParkingResult.parked(ticket);
+    }
+
+    public ExitStatus leave(String ticketId) {
+        if (ticketId == null || ticketId.isBlank()) {
+            return ExitStatus.TICKET_NOT_FOUND;
+        }
+        ParkingTicket ticket = activeTicketsById.get(ticketId);
+        if (ticket == null) return ExitStatus.TICKET_NOT_FOUND;
+
+        ParkingSpot spot = floors.stream()
+                .filter(floor -> floor.getNumber() == ticket.floorNumber())
+                .findFirst()
+                .flatMap(floor -> floor.findSpot(ticket.spotId()))
+                .orElseThrow(() -> new IllegalStateException("ticket points to a missing spot"));
+        if (!spot.release()) {
+            throw new IllegalStateException("ticket points to an empty spot");
+        }
+
+        activeTicketsById.remove(ticketId);
+        activeTicketIdByPlate.remove(ticket.licensePlate());
+        return ExitStatus.RELEASED;
+    }
+
+    public List<ParkingTicket> getActiveTickets() {
+        return List.copyOf(activeTicketsById.values());
+    }
+
+    public List<ParkingFloor> getFloors() {
+        return floors;
+    }
+
+    private static void validateUniqueFloorAndSpotIds(List<ParkingFloor> floors) {
+        Set<Integer> floorNumbers = new HashSet<>();
+        Set<String> spotIds = new HashSet<>();
+        for (ParkingFloor floor : floors) {
+            Objects.requireNonNull(floor);
+            if (!floorNumbers.add(floor.getNumber())) {
+                throw new IllegalArgumentException("duplicate floor: " + floor.getNumber());
+            }
+            for (ParkingSpot spot : floor.getSpots()) {
+                if (!spotIds.add(spot.getId())) {
+                    throw new IllegalArgumentException("duplicate spot id: " + spot.getId());
+                }
+            }
+        }
+    }
+}
+```
+
+</JavaFile>
+
+<JavaFile name="ParkingLotDemo.java" purpose="Runs accepted entry, unchanged rejection, exit, and full-lot cases">
+
+```java
+import java.util.List;
+
+public final class ParkingLotDemo {
+    public static void main(String[] args) {
+        ParkingFloor ground = new ParkingFloor(0, List.of(
+                new ParkingSpot("M-01", SpotType.MOTORCYCLE),
+                new ParkingSpot("C-01", SpotType.COMPACT),
+                new ParkingSpot("L-01", SpotType.LARGE)));
+        ParkingFloor first = new ParkingFloor(1, List.of(
+                new ParkingSpot("C-11", SpotType.COMPACT),
+                new ParkingSpot("L-11", SpotType.LARGE)));
+
+        ParkingLot lot = new ParkingLot(
+                List.of(ground, first),
+                new NearestAvailableSpotStrategy());
+
+        Vehicle carOne = new Vehicle("ka-01-ab-1001", VehicleType.CAR);
+        ParkingResult firstEntry = lot.park(carOne);
+        print(firstEntry);
+
+        ParkingResult duplicate = lot.park(carOne);
+        System.out.println("Duplicate: " + duplicate.status()
+                + ", active tickets: " + lot.getActiveTickets().size());
+
+        print(lot.park(new Vehicle("KA-01-AB-1002", VehicleType.CAR)));
+        print(lot.park(new Vehicle("KA-01-AB-1003", VehicleType.CAR)));
+        print(lot.park(new Vehicle("KA-01-AB-1004", VehicleType.CAR)));
+        print(lot.park(new Vehicle("KA-01-AB-1005", VehicleType.CAR)));
+
+        String firstTicketId = firstEntry.ticket().id();
+        System.out.println("Exit " + firstTicketId + ": " + lot.leave(firstTicketId));
+        print(lot.park(new Vehicle("KA-01-AB-1005", VehicleType.CAR)));
+        System.out.println("Unknown exit: " + lot.leave("T999"));
+    }
+
+    private static void print(ParkingResult result) {
+        if (result.status() != ParkingStatus.PARKED) {
+            System.out.println("Entry: " + result.status());
+            return;
+        }
+        ParkingTicket ticket = result.ticket();
+        System.out.printf("%s -> %s on floor %d, spot %s%n",
+                result.status(), ticket.id(), ticket.floorNumber(), ticket.spotId());
+    }
+}
+```
+
+</JavaFile>
+
+### Verify the design with concrete state changes
+
+<ScenarioTrace steps={[
+  "Initial: five spots are free. Floor 0 has motorcycle, compact, and large spots; floor 1 has compact and large spots.",
+  "Car 1001 enters. The strategy rejects M-01, chooses floor 0 compact spot C-01, and ParkingLot returns T001.",
+  "Car 1001 enters again. ParkingLot returns ALREADY_PARKED before selection; C-01 and the one active ticket remain unchanged.",
+  "Four more cars are attempted. L-01, C-11, and L-11 are occupied; the fifth car receives NO_COMPATIBLE_SPOT while motorcycle spot M-01 remains free.",
+  "leave(T001) finds C-01 from the ticket, releases it, and removes both ticket indexes.",
+  "Car 1005 tries again and receives C-01. leave(T999) returns TICKET_NOT_FOUND and changes nothing."
+]} />
+
+Use the simulator to prove the same rules. Park the same plate twice, exit a ticket, and load the compatibility edge case. In that edge case, free spots exist, but a car is still rejected because neither free spot is compatible.
+
+<ParkingLotSimulator />
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+### “Now support two entrances at the same time”
+
+The changed requirement affects the select → occupy → create-ticket sequence owned by `ParkingLot`. Two threads must not both act on the same selection. In one Java process, protect that complete critical section with a lock and demonstrate two callers competing for one spot, where exactly one receives `PARKED`. A lock around only `ParkingSpot.occupy` prevents two occupants, but the losing request must retry selection if another compatible spot exists. Across servers, move the guarantee to shared transactional storage; a local lock is not enough.
+
+### “Prefer reserved or electric-charging spots for eligible vehicles”
+
+Compatibility currently belongs to `SpotType`, and ranking belongs to `SpotAssignmentStrategy`. Add the new vehicle eligibility and spot capability, then update or replace the strategy. Do not place charging rules inside ticket creation.
+
+### “Calculate a fee at exit”
+
+The ticket must now remember entry time, and exit needs an exit time. Add a `PricingStrategy` only when several pricing rules are required, such as hourly, weekend, or vehicle-based pricing. Use an injected clock in tests so fee examples remain deterministic.
+
+### “Show available counts on entrance boards”
+
+Each floor already owns its spots, so it can calculate counts by spot type. For a small in-memory lot, calculating on request is simplest. If reads become frequent, add maintained counters beside `occupy` and `release`, then test that rejected actions do not change them.
+
+### “Let drivers reserve a spot before arrival”
+
+A boolean occupied/free state is no longer enough. Introduce explicit spot states such as `AVAILABLE`, `RESERVED`, and `OCCUPIED`, plus a reservation ID and expiry rule. This is the point where a state-transition design becomes useful; do not add those states to the basic version.
+
+<Insight title="What a strong answer sounds like" tone="mint">
+  “I defined nearest before choosing classes: lower floor, smallest suitable type, then spot ID. ParkingLot owns the entry and ticket workflow, ParkingSpot owns availability, and the strategy owns only selection. A rejected entry changes nothing. I assumed sequential calls; if the interviewer adds concurrent entrances, I would protect selection through ticket creation as one operation and explain the difference between one-process locking and shared storage.”
+</Insight>

@@ -1,0 +1,1092 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { MovieTicketBookingSimulator } from "@/components/simulations/movie-ticket-booking-simulator"
+
+<Lead>Design a movie-ticket booking service that lets a user hold seats for a short time and confirm them without ever selling one seat to two people.</Lead>
+
+<ConceptImage
+  src="/images/movie-ticket-booking-overview.png"
+  alt="Two moviegoers selecting the same highlighted cinema seats from their phones while one confirmed ticket is shown"
+  caption="The visible action is simple—choose seats and receive a ticket—but the design must decide who wins when two people choose the same seat together."
+  width={1536}
+  height={1024}
+  eager={true}
+/>
+
+<FrameworkMap />
+
+<h2 id="requirements">1. Requirements (~5 minutes)</h2>
+
+The interviewer begins with one sentence:
+
+> “Design a movie-ticket booking system.”
+
+Do not start drawing `Movie`, `Theatre`, and `Payment` classes. The sentence does not yet tell us what “booking” means. Does selecting a seat immediately buy it? Can a group reserve several seats together? What happens if payment takes two minutes? Most importantly, what happens when two users press the same seat at almost the same time?
+
+Turn the story into actions and rules first. The classes will come from those answers.
+
+<QuestionGuide />
+
+### Ask questions and record what each answer changes
+
+<QuestionAnswer
+  ask="What can the user do in the first version?"
+  why="Movie discovery, theatre search, seat selection, payment, and cancellation are different workflows. We need one clear starting and ending point."
+  answer="Shows already exist. A user chooses one show and one or more seat IDs, holds them, and then confirms the hold."
+  derived="Provide holdSeats(showId, userId, seatIds) and confirmHold(holdId, userId). Creating movies and shows is setup, not a user workflow."
+/>
+
+<QuestionAnswer
+  ask="Why use a hold instead of booking the selected seat immediately?"
+  why="A person needs a short period to review the order or complete payment without another person taking the same seat."
+  answer="A successful hold owns the requested seats for five minutes. Confirmation during that time makes them permanently booked."
+  derived="A show seat moves through AVAILABLE → HELD → BOOKED. A hold stores its owner and expiry time."
+/>
+
+<QuestionAnswer
+  ask="If a user requests A5 and A6 but A6 is unavailable, may we hold only A5?"
+  why="Partial success can split a group and makes the result hard for the caller to understand."
+  answer="No. Holding a group is all-or-nothing. Either every requested seat is held or none of them changes."
+  derived="Validate every requested seat before changing any requested seat. Duplicate or unknown seat IDs also reject the whole request."
+/>
+
+<QuestionAnswer
+  ask="What happens when the five-minute hold expires?"
+  why="Expired seats must become usable again, and a late confirmation must not turn an expired hold into a booking."
+  answer="The next operation releases expired seats. Confirming an expired hold returns HOLD_EXPIRED."
+  derived="Use an injected clock, store expiresAt, release expired HELD seats before reading or changing show state, and reject a confirmation at or after the expiry instant."
+/>
+
+<QuestionAnswer
+  ask="May another user confirm my hold?"
+  why="Knowing a hold ID must not be enough to take somebody else's seats."
+  answer="No. Only the user who created the live hold may confirm it."
+  derived="SeatHold stores userId, and confirmHold compares the caller with that owner before changing seats."
+/>
+
+<QuestionAnswer
+  ask="Can two users request the same seat at the same time?"
+  why="Without a concurrency rule, both calls can read AVAILABLE before either call writes HELD."
+  answer="Yes. In this interview version everything runs in one Java process. Use one lock per show, and exactly one competing hold may succeed."
+  derived="For one show, checking all requested seats and holding all of them must run inside one critical section protected by that show's lock."
+/>
+
+<QuestionAnswer
+  ask="Are payment, refunds, a database, and several application servers in scope?"
+  why="Those features change the consistency boundary and would require external services or storage, which this first design does not have."
+  answer="No. Treat successful confirmation as payment having completed. Keep everything in memory in one process. Discuss production alternatives later."
+  derived="Do not add Payment, Refund, repositories, APIs, or distributed locks. State clearly that a Java lock protects threads in one process only."
+/>
+
+### Confirm the specification
+
+<RequirementBox requirements={[
+  "Shows are created before booking. Each show has its own copy of every physical screen seat's booking state.",
+  "A user may request one or more unique seat IDs for one show.",
+  "Holding a group is all-or-nothing: every seat becomes HELD for that user, or no requested seat changes.",
+  "A hold lasts five minutes. Expired HELD seats become AVAILABLE again.",
+  "Only the hold owner may confirm a live hold. Confirmation changes every held seat to BOOKED and returns a Booking.",
+  "Unknown shows or seats, duplicate seat IDs, unavailable seats, unknown holds, expired holds, and the wrong owner return named result values.",
+  "When two threads request the same seat in one Java process, a per-show lock makes exactly one request succeed."
+]} outOfScope={["Movie and theatre search", "Real payment processing", "Cancellation and refunds", "Persistent database storage", "Several application servers or distributed locking", "Seat pricing and discount policies", "Notifications and ticket delivery"]} />
+
+<Insight title="Read the result back as a story" tone="mint">
+  Say this before designing classes: “User A holds A5 and A6 until 7:05. User B asks for A6 at 7:02 and is rejected without changing anything. User A confirms at 7:04, so both seats become booked.” If the interviewer agrees with every result, the important rules are concrete enough to model.
+</Insight>
+
+<h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
+
+Now scan the confirmed requirements for nouns: movie, screen, seat, show, show seat, user, hold, booking, payment, and booking service. These are only candidates. A real thing becomes a class in our program only when it owns meaningful information or a rule.
+
+<CandidateWalkthrough
+  name="Movie"
+  fromRequirement="A pre-created show is a screening of one movie."
+  question="Which movie facts must the booking result display, and do they change during one booking?"
+  reasoning="An ID and title identify the movie throughout this lesson. They form one small immutable value and have no booking behavior."
+  decision="Class"
+>
+  Use a `Movie` record. It describes what is being shown; it does not own seat availability.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Seat and Screen"
+  fromRequirement="A show contains the physical seats that belong to one screen, and requests use seat IDs such as A7."
+  question="What is permanent, and what changes from one show time to another?"
+  reasoning="Seat A7 remains seat A7 in Screen 1. But it can be booked for the 7:00 PM show and still be free for the 10:00 PM show. The physical layout and booking state therefore cannot be the same object."
+  decision="Class"
+>
+  `Seat` is an immutable physical value, and `Screen` owns its fixed seat list. Neither stores AVAILABLE or BOOKED.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Show"
+  fromRequirement="Users choose seats for one movie at one start time, and concurrency is controlled separately for each show."
+  question="Which object knows the movie, time, screen, current seat states, and the lock protecting those states?"
+  reasoning="Those facts meet at one screening. A lock on the whole service would unnecessarily block bookings for unrelated shows, while the physical Screen cannot own time-specific state."
+  decision="Class"
+>
+  `Show` owns one `ShowSeat` per physical seat and one `ReentrantLock`. It performs the all-or-nothing hold and confirmation rules.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="ShowSeat"
+  fromRequirement="For a particular show, each seat moves from AVAILABLE to HELD to BOOKED and remembers hold details while HELD."
+  question="Where should one seat's changing state and legal transitions live?"
+  reasoning="The object changing state needs the state, hold ID, owner, and expiry time. Keeping these values together prevents callers from creating impossible combinations such as AVAILABLE with an owner."
+  decision="Class"
+>
+  `ShowSeat` owns the transition methods. They are called while `Show` holds the lock, so the object stays small and the multi-seat operation stays atomic.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="SeatHold and Booking"
+  fromRequirement="A successful hold must remember its owner, seats, and expiry; a confirmation returns a permanent booking receipt."
+  question="Do these results have a stable meaning after they are created?"
+  reasoning="Yes. A hold describes one accepted temporary claim. A booking describes one completed confirmation. Their values should not be edited later."
+  decision="Class"
+>
+  Use immutable records. `SeatHold` has an expiry; `Booking` does not because BOOKED is final in this scope.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="BookingService"
+  fromRequirement="The caller supplies IDs, while the workflow must find a show, create hold and booking IDs, remember accepted holds, and return clear results."
+  question="Who can coordinate across shows and translate a public request into one show's protected operation?"
+  reasoning="A Show should not search every other show or issue global IDs. We need a small entry point that locates the responsible Show and records successful results."
+  decision="Class"
+>
+  `BookingService` coordinates. The seat correctness rule remains inside `Show`; the service does not edit `ShowSeat` fields.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="SeatState and result values"
+  fromRequirement="Seats have three named states, and expected failures must explain why an action was rejected."
+  question="Are these independent objects with identity, or choices from a small fixed set?"
+  reasoning="They are closed choices. Strings allow spelling mistakes, while a boolean such as booked cannot represent HELD or explain a failure."
+  decision="Enum"
+>
+  Use `SeatState`, `HoldStatus`, and `ConfirmationStatus` enums.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="User"
+  fromRequirement="A hold belongs to a user ID, and confirmation checks that same value."
+  question="Does this scope require a profile, account state, or user-owned behavior?"
+  reasoning="No. The design only compares identity. A User class would wrap one string and add no rule."
+  decision="Field"
+>
+  Keep `userId` as a field in `SeatHold`, `Booking`, and request methods. Add a class only when user information gains behavior.
+</CandidateWalkthrough>
+
+<CandidateWalkthrough
+  name="Payment"
+  fromRequirement="The interviewer explicitly placed real payment outside the first version."
+  question="What would a Payment class actually do in the code we agreed to build?"
+  reasoning="Nothing. Confirmation represents payment having already succeeded. Inventing gateways and payment states would solve an unrequested problem and distract from seat correctness."
+  decision="Leave out"
+>
+  Do not create `Payment`. In Extensions we can explain where it would join the hold workflow.
+</CandidateWalkthrough>
+
+### See a seat request flow through the objects
+
+<ConceptImage
+  src="/images/movie-ticket-booking-entity-flow.png"
+  alt="A moviegoer selects A7, BookingService asks a locked Show to check its ShowSeat state, and returns a SeatHold or rejection before confirmation creates a Booking"
+  caption="Read left to right: the service coordinates, the show protects the group operation, and each show seat owns its state."
+  width={1774}
+  height={887}
+  mobileScrollable={true}
+/>
+
+Follow the arrows. The **moviegoer** selects A7 and calls **BookingService**. The service finds the correct **Show** and asks it to hold the seat. Show acquires its one lock, checks the relevant **ShowSeat**, and changes AVAILABLE to HELD only if the whole request is valid. A successful change creates a **SeatHold**; otherwise the caller receives a rejection. Later, confirmation follows the hold back into the same Show, changes HELD to BOOKED, and creates a **Booking**.
+
+The key ownership decision is visible in the middle: `BookingService` finds and records, `Show` protects the all-or-nothing operation, and `ShowSeat` owns one seat's valid state. No object reaches across those boundaries to set raw fields.
+
+<h2 id="class-design">3. Class design (10–15 minutes)</h2>
+
+Use the same bridge as every other lesson:
+
+> requirement → responsible object → state it remembers → method that changes or reads that state
+
+Start with `BookingService.holdSeats`, the action visible to the caller. Then follow its needs into `Show.tryHold` and finally into `ShowSeat` transitions.
+
+### Derive the public workflow
+
+“Find one show” creates the show map. “Return an accepted hold” creates the hold map and ID sequence. These are not generic manager fields: each exists because a caller-visible requirement needs it.
+
+<DerivationTable rows={[
+  ["Find the requested screening", "BookingService", "showsById and holdSeats(showId, userId, seatIds)"],
+  ["Remember accepted temporary claims", "BookingService", "holdsById"],
+  ["Return permanent confirmations", "BookingService", "bookingsById and confirmHold(holdId, userId)"],
+  ["Create deterministic unique IDs", "BookingService", "AtomicInteger holdSequence and bookingSequence"],
+  ["Use testable time", "BookingService", "Clock clock and Duration holdDuration"],
+  ["Read seat state without exposing objects", "BookingService", "seatStates(showId)"]
+]} />
+
+### Derive the show and seat state
+
+“A7 is different for every show” creates `ShowSeat`. “Hold the whole group or none” puts the loop and lock in `Show`, because no single ShowSeat can judge its neighbours. “Only the owner confirms” creates owner data in the hold and a match check before booking.
+
+<DerivationTable rows={[
+  ["Keep seat state separate for each screening", "Show", "Map<String, ShowSeat> seatsById"],
+  ["Protect one show's multi-seat operation", "Show", "ReentrantLock lock"],
+  ["Validate the whole group before changing it", "Show", "tryHold(...) performs two passes"],
+  ["Release time-limited claims", "Show", "releaseExpired(now)"],
+  ["Represent one seat's lifecycle", "ShowSeat", "SeatState state"],
+  ["Know who owns a temporary claim", "ShowSeat", "holdId, heldBy, expiresAt"],
+  ["Permit only valid transitions", "ShowSeat", "placeHold, confirmHold, releaseIfExpired"]
+]} />
+
+### Understand the seat state machine
+
+A **state machine** is simply a list of allowed states and allowed moves between them. Here there are only three:
+
+```text
+AVAILABLE --successful hold--> HELD --confirmation--> BOOKED
+                              |
+                              +--expiry--> AVAILABLE
+```
+
+There is no direct AVAILABLE → BOOKED move because the confirmed requirements include a hold. There is no BOOKED → AVAILABLE move because cancellation is outside scope. Writing these omissions is useful: it stops an interviewer from wondering whether we forgot them.
+
+### Concurrency: why a normal availability check is not enough
+
+Imagine User A and User B both request A7. This unsafe code looks reasonable:
+
+```java
+if (seat.isAvailable()) {
+    seat.placeHold(...);
+    return HELD;
+}
+```
+
+The problem is that the `if` check and the state change are separate actions. The operating system may pause one thread between them.
+
+<ScenarioTrace steps={[
+  "User A checks A7. The answer is AVAILABLE.",
+  "Before A changes anything, User B checks A7. B also sees AVAILABLE.",
+  "A changes A7 to HELD and returns success.",
+  "B continues using its old answer, changes A7, and also returns success.",
+  "Two users were promised one seat."
+]} />
+
+This ordering is called an **interleaving**: the steps of two callers are mixed. The bug is a **race condition** because the result depends on which thread happens to run at each moment.
+
+The three steps below form the **critical section**—the part that only one thread may execute at a time:
+
+```text
+check every requested seat → change every seat to HELD → record success
+```
+
+An operation is **atomic** when other threads observe it as one unit: they see either the state before it or the state after it, never a half-completed group.
+
+### Our choice: one lock per Show
+
+Every `Show` owns one `ReentrantLock`. A caller acquires it before releasing expired holds, validating the entire group, and changing the group. The caller releases it in a `finally` block, so an unexpected exception cannot leave the show permanently locked.
+
+This is a **coarse lock** because it covers every seat in one show. It is a good interview choice:
+
+- The correctness argument is short: only one thread can change a show's seat map at a time.
+- A request for A5 and A6 needs only one lock, so there is no partial group booking.
+- Different shows have different locks, so the 7:00 PM and 10:00 PM shows can still process work together.
+- The trade-off is lower parallel work: a user holding A1 briefly makes a user holding F20 wait, even though the seats do not overlap.
+
+A **fine lock** per seat would let unrelated seats proceed together. But a group request would need several locks. Every caller would have to acquire them in the same sorted order; otherwise one thread could hold A5 while waiting for A6 and another could hold A6 while waiting for A5. That cycle is a **deadlock**: both wait forever. The added complexity is not justified for this in-memory interview scope.
+
+<Insight title="A Java lock has a boundary" tone="warning">
+  This lock protects threads that share the same `Show` object inside one Java process. If two application servers each have their own memory, each also has its own lock. Both could still sell A7. A production design needs a shared authority such as a database transaction, a uniqueness constraint, or a distributed reservation service.
+</Insight>
+
+### Why holds need an injected Clock
+
+Code that calls `Instant.now()` everywhere is difficult to test: a five-minute expiry test would either wait or depend on timing luck. `BookingService` receives a Java `Clock`. Production can use the system clock; the demo uses `MutableClock` and advances time immediately. The business rule stays real while the test stays fast and repeatable.
+
+### Complexity and limits
+
+For `k` requested seats, checking and updating the group costs `O(k)`. This lesson scans the seats in one show to release expired holds, so an operation also costs `O(S)` for `S` seats. State uses `O(S + H + B)` space for show seats, accepted holds, and bookings. A larger service could maintain an expiry queue, but that would add bookkeeping that this interview version does not need.
+
+### Decide whether patterns help
+
+<PatternDecision name="State pattern" useIt={false}>
+  We do have states, but only three simple transitions and very little state-specific behavior. An enum plus guarded methods in `ShowSeat` is easier to follow. Separate AVAILABLE, HELD, and BOOKED classes would add indirection without solving a current problem.
+</PatternDecision>
+
+<PatternDecision name="Strategy for pricing or payment" useIt={false}>
+  The core design has no price calculation or payment provider. There is no changing rule to isolate yet. If Extensions add several pricing policies or gateways, that requirement would create a Strategy interface at that time.
+</PatternDecision>
+
+<PatternDecision name="Singleton BookingService" useIt={false}>
+  A global instance would make tests share state and would not make several servers consistent. Normal construction and dependency injection make the clock and sample shows explicit.
+</PatternDecision>
+
+### Compare the important production alternatives
+
+<ConceptDropdown title="Optimistic version check" summary="Allow callers to read together, but accept a write only if the seat version has not changed.">
+  A seat row can store a version number. A caller reads A7 at version 12 and attempts an update with “only if version is still 12.” One caller changes it to 13; the other update affects zero rows and must retry or reject. This permits more parallel reads, but it needs a shared storage system that can perform the conditional write atomically.
+</ConceptDropdown>
+
+<ConceptDropdown title="Database transaction and constraint" summary="Let one shared database make the final ownership decision across application servers.">
+  A transaction can lock the requested seat rows, verify them, insert the hold, and update the states before committing. A unique constraint can prevent two active ownership records for the same show and seat. This is the usual direction when the system moves beyond one process, but database design is outside this LLD implementation.
+</ConceptDropdown>
+
+<ConceptDropdown title="Temporary hold service" summary="Store holds in shared storage and expire them reliably when payment may run on another server.">
+  Production systems often keep a shared hold record with an expiry and a background cleanup process. The final booking operation verifies the live hold inside a transaction. Our `SeatHold` models the same idea locally, which makes the later upgrade understandable rather than magical.
+</ConceptDropdown>
+
+### Prove the rules interactively
+
+Use **Booking flow** to hold two seats, advance time, confirm, or load an all-or-nothing rejection. Then use **Concurrency race** to compare the same A-versus-B ordering with and without the show lock.
+
+<MovieTicketBookingSimulator />
+
+<h2 id="implementation">4. Java implementation (~10 minutes)</h2>
+
+<ImplementationGuide
+  what="This Java 17 program creates movies, screens, and shows; accepts all-or-nothing five-minute seat holds; confirms only a live hold's owner; releases expired seats; and proves that two concurrent requests for A7 produce exactly one success."
+  why="BookingService coordinates IDs and lookup. Show owns the lock and the group operation. ShowSeat owns one seat's valid state. Immutable records carry accepted results. An injected Clock makes expiry deterministic."
+  flow={[
+    "BookingService finds the show and creates a candidate hold ID and expiry.",
+    "Show acquires its lock and releases any expired HELD seats.",
+    "Show validates every requested ID and state without changing a requested seat.",
+    "Only after all checks pass, each ShowSeat moves to HELD for the same hold.",
+    "BookingService records and returns the immutable SeatHold.",
+    "Confirmation checks the owner, then Show changes the same seats to BOOKED under its lock."
+  ]}
+/>
+
+<ConceptDropdown title="ReentrantLock" summary="The one primitive that protects a show's check-and-change section." defaultOpen={true}>
+  `lock.lock()` waits until the current thread owns the show lock. While it owns the lock, another thread calling the protected methods on that Show waits. `unlock()` is placed in `finally`, which guarantees release even if the protected code throws. We never acquire a second lock while holding this one, so this design cannot form a lock cycle.
+</ConceptDropdown>
+
+<ConceptDropdown title="ConcurrentHashMap" summary="Thread-safe service indexes, not the seat-booking guarantee.">
+  Competing calls may add or remove different hold and booking records. `ConcurrentHashMap` keeps those map operations safe. It does **not** make “check several seats, then change several seats” atomic; the Show lock provides that larger guarantee.
+</ConceptDropdown>
+
+<ConceptDropdown title="AtomicInteger" summary="Generate unique in-process IDs when several threads call the service.">
+  `getAndIncrement()` returns one number and advances it as a single atomic action. Two threads therefore cannot receive the same hold sequence number. Like the lock, this uniqueness exists only inside this service process.
+</ConceptDropdown>
+
+<ConceptDropdown title="CountDownLatch" summary="Start both demo tasks together without relying on sleep or timing luck.">
+  Each task signals that it is ready and waits at the start latch. The demo releases both after both are ready, then counts the successful results. We do not assert which user wins because thread scheduling is intentionally unknown; we assert the correctness property that exactly one wins.
+</ConceptDropdown>
+
+<JavaFile name="SeatState.java" purpose="Names the only three seat states in scope.">
+{`public enum SeatState {
+    AVAILABLE,
+    HELD,
+    BOOKED
+}`}
+</JavaFile>
+
+<JavaFile name="HoldStatus.java" purpose="Explains every expected hold result without exceptions.">
+{`public enum HoldStatus {
+    HELD,
+    INVALID_REQUEST,
+    SHOW_NOT_FOUND,
+    SEAT_NOT_FOUND,
+    SEAT_UNAVAILABLE
+}`}
+</JavaFile>
+
+<JavaFile name="ConfirmationStatus.java" purpose="Explains every expected confirmation result.">
+{`public enum ConfirmationStatus {
+    BOOKED,
+    HOLD_NOT_FOUND,
+    HOLD_EXPIRED,
+    NOT_HOLD_OWNER
+}`}
+</JavaFile>
+
+<JavaFile name="Movie.java" purpose="Immutable identity and display title for a movie.">
+{`public record Movie(String id, String title) {
+    public Movie {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Movie id is required");
+        }
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Movie title is required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Seat.java" purpose="Describes one permanent physical seat in a screen.">
+{`public record Seat(String id) {
+    public Seat {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Seat id is required");
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Screen.java" purpose="Owns a fixed, unique set of physical seats.">
+{`import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class Screen {
+    private final String id;
+    private final Map<String, Seat> seatsById;
+
+    public Screen(String id, List<Seat> seats) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Screen id is required");
+        }
+        if (seats == null || seats.isEmpty()) {
+            throw new IllegalArgumentException("A screen needs seats");
+        }
+
+        this.id = id;
+        this.seatsById = new LinkedHashMap<>();
+        for (Seat seat : seats) {
+            if (seatsById.putIfAbsent(seat.id(), seat) != null) {
+                throw new IllegalArgumentException("Duplicate seat: " + seat.id());
+            }
+        }
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public List<Seat> seats() {
+        return List.copyOf(seatsById.values());
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="ShowSeat.java" purpose="Owns one seat's state and legal transitions for one show.">
+{`import java.time.Instant;
+
+public final class ShowSeat {
+    private final Seat seat;
+    private SeatState state = SeatState.AVAILABLE;
+    private String holdId;
+    private String heldBy;
+    private Instant expiresAt;
+
+    public ShowSeat(Seat seat) {
+        if (seat == null) {
+            throw new IllegalArgumentException("Seat is required");
+        }
+        this.seat = seat;
+    }
+
+    public String id() {
+        return seat.id();
+    }
+
+    public SeatState state() {
+        return state;
+    }
+
+    public boolean isAvailable() {
+        return state == SeatState.AVAILABLE;
+    }
+
+    public void placeHold(String holdId, String userId, Instant expiresAt) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("Seat is not available: " + id());
+        }
+        this.state = SeatState.HELD;
+        this.holdId = holdId;
+        this.heldBy = userId;
+        this.expiresAt = expiresAt;
+    }
+
+    public boolean isHeldBy(String expectedHoldId, String userId) {
+        return state == SeatState.HELD
+                && holdId.equals(expectedHoldId)
+                && heldBy.equals(userId);
+    }
+
+    public boolean confirmHold(String expectedHoldId, String userId) {
+        if (!isHeldBy(expectedHoldId, userId)) {
+            return false;
+        }
+        state = SeatState.BOOKED;
+        clearHoldDetails();
+        return true;
+    }
+
+    public boolean releaseIfExpired(Instant now) {
+        if (state == SeatState.HELD && !now.isBefore(expiresAt)) {
+            state = SeatState.AVAILABLE;
+            clearHoldDetails();
+            return true;
+        }
+        return false;
+    }
+
+    private void clearHoldDetails() {
+        holdId = null;
+        heldBy = null;
+        expiresAt = null;
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="SeatHold.java" purpose="Immutable accepted temporary claim on a group of seats.">
+{`import java.time.Instant;
+import java.util.List;
+
+public record SeatHold(
+        String id,
+        String showId,
+        String userId,
+        List<String> seatIds,
+        Instant expiresAt
+) {
+    public SeatHold {
+        if (id == null || id.isBlank()
+                || showId == null || showId.isBlank()
+                || userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("Hold identity fields are required");
+        }
+        if (seatIds == null || seatIds.isEmpty() || expiresAt == null) {
+            throw new IllegalArgumentException("Hold seats and expiry are required");
+        }
+        seatIds = List.copyOf(seatIds);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Booking.java" purpose="Immutable receipt created after a successful confirmation.">
+{`import java.time.Instant;
+import java.util.List;
+
+public record Booking(
+        String id,
+        String showId,
+        String userId,
+        List<String> seatIds,
+        Instant bookedAt
+) {
+    public Booking {
+        if (id == null || id.isBlank()
+                || showId == null || showId.isBlank()
+                || userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("Booking identity fields are required");
+        }
+        if (seatIds == null || seatIds.isEmpty() || bookedAt == null) {
+            throw new IllegalArgumentException("Booking seats and time are required");
+        }
+        seatIds = List.copyOf(seatIds);
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="HoldResult.java" purpose="Carries a status and an optional accepted hold.">
+{`import java.util.Optional;
+
+public record HoldResult(HoldStatus status, Optional<SeatHold> hold) {
+    public HoldResult {
+        if (status == null || hold == null) {
+            throw new IllegalArgumentException("Result fields are required");
+        }
+    }
+
+    public static HoldResult accepted(SeatHold hold) {
+        return new HoldResult(HoldStatus.HELD, Optional.of(hold));
+    }
+
+    public static HoldResult rejected(HoldStatus status) {
+        if (status == HoldStatus.HELD) {
+            throw new IllegalArgumentException("Use accepted for HELD");
+        }
+        return new HoldResult(status, Optional.empty());
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="ConfirmationResult.java" purpose="Carries a status and an optional completed booking.">
+{`import java.util.Optional;
+
+public record ConfirmationResult(
+        ConfirmationStatus status,
+        Optional<Booking> booking
+) {
+    public ConfirmationResult {
+        if (status == null || booking == null) {
+            throw new IllegalArgumentException("Result fields are required");
+        }
+    }
+
+    public static ConfirmationResult accepted(Booking booking) {
+        return new ConfirmationResult(
+                ConfirmationStatus.BOOKED,
+                Optional.of(booking)
+        );
+    }
+
+    public static ConfirmationResult rejected(ConfirmationStatus status) {
+        if (status == ConfirmationStatus.BOOKED) {
+            throw new IllegalArgumentException("Use accepted for BOOKED");
+        }
+        return new ConfirmationResult(status, Optional.empty());
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="Show.java" purpose="Owns per-show seat state, the lock, and atomic group transitions.">
+{`import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
+
+public final class Show {
+    private final String id;
+    private final Movie movie;
+    private final Screen screen;
+    private final Instant startsAt;
+    private final Map<String, ShowSeat> seatsById = new LinkedHashMap<>();
+    private final ReentrantLock lock = new ReentrantLock();
+
+    public Show(String id, Movie movie, Screen screen, Instant startsAt) {
+        if (id == null || id.isBlank() || movie == null
+                || screen == null || startsAt == null) {
+            throw new IllegalArgumentException("Complete show details are required");
+        }
+        this.id = id;
+        this.movie = movie;
+        this.screen = screen;
+        this.startsAt = startsAt;
+        for (Seat seat : screen.seats()) {
+            seatsById.put(seat.id(), new ShowSeat(seat));
+        }
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public Movie movie() {
+        return movie;
+    }
+
+    public Screen screen() {
+        return screen;
+    }
+
+    public Instant startsAt() {
+        return startsAt;
+    }
+
+    public HoldStatus tryHold(
+            String holdId,
+            String userId,
+            List<String> requestedSeatIds,
+            Instant now,
+            Instant expiresAt
+    ) {
+        if (holdId == null || holdId.isBlank()
+                || userId == null || userId.isBlank()
+                || requestedSeatIds == null || requestedSeatIds.isEmpty()
+                || now == null || expiresAt == null
+                || !expiresAt.isAfter(now)) {
+            return HoldStatus.INVALID_REQUEST;
+        }
+
+        Set<String> uniqueSeatIds = new LinkedHashSet<>(requestedSeatIds);
+        if (uniqueSeatIds.size() != requestedSeatIds.size()
+                || uniqueSeatIds.stream().anyMatch(id -> id == null || id.isBlank())) {
+            return HoldStatus.INVALID_REQUEST;
+        }
+
+        lock.lock();
+        try {
+            releaseExpired(now);
+
+            // First pass: validate the complete group without changing it.
+            for (String seatId : uniqueSeatIds) {
+                ShowSeat seat = seatsById.get(seatId);
+                if (seat == null) {
+                    return HoldStatus.SEAT_NOT_FOUND;
+                }
+                if (!seat.isAvailable()) {
+                    return HoldStatus.SEAT_UNAVAILABLE;
+                }
+            }
+
+            // Second pass: all checks passed, so change the whole group.
+            for (String seatId : uniqueSeatIds) {
+                seatsById.get(seatId).placeHold(holdId, userId, expiresAt);
+            }
+            return HoldStatus.HELD;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public ConfirmationStatus confirmHold(SeatHold hold, Instant now) {
+        lock.lock();
+        try {
+            if (!now.isBefore(hold.expiresAt())) {
+                releaseExpired(now);
+                return ConfirmationStatus.HOLD_EXPIRED;
+            }
+
+            for (String seatId : hold.seatIds()) {
+                ShowSeat seat = seatsById.get(seatId);
+                if (seat == null || !seat.isHeldBy(hold.id(), hold.userId())) {
+                    return ConfirmationStatus.HOLD_NOT_FOUND;
+                }
+            }
+            for (String seatId : hold.seatIds()) {
+                seatsById.get(seatId).confirmHold(hold.id(), hold.userId());
+            }
+            return ConfirmationStatus.BOOKED;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public Map<String, SeatState> seatStates(Instant now) {
+        lock.lock();
+        try {
+            releaseExpired(now);
+            Map<String, SeatState> snapshot = new LinkedHashMap<>();
+            for (ShowSeat seat : seatsById.values()) {
+                snapshot.put(seat.id(), seat.state());
+            }
+            return Map.copyOf(snapshot);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private void releaseExpired(Instant now) {
+        for (ShowSeat seat : seatsById.values()) {
+            seat.releaseIfExpired(now);
+        }
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="BookingService.java" purpose="Coordinates lookup, IDs, result records, and the injected clock.">
+{`import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public final class BookingService {
+    private final Map<String, Show> showsById;
+    private final Map<String, SeatHold> holdsById = new ConcurrentHashMap<>();
+    private final Map<String, Booking> bookingsById = new ConcurrentHashMap<>();
+    private final AtomicInteger holdSequence = new AtomicInteger(1);
+    private final AtomicInteger bookingSequence = new AtomicInteger(1);
+    private final Clock clock;
+    private final Duration holdDuration;
+
+    public BookingService(List<Show> shows, Clock clock, Duration holdDuration) {
+        if (shows == null || shows.isEmpty() || clock == null
+                || holdDuration == null || holdDuration.isNegative()
+                || holdDuration.isZero()) {
+            throw new IllegalArgumentException("Shows, clock, and hold duration are required");
+        }
+        this.clock = clock;
+        this.holdDuration = holdDuration;
+        this.showsById = new LinkedHashMap<>();
+        for (Show show : shows) {
+            if (showsById.putIfAbsent(show.id(), show) != null) {
+                throw new IllegalArgumentException("Duplicate show: " + show.id());
+            }
+        }
+    }
+
+    public HoldResult holdSeats(
+            String showId,
+            String userId,
+            List<String> seatIds
+    ) {
+        Show show = showsById.get(showId);
+        if (show == null) {
+            return HoldResult.rejected(HoldStatus.SHOW_NOT_FOUND);
+        }
+
+        Instant now = clock.instant();
+        String holdId = "H" + holdSequence.getAndIncrement();
+        Instant expiresAt = now.plus(holdDuration);
+        HoldStatus status = show.tryHold(
+                holdId,
+                userId,
+                seatIds,
+                now,
+                expiresAt
+        );
+        if (status != HoldStatus.HELD) {
+            return HoldResult.rejected(status);
+        }
+
+        SeatHold hold = new SeatHold(
+                holdId,
+                showId,
+                userId,
+                seatIds,
+                expiresAt
+        );
+        holdsById.put(holdId, hold);
+        return HoldResult.accepted(hold);
+    }
+
+    public ConfirmationResult confirmHold(String holdId, String userId) {
+        SeatHold hold = holdsById.get(holdId);
+        if (hold == null) {
+            return ConfirmationResult.rejected(
+                    ConfirmationStatus.HOLD_NOT_FOUND
+            );
+        }
+        if (!hold.userId().equals(userId)) {
+            return ConfirmationResult.rejected(
+                    ConfirmationStatus.NOT_HOLD_OWNER
+            );
+        }
+
+        Instant now = clock.instant();
+        Show show = showsById.get(hold.showId());
+        ConfirmationStatus status = show.confirmHold(hold, now);
+        if (status != ConfirmationStatus.BOOKED) {
+            if (status == ConfirmationStatus.HOLD_EXPIRED) {
+                holdsById.remove(holdId, hold);
+            }
+            return ConfirmationResult.rejected(status);
+        }
+
+        Booking booking = new Booking(
+                "B" + bookingSequence.getAndIncrement(),
+                hold.showId(),
+                hold.userId(),
+                hold.seatIds(),
+                now
+        );
+        bookingsById.put(booking.id(), booking);
+        holdsById.remove(holdId, hold);
+        return ConfirmationResult.accepted(booking);
+    }
+
+    public Map<String, SeatState> seatStates(String showId) {
+        Show show = showsById.get(showId);
+        if (show == null) {
+            return Map.of();
+        }
+        return show.seatStates(clock.instant());
+    }
+
+    public Optional<Booking> booking(String bookingId) {
+        return Optional.ofNullable(bookingsById.get(bookingId));
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="MutableClock.java" purpose="Lets the demo advance five minutes instantly and repeatably.">
+{`import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicReference;
+
+public final class MutableClock extends Clock {
+    private final AtomicReference<Instant> current;
+    private final ZoneId zone;
+
+    public MutableClock(Instant initialInstant, ZoneId zone) {
+        if (initialInstant == null || zone == null) {
+            throw new IllegalArgumentException("Initial time and zone are required");
+        }
+        this.current = new AtomicReference<>(initialInstant);
+        this.zone = zone;
+    }
+
+    public void advance(Duration duration) {
+        if (duration == null || duration.isNegative()) {
+            throw new IllegalArgumentException("Advance duration cannot be negative");
+        }
+        current.updateAndGet(instant -> instant.plus(duration));
+    }
+
+    @Override
+    public ZoneId getZone() {
+        return zone;
+    }
+
+    @Override
+    public Clock withZone(ZoneId newZone) {
+        return new MutableClock(current.get(), newZone);
+    }
+
+    @Override
+    public Instant instant() {
+        return current.get();
+    }
+}`}
+</JavaFile>
+
+<JavaFile name="MovieBookingDemo.java" purpose="Runs normal, rejection, expiry, and deterministic concurrency checks.">
+{`import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+public final class MovieBookingDemo {
+    public static void main(String[] args) throws Exception {
+        MutableClock clock = new MutableClock(
+                Instant.parse("2026-08-14T13:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        BookingService normal = sampleService(clock);
+        HoldResult hold = normal.holdSeats("S1", "user-a", List.of("A5", "A6"));
+        System.out.println("normal hold: " + hold.status());
+        String holdId = hold.hold().orElseThrow().id();
+        System.out.println("normal confirm: "
+                + normal.confirmHold(holdId, "user-a").status());
+
+        BookingService group = sampleService(clock);
+        group.holdSeats("S1", "first-user", List.of("A2"));
+        HoldResult rejected = group.holdSeats(
+                "S1",
+                "second-user",
+                List.of("A1", "A2")
+        );
+        System.out.println("group rejection: " + rejected.status());
+        System.out.println("A1 after rejection: " + group.seatStates("S1").get("A1"));
+
+        BookingService expiry = sampleService(clock);
+        SeatHold expiring = expiry.holdSeats(
+                "S1",
+                "user-a",
+                List.of("A3")
+        ).hold().orElseThrow();
+        clock.advance(Duration.ofMinutes(6));
+        System.out.println("expired confirmation: "
+                + expiry.confirmHold(expiring.id(), "user-a").status());
+        System.out.println("seat reusable: "
+                + expiry.holdSeats("S1", "user-b", List.of("A3")).status());
+
+        BookingService concurrent = sampleService(clock);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        Callable<HoldStatus> userA = contender(
+                concurrent,
+                "user-a",
+                ready,
+                start
+        );
+        Callable<HoldStatus> userB = contender(
+                concurrent,
+                "user-b",
+                ready,
+                start
+        );
+        Future<HoldStatus> resultA = pool.submit(userA);
+        Future<HoldStatus> resultB = pool.submit(userB);
+        ready.await();
+        start.countDown();
+
+        long successCount = List.of(resultA.get(), resultB.get()).stream()
+                .filter(status -> status == HoldStatus.HELD)
+                .count();
+        pool.shutdown();
+
+        System.out.println("concurrent success count: " + successCount);
+        System.out.println("A7 final state: "
+                + concurrent.seatStates("S1").get("A7"));
+        if (successCount != 1) {
+            throw new AssertionError("Exactly one competing hold must succeed");
+        }
+    }
+
+    private static Callable<HoldStatus> contender(
+            BookingService service,
+            String userId,
+            CountDownLatch ready,
+            CountDownLatch start
+    ) {
+        return () -> {
+            ready.countDown();
+            start.await();
+            return service.holdSeats("S1", userId, List.of("A7")).status();
+        };
+    }
+
+    private static BookingService sampleService(MutableClock clock) {
+        Movie movie = new Movie("M1", "The Clockwork City");
+        Screen screen = new Screen("SCREEN-1", List.of(
+                new Seat("A1"),
+                new Seat("A2"),
+                new Seat("A3"),
+                new Seat("A4"),
+                new Seat("A5"),
+                new Seat("A6"),
+                new Seat("A7")
+        ));
+        Show show = new Show(
+                "S1",
+                movie,
+                screen,
+                Instant.parse("2026-08-14T19:00:00Z")
+        );
+        return new BookingService(
+                List.of(show),
+                clock,
+                Duration.ofMinutes(5)
+        );
+    }
+}`}
+</JavaFile>
+
+### What to notice in the code
+
+`Show.tryHold` intentionally makes two passes while holding one lock. The first pass only checks; the second pass changes. Returning during the first pass cannot leave A1 held when A2 fails. `ShowSeat.placeHold` still checks its own state, which protects its local rule against programmer misuse.
+
+`Show.confirmHold` checks expiry before confirming. The same Show lock prevents a confirmation and a competing hold from changing the seats at the same moment. `BookingService` creates a `Booking` only after Show reports `BOOKED`, so the receipt never claims success before the state change succeeds.
+
+The demo's concurrent winner is intentionally unknown, but its output property is deterministic: `concurrent success count` must always be `1` and A7 must finish as `HELD`.
+
+<h2 id="extensions">5. Extensions (~5 minutes)</h2>
+
+In an interview, extend the design by naming the new rule first. Then show the smallest boundary it changes.
+
+### Add real payment without holding a lock during a network call
+
+Never keep the Show lock while calling a payment provider. Network calls can take seconds or fail. The hold already provides the safe boundary:
+
+1. Create a five-minute hold under the Show lock.
+2. Release the lock.
+3. Call the payment provider using the hold ID as the order reference.
+4. If payment succeeds before expiry, confirm the hold under the lock.
+5. If it fails, release the hold or let it expire.
+
+If several providers are supported, `PaymentStrategy` becomes useful because the requirement now contains a replaceable behavior. It was not useful in the core design.
+
+### Move from one process to several servers
+
+Replace the in-memory authority with shared storage. A database transaction should verify the live hold and create the booking together. Use conditional updates or constraints so only one server can claim a show-seat record. Keep the domain objects and state names, but do not pretend `ReentrantLock` crosses the network.
+
+### Make expiry efficient
+
+The simple implementation scans a show's seats when an operation arrives. A busy service could keep holds ordered by `expiresAt` in a priority queue or a shared expiry index. A background worker releases the earliest expired records first. The difficult requirement is not the timer—it is making cleanup and confirmation agree atomically in shared storage.
+
+### Add pricing, seat categories, and refunds
+
+Add `SeatType` and a pricing rule only when prices enter the requirements. If pricing varies by show, day, or promotion, a `PricingStrategy` can isolate that calculation. Cancellation would add a BOOKED → AVAILABLE transition only after the refund and cancellation rules are clarified; it should not be smuggled into the current state machine.
+
+<Insight title="The reusable interview answer" tone="mint">
+  First make the workflow precise. Then separate physical seats from per-show state, protect the smallest understandable critical section, and state exactly where that protection stops. That reasoning is more valuable than naming many patterns.
+</Insight>

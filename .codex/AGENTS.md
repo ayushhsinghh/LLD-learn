@@ -55,6 +55,21 @@ The default reasoning rhythm is:
 
 > Recall the requirement → ask a useful question → reason from the answer → make the design decision → explain what the decision enables.
 
+## Opening concept illustration
+
+Every problem lesson must begin with an original overview illustration immediately after `Lead` and before `FrameworkMap`. Generate it with the image-generation skill and save it as `public/images/<topic>-overview.png`.
+
+The opening illustration must:
+
+- teach the real-world problem and main user action before any classes or patterns are introduced;
+- show a concrete normal scenario that the requirements section can refer back to;
+- avoid class names, pattern names, UML notation, code, dense labels, logos, and decoration that does not teach;
+- use the established visual style: warm white paper, hand-drawn navy lines, muted orange action or movement, and soft teal highlights;
+- use `ConceptImage` with the real image dimensions, descriptive alt text, and a caption that states what the learner should notice;
+- remain clear and correctly aligned at both laptop and mobile widths.
+
+The opening overview and the later entity-flow image have different jobs. The overview teaches the physical or user-facing problem. The entity-flow image teaches which software objects receive, delegate, change state, and return a result. Do not reuse one image for both purposes.
+
 ## Step 1: Requirements
 
 Begin with the short interview prompt and explain why it is incomplete. Do not start by naming classes.
@@ -316,7 +331,7 @@ For a topic with slug `<topic>`:
 2. Add `app/problems/<topic>/page.tsx` with metadata, the five-item table of contents, and correct previous/next links.
 3. Add the topic to `lib/lessons.ts`.
 4. Add `components/simulations/<topic>-simulator.tsx` as a client component.
-5. Add an overview illustration when it materially helps explain the real-world flow.
+5. Add `public/images/<topic>-overview.png` and place it immediately after `Lead` as the required opening concept illustration.
 6. Add `public/images/<topic>-entity-flow.png` using the required sketch style.
 7. Reuse shared lesson blocks; extend them only when the new component will remain useful for future topics.
 8. Update adjacent lesson pagination when needed.
@@ -340,6 +355,7 @@ Also:
 - visually inspect the lesson in a real browser at a laptop width;
 - visually inspect it at approximately 390 px mobile width;
 - verify generated diagram labels, aspect ratio, captions, alt text, and mobile horizontal scrolling;
+- verify the opening overview appears before `FrameworkMap`, teaches the real-world problem without design jargon, and renders correctly on laptop and mobile;
 - check that the page index and previous/next links work;
 - check for browser console errors.
 
@@ -360,6 +376,7 @@ Before handing off a new lesson, answer yes to each question:
 - If concurrency is required, does the lesson show the race, protection boundary, scope of the guarantee, and a two-caller test?
 - If graph routing is required, does the lesson define the graph, walk the algorithm, state complexity, and distinguish routing from matching?
 - Does the entity flow image tell a clear story with readable labels?
+- Does the opening overview teach the real-world problem before the lesson introduces requirements or classes?
 - Is the language simple and free of unexplained buzzwords?
 - Is the layout clean and readable on both laptop and mobile browsers?
 - Did the change avoid backend, authentication, storage, bookmarks, and personal notes?
