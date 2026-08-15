@@ -1,0 +1,117 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e9]:
+          - paragraph [ref=e10]: Tic-Tac-Toe
+          - paragraph [ref=e11]: Focus Mode · 64 steps
+        - navigation "Learning phases" [ref=e12]:
+          - generic [ref=e13]:
+            - button "Start" [ref=e14] [cursor=pointer]
+            - generic [ref=e15]:
+              - button "1. See the game loop" [ref=e16] [cursor=pointer]
+              - button "2. Use the five-phase method" [ref=e17] [cursor=pointer]
+              - button "3. Know what to clarify first" [ref=e18] [cursor=pointer]
+          - generic [ref=e19]:
+            - button "Requirements" [ref=e20] [cursor=pointer]
+            - generic [ref=e21]:
+              - button "4. Find what the prompt omits" [ref=e22] [cursor=pointer]
+              - button "5. Ask four kinds of questions" [ref=e23] [cursor=pointer]
+              - button "6. Predict what creates currentPlayer" [ref=e24] [cursor=pointer]
+              - button "7. Confirm players and the first turn" [ref=e25] [cursor=pointer]
+              - button "8. Define the board and a win" [ref=e26] [cursor=pointer]
+              - button "9. Complete a winning line" [ref=e27] [cursor=pointer]
+              - button "10. Define when play stops" [ref=e28] [cursor=pointer]
+              - button "11. Predict rejection behavior" [ref=e29] [cursor=pointer]
+              - button "12. Name every rejected move" [ref=e30] [cursor=pointer]
+              - button "13. Keep the first version small" [ref=e31] [cursor=pointer]
+              - button "14. Read back the contract" [ref=e32] [cursor=pointer]
+              - button "15. Are the requirements ready?" [ref=e33] [cursor=pointer]
+          - generic [ref=e34]:
+            - button "Entities" [ref=e35] [cursor=pointer]
+            - generic [ref=e36]:
+              - button "16. Extract candidates without guessing" [ref=e37] [cursor=pointer]
+              - button "17. Find the owner of cell rules" [ref=e38] [cursor=pointer]
+              - button "18. Make Board a class" [ref=e39] [cursor=pointer]
+              - button "19. Make Game the coordinator" [ref=e40] [cursor=pointer]
+              - button "20. Keep Player as identity" [ref=e41] [cursor=pointer]
+              - button "21. Decide whether Cell is a class" [ref=e42] [cursor=pointer]
+              - button "22. Keep Cell as a field" [ref=e43] [cursor=pointer]
+              - button "23. Model closed choices as enums" [ref=e44] [cursor=pointer]
+              - button "24. Leave out a premature interface" [ref=e45] [cursor=pointer]
+              - button "25. Keep rules beside their data" [ref=e46] [cursor=pointer]
+              - button "26. Explain why WinningRule waits" [ref=e47] [cursor=pointer]
+              - button "27. See one move cross the objects" [ref=e48] [cursor=pointer]
+              - button "28. Read the arrows as a story" [ref=e49] [cursor=pointer]
+          - generic [ref=e50]:
+            - button "Class design" [ref=e51] [cursor=pointer]
+            - generic [ref=e52]:
+              - button "29. Move from entities to APIs" [ref=e53] [cursor=pointer]
+              - button "30. Derive Game state and methods" [ref=e54] [cursor=pointer]
+              - button "31. Derive Game actions and results" [ref=e55] [cursor=pointer]
+              - button "32. Derive Board validation APIs" [ref=e56] [cursor=pointer]
+              - button "33. Derive Board result APIs" [ref=e57] [cursor=pointer]
+              - button "34. Reject patterns without variation" [ref=e58] [cursor=pointer]
+              - button "35. Add Strategy only when needed" [ref=e59] [cursor=pointer]
+              - button "36. Recognize justified Strategy" [ref=e60] [cursor=pointer]
+          - generic [ref=e61]:
+            - button "Implementation" [ref=e62] [cursor=pointer]
+            - generic [ref=e63]:
+              - button "37. Separate workflow from cell rules" [ref=e64] [cursor=pointer]
+              - button "38. Trace one move through the code" [ref=e65] [cursor=pointer]
+              - button "39. Order one safe move" [ref=e66] [cursor=pointer]
+              - button "40. Validate before changing state" [ref=e67] [cursor=pointer]
+              - button "41. Separate Board and Game rules" [ref=e68] [cursor=pointer]
+              - button "42. Prefer precise states" [ref=e69] [cursor=pointer]
+              - button "43. Keep the first implementation direct" [ref=e70] [cursor=pointer]
+              - button "44. Read the three value types" [ref=e71] [cursor=pointer]
+              - button "45. Choose results over exceptions" [ref=e72] [cursor=pointer]
+              - button "46. Keep Player immutable" [ref=e73] [cursor=pointer]
+              - button "47. Validate and place a mark" [ref=e74] [cursor=pointer]
+              - button "48. Check every winning line" [ref=e75] [cursor=pointer]
+              - button "49. Read, fill, and reset Board" [ref=e76] [cursor=pointer]
+              - button "50. Find the safe turn switch" [ref=e77] [cursor=pointer]
+              - button "51. Construct a valid Game" [ref=e78] [cursor=pointer]
+              - button "52. Reject before mutation" [ref=e79] [cursor=pointer]
+              - button "53. Resolve an accepted move" [ref=e80] [cursor=pointer]
+              - button "54. Reset and expose Game state" [ref=e81] [cursor=pointer]
+              - button "55. Use the public API" [ref=e82] [cursor=pointer]
+              - button "56. Trace a complete win" [ref=e83] [cursor=pointer]
+              - button "57. Prove rejected state is unchanged" [ref=e84] [cursor=pointer]
+              - button "58. Identify the full invariant" [ref=e85] [cursor=pointer]
+              - button "59. Challenge the model" [ref=e86] [cursor=pointer]
+          - generic [ref=e87]:
+            - button "Extensions" [ref=e88] [cursor=pointer]
+            - generic [ref=e89]:
+              - button "60. Add computer move strategies" [ref=e90] [cursor=pointer]
+              - button "61. Generalize the board and win rule" [ref=e91] [cursor=pointer]
+              - button "62. Extend history and coordination" [ref=e92] [cursor=pointer]
+              - button "63. Explain the design aloud" [ref=e93] [cursor=pointer]
+              - button "64. Choose the smallest extension" [ref=e94] [cursor=pointer]
+        - link "Complete walkthrough" [ref=e95] [cursor=pointer]:
+          - /url: /problems/tic-tac-toe/
+    - generic [ref=e98]:
+      - banner [ref=e99]:
+        - generic [ref=e100]:
+          - generic [ref=e102]:
+            - generic [ref=e103]: Start
+            - generic [ref=e104]: 2 / 64
+          - link "Full guide" [ref=e107] [cursor=pointer]:
+            - /url: /problems/tic-tac-toe/
+      - main [ref=e108]:
+        - generic [ref=e110]:
+          - generic [ref=e113]:
+            - paragraph [ref=e114]: Mental model · 1 min
+            - heading "See the game loop" [level=1] [ref=e115]
+          - generic [ref=e117]:
+            - paragraph [ref=e118]: Design a two-player game that accepts legal moves, alternates turns, and stops with a win or draw.
+            - 'figure "The whole game loop: one player chooses a cell, the board changes, the result is checked, and the next turn begins." [ref=e119]':
+              - img "Two players taking turns placing X and O marks on a three by three board" [ref=e121]
+      - navigation "Focus lesson navigation" [ref=e123]:
+        - generic [ref=e124]:
+          - button "Previous" [ref=e125] [cursor=pointer]
+          - button "Use the five-phase method Step 2 of 64":
+            - generic: Use the five-phase method
+            - generic: Step 2 of 64
+          - button "Next" [ref=e129] [cursor=pointer]
+  - alert [ref=e133]

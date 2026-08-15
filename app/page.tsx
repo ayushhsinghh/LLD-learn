@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, Clock3, Route } from "lucide-react";
+import { ArrowRight, BookOpen, Clock3, Route, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { lessonHref, lessons } from "@/lib/lessons";
 
@@ -30,11 +30,12 @@ export default function HomePage() {
           <div className="flex items-center justify-between border-b border-[var(--line)] pb-3"><p className="section-kicker">Complete problem walkthroughs</p><span className="text-xs text-[var(--faint)]">Java · diagrams · simulations</span></div>
           <div>
             {lessons.map((lesson, index) => (
-              <Link key={lesson.slug} href={lessonHref(lesson.slug)} className="group grid gap-3 border-b border-[var(--line)] py-6 sm:grid-cols-[50px_1fr_auto] sm:items-center">
+              <article key={lesson.slug} className="group relative grid gap-3 border-b border-[var(--line)] py-6 sm:grid-cols-[50px_1fr_auto] sm:items-center">
+                <Link href={lessonHref(lesson.slug)} aria-label={`Open complete ${lesson.title} walkthrough`} className="absolute inset-0" />
                 <span className="font-mono text-xs font-bold text-[var(--accent-dark)]">0{index + 1}</span>
-                <div><h3 className="text-lg font-extrabold">{lesson.title}</h3><p className="mt-1 max-w-xl text-sm leading-6 text-[var(--muted)]">{lesson.summary}</p><div className="mt-3 flex gap-2"><Badge>{lesson.difficulty}</Badge><Badge>{lesson.duration}</Badge></div></div>
+                <div><h3 className="text-lg font-extrabold">{lesson.title}</h3><p className="mt-1 max-w-xl text-sm leading-6 text-[var(--muted)]">{lesson.summary}</p><div className="mt-3 flex flex-wrap items-center gap-2"><Badge>{lesson.difficulty}</Badge><Badge>{lesson.duration}</Badge>{lesson.focusHref && <Link href={lesson.focusHref} className="relative z-10 inline-flex items-center gap-1.5 rounded-full border border-[#f1c3a7] bg-[var(--accent-soft)] px-2.5 py-1 text-[11px] font-extrabold text-[var(--accent-dark)] hover:border-[var(--accent)]"><Sparkles className="size-3" /> Focus Mode</Link>}</div></div>
                 <ArrowRight className="hidden transition group-hover:translate-x-1 sm:block" />
-              </Link>
+              </article>
             ))}
           </div>
         </section>

@@ -6,6 +6,7 @@ export type Lesson = {
   duration: string;
   summary: string;
   accent: string;
+  focusHref?: string;
 };
 
 export const lessons: Lesson[] = [
@@ -26,6 +27,7 @@ export const lessons: Lesson[] = [
     duration: "30 min",
     summary: "Turn interview answers into game rules, complete Java classes, and a move-by-move working simulation.",
     accent: "#52a78c",
+    focusHref: "/problems/tic-tac-toe/learn/",
   },
   {
     slug: "parking-lot",

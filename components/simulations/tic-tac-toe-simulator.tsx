@@ -19,7 +19,7 @@ function evaluate(board: Mark[]): { status: Status; line: number[] } {
   return { status: board.every(Boolean) ? "DRAW" : "IN_PROGRESS", line: [] };
 }
 
-export function TicTacToeSimulator() {
+export function TicTacToeSimulator({ compact = false }: { compact?: boolean }) {
   const [board, setBoard] = useState<Mark[]>(emptyBoard);
   const [turn, setTurn] = useState<"X" | "O">("X");
   const [events, setEvents] = useState<string[]>(["Game created. Player X owns the first turn."]);
@@ -58,55 +58,57 @@ export function TicTacToeSimulator() {
   const statusLabel = result.status === "IN_PROGRESS" ? `${turn}'s turn` : result.status === "DRAW" ? "Draw" : `${result.status[0]} wins`;
 
   return (
-    <section aria-label="Interactive Tic-Tac-Toe simulation" className="my-10 overflow-hidden rounded-[1.4rem] border border-[var(--line)] bg-white shadow-[5px_6px_0_#dfd9cd]">
-      <div className="flex flex-col gap-4 border-b border-[var(--line)] bg-[var(--ink)] p-5 text-white sm:flex-row sm:items-center sm:justify-between">
+    <section aria-label="Interactive Tic-Tac-Toe simulation" className={cn("overflow-hidden rounded-[1.4rem] border border-[var(--line)] bg-white shadow-[5px_6px_0_#dfd9cd]", compact ? "h-full" : "my-10")}>
+      {!compact && <div className="flex flex-col gap-4 border-b border-[var(--line)] bg-[var(--ink)] p-5 text-white sm:flex-row sm:items-center sm:justify-between">
         <div><p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--mint)]">Try it yourself</p><h3 className="mt-1 !text-xl font-extrabold">Play and inspect each move</h3></div>
         <div className="flex items-center gap-2"><Badge className="border-white/20 bg-white/10 text-white">Move {moveCount}</Badge><Badge className="border-white/20 bg-white/10 text-white">{statusLabel}</Badge></div>
-      </div>
+      </div>}
 
-      <div className="grid lg:grid-cols-[.8fr_1.2fr]">
-        <div className="border-b border-[var(--line)] bg-[var(--paper-2)] p-5 sm:p-8 lg:border-b-0 lg:border-r">
-          <div className="mx-auto grid aspect-square max-w-[360px] grid-cols-3 overflow-hidden rounded-2xl border-[3px] border-[var(--ink)] bg-[var(--ink)] gap-[3px] shadow-[5px_6px_0_var(--accent)]">
+      <div className={cn("grid", compact ? "h-full grid-cols-[0.9fr_1.1fr] max-[520px]:grid-cols-[.95fr_1.05fr]" : "lg:grid-cols-[.8fr_1.2fr]")}>
+        <div className={cn("bg-[var(--paper-2)]", compact ? "flex items-center border-r border-[var(--line)] p-2 sm:p-4" : "border-b border-[var(--line)] p-5 sm:p-8 lg:border-b-0 lg:border-r")}>
+          <div className={cn("mx-auto grid aspect-square grid-cols-3 overflow-hidden border-[3px] border-[var(--ink)] bg-[var(--ink)] gap-[3px] shadow-[4px_4px_0_var(--accent)]", compact ? "w-full max-w-[260px] rounded-xl" : "max-w-[360px] rounded-2xl")}>
             {board.map((mark, index) => (
               <button
                 key={index}
                 aria-label={`Cell ${Math.floor(index / 3) + 1}, ${index % 3 + 1}${mark ? ` occupied by ${mark}` : " empty"}`}
                 onClick={() => play(index)}
                 className={cn(
-                  "grid place-items-center bg-[#fffdf8] font-display text-5xl font-bold transition hover:bg-[var(--accent-soft)] focus:z-10 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--accent)] sm:text-6xl",
+                  "grid place-items-center bg-[#fffdf8] font-display font-bold transition hover:bg-[var(--accent-soft)] focus:z-10 focus:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--accent)]",
+                  compact ? "text-2xl sm:text-4xl" : "text-5xl sm:text-6xl",
                   result.line.includes(index) && "!bg-[var(--mint)] text-white",
                   mark === "X" ? "text-[var(--ink)]" : "text-[var(--accent)]",
                 )}
               >{mark}</button>
             ))}
           </div>
-          <p className="mt-6 text-center text-sm font-bold text-[var(--muted)]">Choose an empty cell. Try clicking an occupied cell too.</p>
+          {!compact && <p className="mt-6 text-center text-sm font-bold text-[var(--muted)]">Choose an empty cell. Try clicking an occupied cell too.</p>}
         </div>
 
-        <div className="p-5 sm:p-7">
+        <div className={compact ? "min-w-0 p-2.5 sm:p-4" : "p-5 sm:p-7"}>
+          {compact && <div className="flex flex-wrap gap-1.5"><Badge>Move {moveCount}</Badge><Badge className="bg-[var(--paper-2)] text-[var(--ink)]">{statusLabel}</Badge></div>}
           <p className="section-kicker">Live object state</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className={cn("mt-3 grid", compact ? "gap-1.5" : "gap-3 sm:grid-cols-3")}>
             <StateCard label="Game.status" value={result.status} accent="#52a78c" />
             <StateCard label="Game.current" value={result.status === "IN_PROGRESS" ? `Player ${turn}` : "—"} accent="#f58a4a" />
             <StateCard label="Board.moves" value={`${moveCount} / 9`} accent="#f7d66f" />
           </div>
 
-          <div className="mt-6 rounded-xl border border-[var(--line)] p-4">
+          <div className={cn("rounded-xl border border-[var(--line)]", compact ? "mt-3 p-2.5" : "mt-6 p-4")}>
             <p className="flex items-center gap-2 text-sm font-extrabold"><Sparkles className="size-4 text-[var(--accent)]" /> What happened</p>
-            <ol aria-live="polite" className="mt-3 space-y-2 font-mono text-[11px] leading-5 text-[var(--muted)]">{events.map((event, index) => <li key={`${event}-${index}`} className={cn("rounded-lg px-3 py-2", index === 0 ? "bg-[var(--mint-soft)] font-medium text-[var(--ink)]" : "bg-[var(--paper-2)] opacity-65")}>{event}</li>)}</ol>
+            <ol aria-live="polite" className={cn("font-mono text-[10px] leading-4 text-[var(--muted)]", compact ? "mt-2" : "mt-3 space-y-2")}>{(compact ? events.slice(0, 1) : events).map((event, index) => <li key={`${event}-${index}`} className={cn("rounded-lg", compact ? "bg-[var(--mint-soft)] px-2 py-1.5 font-medium text-[var(--ink)]" : index === 0 ? "bg-[var(--mint-soft)] px-3 py-2 font-medium text-[var(--ink)]" : "bg-[var(--paper-2)] px-3 py-2 opacity-65")}>{event}</li>)}</ol>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Button onClick={reset}><RotateCcw /> New game</Button>
-            <Button variant="outline" onClick={() => loadScenario("fork")}>Load win</Button>
-            <Button variant="outline" onClick={() => loadScenario("draw")}>Load draw</Button>
+          <div className={cn("flex flex-wrap gap-1.5", compact ? "mt-3" : "mt-6 gap-2")}>
+            <Button size={compact ? "sm" : "default"} onClick={reset}><RotateCcw /> <span className={compact ? "sr-only sm:not-sr-only" : ""}>New game</span></Button>
+            <Button size={compact ? "sm" : "default"} variant="outline" onClick={() => loadScenario("fork")}>{compact ? "Win" : "Load win"}</Button>
+            <Button size={compact ? "sm" : "default"} variant="outline" onClick={() => loadScenario("draw")}>{compact ? "Draw" : "Load draw"}</Button>
           </div>
         </div>
       </div>
 
-      <div className="grid border-t border-[var(--line)] bg-[var(--paper-2)] sm:grid-cols-4">
+      {!compact && <div className="grid border-t border-[var(--line)] bg-[var(--paper-2)] sm:grid-cols-4">
         {["UI sends intent", "Game checks status", "Board validates cell", "Rule evaluates result"].map((step, index) => <div key={step} className="flex items-center gap-3 border-b border-[var(--line)] px-4 py-3 last:border-0 sm:border-b-0 sm:border-r sm:last:border-r-0"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-white font-mono text-[10px] font-bold">{index + 1}</span><span className="text-xs font-bold text-[var(--muted)]">{step}</span></div>)}
-      </div>
+      </div>}
     </section>
   );
 }

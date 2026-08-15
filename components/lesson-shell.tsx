@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, ChevronLeft, ChevronRight, List, Route, X } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, List, Route, Sparkles, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { lessonHref, lessons } from "@/lib/lessons";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ export function LessonShell({
   children,
   previous,
   next,
+  focusHref,
 }: {
   title: string;
   eyebrow: string;
@@ -28,6 +29,7 @@ export function LessonShell({
   children: React.ReactNode;
   previous?: { href: string; label: string };
   next?: { href: string; label: string };
+  focusHref?: string;
 }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -130,6 +132,12 @@ export function LessonShell({
             <span>{eyebrow}</span><span className="text-[var(--accent)]">•</span><span>{difficulty}</span><span className="text-[var(--accent)]">•</span><span>{duration}</span>
           </div>
           <h1 className="text-[2.6rem] font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-5xl">{title}</h1>
+          {focusHref && (
+            <div className="mt-6 rounded-2xl border border-[#f1c3a7] bg-[var(--accent-soft)] p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
+              <div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--accent)]"><Sparkles className="size-4" /></span><div><p className="text-sm font-extrabold">Prefer to learn one decision at a time?</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Try questions, reveal the reasoning, trace the code, and finish with the simulator.</p></div></div>
+              <Button asChild className="mt-4 w-full sm:mt-0 sm:w-auto"><Link href={focusHref}>Start Focus Mode <ChevronRight /></Link></Button>
+            </div>
+          )}
           <div className="lesson-prose mt-7">{children}</div>
 
           <nav aria-label="Lesson pagination" className="mt-20 grid gap-4 border-t border-[var(--line)] pt-8 sm:grid-cols-2">

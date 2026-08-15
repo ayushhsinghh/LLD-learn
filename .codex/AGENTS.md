@@ -26,6 +26,25 @@ When adding or revising an LLD topic, follow this file as an acceptance checklis
 - Put original project images under `public/images/` with clear topic-specific filenames.
 - Do not introduce a dependency when the existing components or a small local implementation can solve the problem cleanly.
 
+## Optional Focus Mode
+
+A lesson may add a Focus Mode alongside its complete walkthrough. Focus Mode is a second way to learn the same lesson, not a shortened replacement or a separate source of truth.
+
+- Keep the complete walkthrough available at `/problems/<topic>/` and add Focus Mode at `/problems/<topic>/learn/`.
+- Reuse the same MDX content in both routes. Wrap meaningful sections with `LessonStep`; the wrapper must add no DOM in the complete walkthrough and show only the active section in Focus Mode.
+- Register the ordered steps in `lib/learning-paths.ts`. Give each step one clear objective, a short time estimate, and a stable hash ID so links and browser navigation work.
+- Cover the entire five-phase lesson. A learner who completes Focus Mode must encounter the same confirmed requirements, entity reasoning, class design, complete Java implementation, verification, and extensions as the walkthrough.
+- Ask the learner to predict before revealing important reasoning. Use interaction only when it helps practice a decision, trace state, order operations, or inspect a failure.
+- Every multiple-choice option must explain why it is correct or incorrect after submission. Do not make correctness depend on color alone, and permit retry.
+- Keep interactions deterministic, keyboard-operable, and local. Do not save progress in browser storage or require a backend.
+- Treat Focus Mode as a slide deck, not a document. Lock it to the viewport: the page and active card must never require vertical scrolling at supported laptop or mobile sizes.
+- Show one card with one learning objective. Keep the step title inside that card; do not add a second page-level title or introductory block above it.
+- If content does not fit, split it into more steps or provide a concise focus-only treatment. Never clip content, shrink text below readable sizes, or move overflow into a vertically scrolling card.
+- On laptop, provide a persistent phase-and-step map. On mobile, use an accessible modal lesson map and fixed previous/next controls. Preserve visible progress in both layouts.
+- Respect reduced-motion preferences and keep transitions short. Motion must support orientation, not delay access to content.
+- Prefer code-native diagrams and interactions for state that the learner manipulates. Use generated illustrations only where a static conceptual scene teaches better than HTML, CSS, or an existing required lesson image.
+- Validate direct hash loading, browser back/forward, every interaction's success and error feedback, keyboard focus, the complete walkthrough, and the final simulator at laptop and approximately 390 px mobile widths. For every Focus Mode step, verify `scrollHeight <= clientHeight` for both the page and active card body.
+
 ## The required five-step lesson structure
 
 Every LLD problem must use these exact top-level phases and IDs:
