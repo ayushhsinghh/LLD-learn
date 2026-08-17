@@ -400,7 +400,7 @@ export function EntityResponsibilityQuiz() {
   const reset = () => { setAnswers({}); setChecked(false); setReviewId("occupied"); };
 
   return (
-    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-4">
       <div className="mb-2 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-3 py-2">
         <p className="text-[10px] font-extrabold leading-4 text-[var(--ink)]">Give each rule to the class that has the information needed to check it.</p>
         <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">Board stores the cells, so it checks cell rules. Game stores the current player and match status, so it checks game rules.</p>
@@ -414,7 +414,7 @@ export function EntityResponsibilityQuiz() {
           <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p>
         </div>
       </>}
-      <div className="mt-3 flex items-center gap-3">
+      <div className="mt-2 flex items-center gap-3">
         {!checked ? <Button size="sm" disabled={Object.keys(answers).length !== responsibilityRules.length} onClick={() => setChecked(true)}>Check owners</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}
         <p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "Every rule has its owner." : "The groups show the right owners.")}</p>
       </div>
@@ -505,107 +505,70 @@ export function ClassDesignIntroduction() {
   );
 }
 
-type ClassDesignItem = { id: string; label: string; answer: string; feedback: string };
-type ClassDesignScenario = { instruction: string; principle: string; categories: Array<{ id: string; label: string }>; items: ClassDesignItem[]; success: string };
+export type ClassificationCategory = { id: string; label: string };
+export type ClassificationItem = { id: string; label: string; answer: string; feedback: string };
 
-const classDesignScenarios: Record<string, ClassDesignScenario> = {
-  player: {
-    instruction: "Classify what Player remembers, does, or should not own.",
-    principle: "Immutability: name and mark cannot change after construction.",
-    categories: [{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not Player" }],
-    items: [
-      { id: "name", label: "name", answer: "state", feedback: "A player's name is stable identity data." },
-      { id: "mark", label: "mark", answer: "state", feedback: "The assigned X or O stays with the player." },
-      { id: "validate", label: "Validate identity", answer: "behavior", feedback: "Construction rejects a missing name or mark, so invalid Player objects never exist." },
-      { id: "read", label: "Expose identity", answer: "behavior", feedback: "Callers may read the name and fixed mark without changing them." },
-      { id: "turn", label: "Manage turns", answer: "other", feedback: "Turn order changes during a match, so Game owns it." },
-      { id: "place", label: "Place marks", answer: "other", feedback: "Board owns the cells and placement rules." },
-    ],
-    success: "Player is a small immutable identity.",
-  },
-  board: {
-    instruction: "Keep only the state and rules that can be answered from the grid.",
-    principle: "Encapsulation: Board protects its private cells and controls every grid change.",
-    categories: [{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not Board" }],
-    items: [
-      { id: "cells", label: "cells", answer: "state", feedback: "The private Mark grid is the state Board protects." },
-      { id: "inside", label: "Check coordinates", answer: "behavior", feedback: "Board knows its size, so it validates row and column." },
-      { id: "place", label: "Place a mark", answer: "behavior", feedback: "Board checks occupancy before changing its own cells." },
-      { id: "winner", label: "Find winning line", answer: "behavior", feedback: "Rows, columns, and diagonals depend only on the grid." },
-      { id: "full", label: "Check full board", answer: "behavior", feedback: "Board can inspect every cell to answer this." },
-      { id: "read", label: "Read one cell", answer: "behavior", feedback: "A bounded read exposes state without returning the mutable array." },
-      { id: "current", label: "currentPlayer", answer: "other", feedback: "Current player is match-flow state owned by Game." },
-      { id: "status", label: "match status", answer: "other", feedback: "Board detects grid facts; Game decides the match status." },
-    ],
-    success: "Board keeps grid state and grid rules together.",
-  },
-  "game-state": {
-    instruction: "Match each candidate to Game state or another owner.",
-    principle: "Single responsibility: Game remembers match flow; Board remembers cells.",
-    categories: [{ id: "state", label: "Game state" }, { id: "other", label: "Other class" }],
-    items: [
-      { id: "board", label: "board", answer: "state", feedback: "Game composes one Board and coordinates moves through it." },
-      { id: "players", label: "playerX and playerO", answer: "state", feedback: "Game keeps the two participants needed to alternate turns." },
-      { id: "current", label: "currentPlayer", answer: "state", feedback: "Game must remember whose turn is allowed now." },
-      { id: "winner", label: "winner", answer: "state", feedback: "The requirement to expose the winner creates this field." },
-      { id: "status", label: "status", answer: "state", feedback: "Game needs status to reject moves after completion." },
-      { id: "cells", label: "cells", answer: "other", feedback: "The grid remains private inside Board." },
-    ],
-    success: "Every Game field comes from match flow.",
-  },
-  "game-api": {
-    instruction: "Decide what belongs in Game's public API and what must stay elsewhere.",
-    principle: "Public methods expose use cases without exposing mutable internals.",
-    categories: [{ id: "public", label: "Public API" }, { id: "internal", label: "Internal" }, { id: "other", label: "Other class" }],
-    items: [
-      { id: "move", label: "makeMove", answer: "public", feedback: "This is the single public command that may change an active match." },
-      { id: "reset", label: "reset", answer: "public", feedback: "Reset is a confirmed caller operation." },
-      { id: "reads", label: "getMark and match getters", answer: "public", feedback: "These reads expose required state without returning mutable Board." },
-      { id: "switch", label: "Switch current player", answer: "internal", feedback: "Game performs this only after an accepted non-final move; callers must not trigger it." },
-      { id: "setters", label: "setStatus / setWinner", answer: "internal", feedback: "Game changes these fields while resolving a move, but public setters would bypass its rules." },
-      { id: "grid", label: "Place and inspect lines", answer: "other", feedback: "Placement and winning-line checks belong to Board." },
-      { id: "get-board", label: "getBoard", answer: "other", feedback: "Returning mutable Board would let callers place or clear marks without Game validation." },
-    ],
-    success: "The public API exposes use cases, not internal state changes.",
-  },
-  patterns: {
-    instruction: "Classify each design idea against the confirmed requirements.",
-    principle: "Pattern discipline: add an abstraction only when a real behavior varies.",
-    categories: [{ id: "now", label: "Use now" }, { id: "later", label: "Use later" }, { id: "no", label: "Do not use" }],
-    items: [
-      { id: "composition", label: "Compose Game from objects", answer: "now", feedback: "Game needs one Board and two Players now, so composition directly models the relationship." },
-      { id: "strategy", label: "Strategy for human game", answer: "no", feedback: "The fixed game has no interchangeable move-selection algorithms." },
-      { id: "bot-strategy", label: "Strategy for several bots", answer: "later", feedback: "Easy, medium, and hard bots would create genuinely replaceable algorithms." },
-      { id: "singleton", label: "Singleton Game", answer: "no", feedback: "Multiple games should be possible; global state would make tests and tournaments harder." },
-      { id: "factory", label: "Factory for two objects", answer: "no", feedback: "Constructors are clear while there is only one simple setup path." },
-      { id: "observer", label: "Observer for UI updates", answer: "no", feedback: "The confirmed scope has no UI or notification subscribers." },
-    ],
-    success: "Use composition now; wait for real variation before adding a pattern.",
-  },
-};
-
-export function ClassDesignClassifier({ scenario }: { scenario: keyof typeof classDesignScenarios }) {
-  const config = classDesignScenarios[scenario];
+export function ClassificationChallenge({ instruction, callout, categories, items, success, submitLabel = "Check answers" }: { instruction: string; callout?: string; categories: ClassificationCategory[]; items: ClassificationItem[]; success: string; submitLabel?: string }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
-  const [reviewId, setReviewId] = useState(config.items[0].id);
-  const reviewed = config.items.find((item) => item.id === reviewId)!;
-  const isCorrect = config.items.every((item) => answers[item.id] === item.answer);
-  const reset = () => { setAnswers({}); setChecked(false); setReviewId(config.items[0].id); };
-  const check = () => { setReviewId(config.items.find((item) => answers[item.id] !== item.answer)?.id ?? config.items[0].id); setChecked(true); };
+  const [reviewId, setReviewId] = useState(items[0].id);
+  const reviewed = items.find((item) => item.id === reviewId)!;
+  const isCorrect = items.every((item) => answers[item.id] === item.answer);
+  const reset = () => { setAnswers({}); setChecked(false); setReviewId(items[0].id); };
+  const check = () => { setReviewId(items.find((item) => answers[item.id] !== item.answer)?.id ?? items[0].id); setChecked(true); };
 
   return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
-    <p className="text-xs leading-5 text-[var(--muted)]">{config.instruction}</p>
-    <p className="mt-1 rounded-md bg-[var(--mint-soft)] px-2 py-1 text-[9px] font-bold leading-4 text-[var(--ink)]">{config.principle}</p>
-    <div className="mt-2 grid gap-1.5 sm:grid-cols-2">{config.items.map((item) => {
-      const selected = config.categories.find((category) => category.id === answers[item.id]);
-      const correct = config.categories.find((category) => category.id === item.answer)!;
+    <p className="text-xs leading-5 text-[var(--muted)]">{instruction}</p>
+    {callout && <p className="mt-1 rounded-md bg-[var(--mint-soft)] px-2 py-1 text-[9px] font-bold leading-4 text-[var(--ink)]">{callout}</p>}
+    <div className="mt-2 grid gap-1.5 sm:grid-cols-2">{items.map((item) => {
+      const selected = categories.find((category) => category.id === answers[item.id]);
+      const correct = categories.find((category) => category.id === item.answer)!;
       const rowCorrect = answers[item.id] === item.answer;
-      return checked ? <button key={item.id} type="button" aria-pressed={reviewId === item.id} onClick={() => setReviewId(item.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewId === item.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}><span className="text-[10px] font-extrabold text-[var(--ink)] sm:text-xs">{item.label}</span><span className={cn("flex shrink-0 items-center gap-1 text-[9px] font-extrabold", rowCorrect ? "text-[#24785f]" : "text-[#a23d2e]")}>{rowCorrect ? <Check className="size-3" /> : <X className="size-3" />}{rowCorrect ? correct.label : `${selected?.label} → ${correct.label}`}</span></button> : <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5"><span className="text-[10px] font-extrabold leading-4 text-[var(--ink)] sm:text-xs">{item.label}</span><div className="flex rounded-md bg-[var(--paper-2)] p-0.5">{config.categories.map((category) => <button key={category.id} type="button" aria-pressed={answers[item.id] === category.id} onClick={() => setAnswers((current) => ({ ...current, [item.id]: category.id }))} className={cn("rounded px-1.5 py-1 text-[8px] font-extrabold leading-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)] sm:px-2 sm:text-[9px]", answers[item.id] === category.id ? "bg-[var(--ink)] text-white" : "text-[var(--muted)]")}>{category.label}</button>)}</div></div>;
+      return checked ? <button key={item.id} type="button" aria-pressed={reviewId === item.id} onClick={() => setReviewId(item.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewId === item.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}><span className="text-[10px] font-extrabold text-[var(--ink)] sm:text-xs">{item.label}</span><span className={cn("flex shrink-0 items-center gap-1 text-[9px] font-extrabold", rowCorrect ? "text-[#24785f]" : "text-[#a23d2e]")}>{rowCorrect ? <Check className="size-3" /> : <X className="size-3" />}{rowCorrect ? correct.label : `${selected?.label} → ${correct.label}`}</span></button> : <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5"><span className="text-[10px] font-extrabold leading-4 text-[var(--ink)] sm:text-xs">{item.label}</span><div className={cn("grid rounded-md bg-[var(--paper-2)] p-0.5", categories.length > 3 ? "grid-cols-2" : "grid-flow-col")}>{categories.map((category) => <button key={category.id} type="button" aria-pressed={answers[item.id] === category.id} onClick={() => setAnswers((current) => ({ ...current, [item.id]: category.id }))} className={cn("rounded px-1.5 py-1 text-[8px] font-extrabold leading-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)] sm:px-2 sm:text-[9px]", answers[item.id] === category.id ? "bg-[var(--ink)] text-white" : "text-[var(--muted)]")}>{category.label}</button>)}</div></div>;
     })}</div>
-    {checked && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"><p className="text-[10px] font-extrabold text-[var(--ink)]">Why {config.categories.find((category) => category.id === reviewed.answer)?.label}?</p><p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p></div>}
-    <div className="mt-3 flex items-center gap-3">{!checked ? <Button size="sm" disabled={Object.keys(answers).length !== config.items.length} onClick={check}>Check design</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}<p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? config.success : "Review the marked decisions.")}</p></div>
+    {checked && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"><p className="text-[10px] font-extrabold text-[var(--ink)]">Why {categories.find((category) => category.id === reviewed.answer)?.label}?</p><p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p></div>}
+    <div className="mt-3 flex items-center gap-3">{!checked ? <Button size="sm" disabled={Object.keys(answers).length !== items.length} onClick={check}>{submitLabel}</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}<p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? success : "Review the marked decisions.")}</p></div>
   </section>;
+}
+
+export function InterviewDynamicsGuide({ timing, speaking, signals }: { timing: Array<{ label: string; minutes: string }>; speaking: string[]; signals: Array<{ id: string; signal: string; response: string }> }) {
+  const [openSignal, setOpenSignal] = useState<string | null>(null);
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5"><Tabs defaultValue="time"><TabsList className="grid w-full grid-cols-3"><TabsTrigger value="time" className="py-1.5 text-xs">Use time</TabsTrigger><TabsTrigger value="talk" className="py-1.5 text-xs">Talk aloud</TabsTrigger><TabsTrigger value="signals" className="py-1.5 text-xs">Read signals</TabsTrigger></TabsList><TabsContent value="time" className="mt-2"><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{timing.map((item) => <div key={item.label} className="rounded-lg bg-white px-3 py-2"><p className="text-[10px] font-extrabold">{item.label}</p><p className="mt-1 font-mono text-xs text-[var(--accent-dark)]">{item.minutes}</p></div>)}</div><p className="mt-2 text-[10px] leading-4 text-[var(--muted)]">Spend time in proportion to risk. Clarify first; do not use most of the interview naming classes.</p></TabsContent><TabsContent value="talk" className="mt-2"><ul className="grid gap-2">{speaking.map((item, index) => <li key={item} className="flex gap-2 rounded-lg bg-white px-3 py-2 text-xs leading-5 text-[var(--muted)]"><span className="font-mono font-bold text-[var(--accent-dark)]">{index + 1}</span>{item}</li>)}</ul></TabsContent><TabsContent value="signals" className="mt-2"><p className="mb-2 text-[10px] leading-4 text-[var(--muted)]">Predict what each interviewer signal asks you to do, then reveal it.</p><div className="grid gap-1.5">{signals.map((item) => <div key={item.id} className="overflow-hidden rounded-lg border border-[var(--line)] bg-white"><button type="button" aria-expanded={openSignal === item.id} onClick={() => setOpenSignal(openSignal === item.id ? null : item.id)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-extrabold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--focus)]">{item.signal}<ChevronDown className={cn("size-4 transition", openSignal === item.id && "rotate-180")} /></button>{openSignal === item.id && <p className="border-t border-[var(--line)] bg-[var(--mint-soft)] px-3 py-2 text-[10px] leading-4 text-[var(--muted)]">{item.response}</p>}</div>)}</div></TabsContent></Tabs></section>;
+}
+
+export function InterviewDialogueExample({ turns }: { turns: Array<{ speaker: "Candidate" | "Interviewer"; text: string }> }) {
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5"><p className="text-xs leading-5 text-[var(--muted)]">Notice the rhythm: ask one precise question, listen, then repeat the resulting requirement.</p><ol className="mt-3 grid gap-2">{turns.map((turn, index) => <li key={`${turn.speaker}-${index}`} className={cn("rounded-lg border px-3 py-2", turn.speaker === "Candidate" ? "border-[#b8ddcf] bg-[var(--mint-soft)]" : "border-[var(--line)] bg-white")}><p className="text-[9px] font-extrabold uppercase tracking-wider text-[var(--faint)]">{turn.speaker}</p><p className="mt-1 text-xs font-bold leading-5 text-[var(--ink)]">“{turn.text}”</p></li>)}</ol><p className="mt-3 text-[10px] font-bold leading-4 text-[var(--muted)]">Confirming aloud catches misunderstandings before they become fields, methods, and code.</p></section>;
+}
+
+export function PredictionChecklist({ prompt, items, success }: { prompt: string; items: Array<{ id: string; label: string; correct: boolean; feedback: string }>; success: string }) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [checked, setChecked] = useState(false);
+  const [reviewId, setReviewId] = useState(items[0].id);
+  const reviewed = items.find((item) => item.id === reviewId)!;
+  const expected = items.filter((item) => item.correct).map((item) => item.id);
+  const isCorrect = selected.length === expected.length && expected.every((id) => selected.includes(id));
+  const reset = () => { setSelected([]); setChecked(false); setReviewId(items[0].id); };
+  const check = () => { setReviewId(items.find((item) => selected.includes(item.id) !== item.correct)?.id ?? items[0].id); setChecked(true); };
+  return <section className="prediction-checklist rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3">
+    <p className="text-xs font-extrabold leading-5 text-[var(--ink)]">{prompt}</p>
+    <div className="mt-2 grid grid-cols-2 gap-1.5">{items.map((item) => {
+      const matched = selected.includes(item.id) === item.correct;
+      return checked ? <button key={item.id} type="button" aria-pressed={reviewId === item.id} onClick={() => setReviewId(item.id)} className={cn("flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[10px] font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", matched ? "border-[#92c8b5] bg-[var(--mint-soft)]" : "border-[#efc2bb] bg-[#fff3f0]", reviewId === item.id && "ring-2 ring-[var(--ink)]")}>
+        <span className={cn("grid size-4 shrink-0 place-items-center rounded-full text-white", matched ? "bg-[#24785f]" : "bg-[#a23d2e]")}>{matched ? <Check className="size-3" /> : <X className="size-3" />}</span>
+        <span><span className="block">{item.label}</span><span className="block text-[8px] font-extrabold uppercase tracking-wide">{matched ? "Correct" : item.correct ? "Should be selected" : "Should be left out"}</span></span>
+      </button> : <label key={item.id} className={cn("flex items-center gap-2 rounded-lg border bg-white px-2.5 py-1.5 text-[10px] font-bold", selected.includes(item.id) ? "border-[var(--ink)]" : "border-[var(--line)]")}><input type="checkbox" checked={selected.includes(item.id)} onChange={() => setSelected((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} className="size-4 accent-[var(--ink)]" />{item.label}</label>;
+    })}</div>
+    {checked && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5"><p className="text-[10px] font-extrabold">Correct answer: {reviewed.correct ? "Select it" : "Leave it out"}</p><p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p></div>}
+    <div className="mt-2 flex items-center gap-3">{!checked ? <Button size="sm" disabled={selected.length === 0} onClick={check}>Check prediction</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}<p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? success : "Review the marked choices.")}</p></div>
+  </section>;
+}
+
+export function TabbedCodeView({ tabs, label }: { tabs: Array<{ id: string; label: string; code: string }>; label: string }) {
+  return <section aria-label={label} className="flex h-full min-h-0 flex-col rounded-xl border border-[#2e3947] bg-[#18212c] text-white"><Tabs defaultValue={tabs[0].id} className="flex h-full min-h-0 flex-col"><div className="shrink-0 overflow-x-auto border-b border-white/10 p-2"><TabsList className="grid min-w-max grid-flow-col border-white/10 bg-white/5 p-0.5">{tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="whitespace-nowrap px-2.5 py-1.5 text-[10px] text-white/70 data-[state=active]:bg-white data-[state=active]:text-[var(--ink)]">{tab.label}</TabsTrigger>)}</TabsList></div>{tabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="min-h-0 flex-1 overflow-hidden"><pre className="h-full overflow-x-auto overflow-y-hidden p-3 text-[10px] leading-[1.35] sm:p-4 sm:text-[11px]"><code>{tab.code}</code></pre></TabsContent>)}</Tabs></section>;
+}
+
+export function TabbedConceptView({ tabs }: { tabs: Array<{ id: string; label: string; title: string; body: string }> }) {
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5"><Tabs defaultValue={tabs[0].id}><div className="overflow-x-auto"><TabsList className="grid min-w-max grid-flow-col">{tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="whitespace-nowrap px-2.5 py-1.5 text-[10px]">{tab.label}</TabsTrigger>)}</TabsList></div>{tabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-3 rounded-lg border border-[var(--line)] bg-white p-4"><p className="text-sm font-extrabold text-[var(--ink)]">{tab.title}</p><p className="mt-2 text-xs leading-6 text-[var(--muted)]">{tab.body}</p></TabsContent>)}</Tabs></section>;
 }
 
 const classRelationships = [

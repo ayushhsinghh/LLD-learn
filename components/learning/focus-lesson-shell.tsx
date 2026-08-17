@@ -20,13 +20,17 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
 
   const indexForHash = useCallback((hash: string) => {
     const id = decodeURIComponent(hash.replace(/^#/, ""));
-    const index = steps.findIndex((step) => step.id === id);
+    const index = steps.findIndex((step) => step.id === id || step.legacyIds?.includes(id));
     return index >= 0 ? index : 0;
   }, [steps]);
 
   useEffect(() => {
     const syncFromHash = () => setActiveIndex((current) => {
       const next = indexForHash(window.location.hash);
+      const requestedId = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+      if (requestedId && requestedId !== steps[next].id && steps[next].legacyIds?.includes(requestedId)) {
+        window.history.replaceState(null, "", `#${steps[next].id}`);
+      }
       setDirection(next >= current ? 1 : -1);
       return next;
     });
@@ -37,7 +41,7 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
       window.removeEventListener("hashchange", syncFromHash);
       window.removeEventListener("popstate", syncFromHash);
     };
-  }, [indexForHash]);
+  }, [indexForHash, steps]);
 
   useEffect(() => {
     if (!activeStep) return;
@@ -151,9 +155,9 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
 
           <nav aria-label="Focus lesson navigation" className="z-30 shrink-0 border-t border-[var(--line)] bg-white/95 px-4 py-3 backdrop-blur">
             <div className="mx-auto flex max-w-[820px] items-center justify-between gap-3">
-              <Button variant="outline" onClick={() => goTo(activeIndex - 1)} disabled={activeIndex === 0}><ChevronLeft /> <span className="hidden sm:inline">Previous</span></Button>
+              <Button aria-label="Previous step" variant="outline" onClick={() => goTo(activeIndex - 1)} disabled={activeIndex === 0}><ChevronLeft /> <span className="hidden sm:inline">Previous</span></Button>
               <button onClick={() => setMapOpen(true)} className="min-w-0 text-center xl:pointer-events-none"><span className="block truncate text-xs font-extrabold">{activeStep.title}</span><span className="mt-0.5 block text-[10px] text-[var(--faint)]">Step {activeIndex + 1} of {steps.length}</span></button>
-              {activeIndex < steps.length - 1 ? <Button onClick={() => goTo(activeIndex + 1)}><span className="hidden sm:inline">Next</span><ChevronRight /></Button> : <Button asChild><Link href={completeHref}>Finish <ArrowRight /></Link></Button>}
+              {activeIndex < steps.length - 1 ? <Button aria-label="Next step" onClick={() => goTo(activeIndex + 1)}><span className="hidden sm:inline">Next</span><ChevronRight /></Button> : <Button asChild><Link href={completeHref}>Finish <ArrowRight /></Link></Button>}
             </div>
           </nav>
         </div>
