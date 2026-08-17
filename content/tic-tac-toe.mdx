@@ -1,7 +1,7 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { TicTacToeSimulator } from "@/components/simulations/tic-tac-toe-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
-import { PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, FocusSpec, OrderQuestion, WinningCellQuestion } from "@/components/learning/learning-interactions"
+import { ClarificationAnswerDeck, ClarificationQuestionPicker, ClassDesignClassifier, ClassDesignIntroduction, ClassRelationshipChallenge, EntityClassPicker, EntityFlowChallenge, EntityModelClassifier, EntityResponsibilityQuiz, FinalClassBlueprint, FocusEntityIntroduction, FocusSpec, PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, OrderQuestion } from "@/components/learning/learning-interactions"
 
 <LessonStep id="orientation">
 <Lead>Design a two-player game that accepts legal moves, alternates turns, and stops with a win or draw.</Lead>
@@ -15,9 +15,11 @@ import { PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, FocusS
 </LessonStep>
 
 <LessonStep id="orientation-check">
+<FocusOnly>
 <PredictReveal prompt="Before naming any classes, what must you learn from the interviewer?" hint="Think about the actions, rules, errors, and boundaries hidden inside one familiar game.">
   Ask who can play, what makes a move legal, how the game completes, which actions must be rejected, and what is deliberately outside the first version. Those answers create the state and methods later.
 </PredictReveal>
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="incomplete-prompt">
@@ -33,72 +35,62 @@ Before thinking about classes, turn the familiar game into a precise promise tha
 </LessonStep>
 
 <LessonStep id="question-groups">
+<WalkthroughOnly>
 <QuestionGuide />
 
-### Ask questions and record what each answer changes
-</LessonStep>
-
-<LessonStep id="players-question">
-<ChoiceQuestion prompt="Which clarification most directly creates the currentPlayer field?" choices={[
-  { id: "board", label: "Is the board always 3 by 3?", correct: false, feedback: "This creates the board shape and win-checking loops, not turn ownership." },
-  { id: "players", label: "Who starts and how are marks assigned?", correct: true, feedback: "Knowing that X starts means Game must remember which Player currently owns the turn." },
-  { id: "undo", label: "Do we need undo?", correct: false, feedback: "Undo would create move history, but it is outside the first version." }
-]} />
+### Ask these questions
+</WalkthroughOnly>
+<FocusOnly>
+<ClarificationQuestionPicker />
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="players-and-marks">
+<WalkthroughOnly>
 <QuestionAnswer
   ask="How many players are there, and how are their marks assigned?"
-  why="This defines who can act and what data identifies a move."
   answer="There are two local players. One uses X and the other uses O. X starts."
-  derived="Store two players, assign different marks, and make X the current player after creation or reset."
 />
+</WalkthroughOnly>
+<FocusOnly>
+<ClarificationAnswerDeck />
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="board-and-win">
+<WalkthroughOnly>
 <QuestionAnswer
   ask="Is the board always 3 by 3? What exactly counts as a win?"
-  why="Board size and the completion rule decide the storage shape and win-check logic."
   answer="Use a fixed 3 by 3 board. Three equal marks in a row, column, or diagonal wins."
-  derived="Board stores Mark[3][3] and checks 3 rows, 3 columns, and 2 diagonals."
 />
-</LessonStep>
-
-<LessonStep id="winning-cell">
-<WinningCellQuestion />
+</WalkthroughOnly>
 </LessonStep>
 
 <LessonStep id="completion-rule">
+<WalkthroughOnly>
 <QuestionAnswer
   ask="When is the game a draw, and can moves continue after the game ends?"
-  why="This defines the game states and when the main action must stop."
   answer="It is a draw when all nine cells are filled without a winner. Reject every move after a win or draw."
-  derived="GameStatus is IN_PROGRESS, X_WON, O_WON, or DRAW. makeMove checks status first."
 />
-</LessonStep>
-
-<LessonStep id="invalid-reasoning">
-<PredictReveal prompt="If Alice clicks an occupied cell, should the turn change to Bob?">
-  No. Rejection is an expected result, not a partial move. The board and current player must remain exactly as they were, which is why validation happens before mutation.
-</PredictReveal>
+</WalkthroughOnly>
 </LessonStep>
 
 <LessonStep id="invalid-actions">
+<WalkthroughOnly>
 <QuestionAnswer
   ask="Which moves are invalid, and how should the caller learn why?"
-  why="Invalid actions should not partially change the board or switch the turn."
   answer="Reject a wrong player, a cell outside the board, an occupied cell, or a move after completion. Return a clear result."
-  derived="makeMove returns MoveResult and changes state only after all checks pass."
 />
+</WalkthroughOnly>
 </LessonStep>
 
 <LessonStep id="scope-boundaries">
+<WalkthroughOnly>
 <QuestionAnswer
   ask="Do we need a computer player, undo, score history, larger boards, or online play?"
-  why="Each feature creates new objects and rules. Excluding them prevents unnecessary design."
   answer="No. Discuss them only if asked as extensions."
-  derived="The first version has two local human players, one match, fixed rules, no history, and no networking."
 />
+</WalkthroughOnly>
 </LessonStep>
 
 <LessonStep id="confirmed-spec">
@@ -118,29 +110,32 @@ Before thinking about classes, turn the familiar game into a precise promise tha
 <FocusOnly>
 <FocusSpec requirements={[
   "Two local players use X and O; X starts.",
-  "Players alternate marks on an empty 3 by 3 board.",
-  "A complete row, column, or diagonal wins.",
+  "Players alternate marks on an empty cell of a fixed 3 by 3 board.",
+  "Three equal marks in a row, column, or diagonal wins.",
   "A full board without a winner is a draw.",
-  "Reject wrong turns, bad cells, occupied cells, and moves after completion.",
-  "Expose board, current player, status, winner, and reset."
-]} outOfScope={["Computer opponent", "Undo or replay", "Score history", "Variable board", "Online play", "UI and storage"]} />
+  "Reject wrong-player, out-of-range, occupied-cell, and post-completion moves.",
+  "Expose the board, current player, status, winner, and reset operation."
+]} outOfScope={["Computer opponent", "Undo or replay history", "Score across matches", "Variable board size", "Online multiplayer", "UI and storage"]} />
 </FocusOnly>
 </LessonStep>
 
-<LessonStep id="requirements-check">
-<ChoiceQuestion prompt="When are the requirements complete enough to start discovering entities?" choices={[
-  { id: "classes", label: "When we have already named the main classes", correct: false, feedback: "Classes come after the contract. Naming them early can bake assumptions into the design." },
-  { id: "observable", label: "When actions, completion rules, rejections, state exposure, and boundaries are observable", correct: true, feedback: "Each confirmed statement can now produce state, behavior, validation, or a test." },
-  { id: "patterns", label: "When we have selected a design pattern", correct: false, feedback: "A pattern is optional and should respond to variation discovered later." }
-]} />
+<LessonStep id="entity-transition">
+<FocusOnly>
+<FocusEntityIntroduction />
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="entity-intro">
+<WalkthroughOnly>
 <h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
 
 Now return to the confirmed requirements and look for candidate objects: game, player, board, cell, mark, and winning rule. We will not keep all of them as classes.
 
 For each candidate, ask: **what information changes here, and which rule needs that information?** The class should be placed where the answer is clearest.
+</WalkthroughOnly>
+<FocusOnly>
+<EntityClassPicker />
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="board-question">
@@ -188,11 +183,16 @@ For each candidate, ask: **what information changes here, and which rule needs t
 </LessonStep>
 
 <LessonStep id="cell-question">
+<WalkthroughOnly>
 <ChoiceQuestion prompt="A board position only stores X, O, or empty. What should Cell be in this scope?" choices={[
   { id: "class", label: "A Cell class", correct: false, feedback: "Cell has no independent rule or changing state beyond one mark, so a wrapper adds indirection." },
   { id: "interface", label: "A Cell interface", correct: false, feedback: "There are no interchangeable cell behaviors to abstract." },
   { id: "field", label: "A Mark value inside Board's array", correct: true, feedback: "The position is simply one field value owned by Board. Board already knows coordinates and occupancy." }
 ]} />
+</WalkthroughOnly>
+<FocusOnly>
+<EntityModelClassifier />
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="cell-entity">
@@ -232,9 +232,14 @@ For each candidate, ask: **what information changes here, and which rule needs t
 </LessonStep>
 
 <LessonStep id="ownership-rule">
+<WalkthroughOnly>
 <Insight title="A useful ownership question" tone="mint">
   Ask, “What information does this rule need?” Put the rule beside that information. Cell-based rules belong to `Board`; turn and match rules belong to `Game`.
 </Insight>
+</WalkthroughOnly>
+<FocusOnly>
+<EntityResponsibilityQuiz />
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="winning-rule-check">
@@ -246,6 +251,7 @@ For each candidate, ask: **what information changes here, and which rule needs t
 </LessonStep>
 
 <LessonStep id="entity-flow">
+<WalkthroughOnly>
 ### See one move flow through the objects
 
 <ConceptImage
@@ -256,6 +262,10 @@ For each candidate, ask: **what information changes here, and which rule needs t
   height={887}
   mobileScrollable={true}
 />
+</WalkthroughOnly>
+<FocusOnly>
+<EntityFlowChallenge />
+</FocusOnly>
 </LessonStep>
 
 <LessonStep id="entity-flow-story">
@@ -265,85 +275,134 @@ Read the arrows in order. A player sends `makeMove` to **Game**. Game first chec
 <LessonStep id="game-design-intro">
 <h2 id="class-design">3. Class design (10–15 minutes)</h2>
 
-The entity step told us *which* objects we need. The class-design step decides exactly what each object must remember and expose.
-
-Start from the action a user performs: “player X places a mark at row 1, column 2.” That action enters `Game.makeMove`. Walk through what Game must know, then move down to the Board operations it needs.
-</LessonStep>
-
-<LessonStep id="game-design">
-### Derive Game state and methods
-
-Take the requirements one sentence at a time. “Players alternate” means Game must remember `currentPlayer`. “Moves stop after completion” means it must remember `status`. “Expose the winner” means a `winner` field is needed. We are not guessing fields; each one pays for a stated behavior.
-
 <WalkthroughOnly>
-<DerivationTable rows={[
-  ["Two players use X and O", "Game", "Player playerX, playerO"],
-  ["Players alternate turns", "Game", "Player currentPlayer"],
-  ["The game can finish", "Game", "GameStatus status"],
-  ["Expose the winner", "Game", "Player winner"],
-  ["Accept one move", "Game", "makeMove(player, row, col)"],
-  ["Start again", "Game", "reset()"]
-]} />
+The entity step told us *which* objects we need. Class design turns each object into a clear promise: the state it protects, the behavior it owns, and the small public API other objects may use.
+
+Use the same path for every class:
+
+1. Start with one responsibility from the requirements.
+2. Add only the state needed to perform that responsibility.
+3. Put behavior beside the state it reads or changes.
+4. Expose a public method only when another object or caller needs it.
+5. Check relationships and protect the rules that must never be bypassed.
+
+State is information an object remembers. Behavior is a decision or change it can perform using that information. An invariant is a rule that must remain true—for example, a cell cannot contain two marks and turns cannot change after a rejected move.
 </WalkthroughOnly>
 
-<FocusOnly>
-<DerivationTable rows={[
-  ["Two players use X and O", "Game", "Player playerX, playerO"],
-  ["Players alternate turns", "Game", "Player currentPlayer"],
-  ["The game can finish", "Game", "GameStatus status"]
-]} />
-</FocusOnly>
+<FocusOnly><ClassDesignIntroduction /></FocusOnly>
 </LessonStep>
 
-<LessonStep id="game-design-two">
-<FocusOnly>
+<LessonStep id="pattern-future">
+### Design Player
+
+<WalkthroughOnly>
+The requirement says that two players have names and fixed, different marks. That creates two fields: `name` and `mark`. They form one meaningful identity and never change during a match.
+
 <DerivationTable rows={[
-  ["Expose the winner", "Game", "Player winner"],
-  ["Accept one move", "Game", "makeMove(player, row, col)"],
-  ["Start again", "Game", "reset()"]
+  ["Remember the player's name", "Player state", "private final String name"],
+  ["Keep one assigned mark", "Player state", "private final Mark mark"],
+  ["Prevent incomplete identity", "Player behavior", "validate in constructor"],
+  ["Let Game identify the player", "Player API", "getName(), getMark()"]
 ]} />
-</FocusOnly>
+
+`Player` does not place marks or manage turns. Those responsibilities need Board or Game state. Keeping both fields `private final` makes Player immutable: after construction, its identity cannot be changed into something that contradicts the match.
+
+This is also cohesion: all Player members contribute to one focused job—representing a participant's stable identity.
+</WalkthroughOnly>
+
+<FocusOnly><ClassDesignClassifier scenario="player" /></FocusOnly>
 </LessonStep>
 
 <LessonStep id="board-design">
-### Derive Board state and methods
-
-Game should not inspect array indexes itself. It asks Board questions in the language of the problem: *is this coordinate inside, can this mark be placed, is there a winning line, is the board full?* That keeps all cell knowledge in one place.
+### Design Board
 
 <WalkthroughOnly>
+Board owns the changing grid. Any rule that can be answered by looking only at coordinates and cells belongs here: checking bounds, placing a mark, finding a winning line, checking whether the grid is full, clearing it, and reading one position.
+
 <DerivationTable rows={[
-  ["Store a fixed 3 by 3 grid", "Board", "Mark[][] cells"],
-  ["Reject bad coordinates", "Board", "isInside(row, col)"],
-  ["Reject an occupied cell", "Board", "place(row, col, mark)"],
-  ["Detect a winner", "Board", "hasWinningLine(mark)"],
-  ["Detect a draw", "Board", "isFull()"],
-  ["Start again", "Board", "clear()"]
+  ["Store a fixed 3 by 3 grid", "Board state", "private final Mark[][] cells"],
+  ["Reject bad coordinates", "Board behavior", "isInside(row, col)"],
+  ["Reject an occupied cell", "Board behavior", "place(row, col, mark)"],
+  ["Detect a winner", "Board behavior", "hasWinningLine(mark)"],
+  ["Detect a draw condition", "Board behavior", "isFull()"],
+  ["Expose board state safely", "Board behavior", "getMark(row, col)"],
+  ["Start again", "Board behavior", "clear()"]
 ]} />
+
+Encapsulation means an object protects its state and controls how that state changes. Board keeps `cells` private and never returns the array. A caller can read one position, but only Board can validate and modify its grid.
+
+Board does not store `currentPlayer`, `winner`, or `status`. Those values require knowledge about the complete match, not only the grid.
 </WalkthroughOnly>
 
-<FocusOnly>
+<FocusOnly><ClassDesignClassifier scenario="board" /></FocusOnly>
+</LessonStep>
+
+<LessonStep id="game-design">
+### Derive Game state
+
+<WalkthroughOnly>
+Game owns the match workflow. Take the requirements one sentence at a time. “Players alternate” creates `currentPlayer`. “Moves stop after completion” creates `status`. “Expose the winner” creates `winner`. Game also composes one Board and keeps both participants.
+
 <DerivationTable rows={[
-  ["Store a fixed 3 by 3 grid", "Board", "Mark[][] cells"],
-  ["Reject bad coordinates", "Board", "isInside(row, col)"],
-  ["Reject an occupied cell", "Board", "place(row, col, mark)"]
+  ["Use one board for the match", "Game state", "private final Board board"],
+  ["Two players use X and O", "Game state", "Player playerX, playerO"],
+  ["Players alternate turns", "Game state", "Player currentPlayer"],
+  ["Expose the winner", "Game state", "Player winner"],
+  ["Stop after completion", "Game state", "GameStatus status"]
 ]} />
-</FocusOnly>
+
+Game does not duplicate `cells`. Single responsibility does not mean “one method”; it means one reason for the class to change. Board changes when grid rules change. Game changes when match-flow rules change.
+</WalkthroughOnly>
+
+<FocusOnly><ClassDesignClassifier scenario="game-state" /></FocusOnly>
+</LessonStep>
+
+<LessonStep id="game-design-two">
+### Derive Game behavior and its public API
+
+<WalkthroughOnly>
+Start from the main caller action: “player X places a mark at row 1, column 2.” That becomes `Game.makeMove`. Game validates match status and turn order, delegates cell work to Board, then records a win, draw, or next turn.
+
+`reset` is another confirmed command. Read methods expose the current player, status, winner, and individual board cells. Internal changes such as switching a player or setting status must not become public setters.
+
+<DerivationTable rows={[
+  ["Accept one complete move", "Game public API", "makeMove(player, row, col)"],
+  ["Start the match again", "Game public API", "reset()"],
+  ["Expose one board position", "Game public API", "getMark(row, col)"],
+  ["Expose match state", "Game public API", "getCurrentPlayer(), getWinner(), getStatus()"],
+  ["Continue after an accepted move", "Game internal behavior", "switch currentPlayer"],
+  ["Record completion", "Game internal behavior", "update winner and status"]
+]} />
+
+Returning `Board` would leak a mutable object: a caller could invoke `place` or `clear` without Game checking turns and status. `Game.getMark(row, col)` delegates a safe read while `makeMove` remains the only mutation path into the active match.
+</WalkthroughOnly>
+
+<FocusOnly><ClassDesignClassifier scenario="game-api" /></FocusOnly>
 </LessonStep>
 
 <LessonStep id="board-design-two">
-<FocusOnly>
-<DerivationTable rows={[
-  ["Detect a winner", "Board", "hasWinningLine(mark)"],
-  ["Detect a draw", "Board", "isFull()"],
-  ["Start again", "Board", "clear()"]
-]} />
-</FocusOnly>
+### Connect the classes and apply the principles
+
+<WalkthroughOnly>
+Game **has a** Board and **has two** Players. Player has one Mark, and Board stores Mark values. These are composition relationships: a larger object is built from smaller objects with focused jobs.
+
+There is no inheritance because none of these statements are true: “Game is a Board,” “Player is a Game,” or “Board is a Player.” Composition expresses the real relationships without coupling unrelated responsibilities.
+
+- **Single responsibility:** Player owns identity, Board owns grid rules, and Game owns match flow.
+- **Encapsulation:** fields stay private and mutation passes through the object that protects the rule.
+- **Composition:** Game coordinates Board and Player objects instead of inheriting from them.
+- **Immutability:** Player's name and mark cannot change after construction.
+- **Cohesion:** each class keeps related state and behavior together.
+</WalkthroughOnly>
+
+<FocusOnly><ClassRelationshipChallenge /></FocusOnly>
 </LessonStep>
 
 <LessonStep id="pattern-decisions">
 ### Decide whether a pattern helps
 
-Before choosing a pattern, ask what rule has multiple versions **right now**. The answer is none: there is one fixed board and two human players. A direct design is easier to explain and test.
+<WalkthroughOnly>
+Before choosing a pattern, ask what rule has multiple versions **right now**. The answer is none: there is one fixed board, one winning rule, and two human players. Direct composition is easier to explain and test.
 
 <PatternDecision name="Strategy for the basic game" useIt={false}>
   The requirements contain one fixed winning rule and two human players. A `WinningStrategy` or `MoveStrategy` interface would create extra code without any second implementation. Write the direct rule first.
@@ -352,20 +411,34 @@ Before choosing a pattern, ask what rule has multiple versions **right now**. Th
 <PatternDecision name="Singleton for Game" useIt={false}>
   We may want several games in tests or in a future tournament. A normal object supports that naturally. Global singleton state would make this harder.
 </PatternDecision>
-</LessonStep>
 
-<LessonStep id="pattern-future">
-<PatternDecision name="Strategy when a computer player is added" useIt={true}>
+<PatternDecision name="Factory and Observer" useIt={false}>
+  Constructors are enough for one simple setup, and the confirmed scope has no UI subscribers. Add factories or observers only when creation paths or notifications actually vary.
+</PatternDecision>
+
+<PatternDecision name="Strategy when several computer players are added" useIt={true}>
   If an extension requires easy, medium, and hard computer players, those are several ways to choose a move. At that point a `MoveStrategy` interface has a real purpose. Do not add it before that requirement arrives.
 </PatternDecision>
+</WalkthroughOnly>
+
+<FocusOnly><ClassDesignClassifier scenario="patterns" /></FocusOnly>
 </LessonStep>
 
 <LessonStep id="pattern-check">
-<ChoiceQuestion prompt="When does Strategy become justified in this lesson?" choices={[
-  { id: "always", label: "Immediately, because this is an LLD interview", correct: false, feedback: "Patterns are not interview decorations; each one must isolate a real source of variation." },
-  { id: "bots", label: "When easy, medium, and hard bots choose moves differently", correct: true, feedback: "Several move-selection algorithms create a replaceable behavior boundary." },
-  { id: "singleton", label: "When Game is made a singleton", correct: false, feedback: "Singleton controls object count and global access; it does not model move variation." }
+### Review the final class blueprint
+
+<WalkthroughOnly>
+The final model is deliberately small. Every field pays for a requirement, every rule sits beside the state it needs, and callers cannot mutate the active board without passing through `Game.makeMove`.
+
+<DerivationTable rows={[
+  ["Stable participant identity", "Player", "name, mark; validate and expose"],
+  ["Grid state and grid rules", "Board", "cells; place, win, full, clear, read"],
+  ["Match state and workflow", "Game", "players, board, turn, result; makeMove, reset, reads"],
+  ["Closed domain choices", "Enums", "Mark, GameStatus, MoveResult"]
 ]} />
+</WalkthroughOnly>
+
+<FocusOnly><FinalClassBlueprint /></FocusOnly>
 </LessonStep>
 
 <LessonStep id="implementation-map">
@@ -801,8 +874,8 @@ public final class Game {
         status = GameStatus.IN_PROGRESS;
     }
 
-    public Board getBoard() {
-        return board;
+    public Mark getMark(int row, int column) {
+        return board.getMark(row, column);
     }
 
     public Player getCurrentPlayer() {
@@ -888,7 +961,9 @@ return MoveResult.ACCEPTED;`} />
     status = GameStatus.IN_PROGRESS;
 }
 
-public Board getBoard() { return board; }
+public Mark getMark(int row, int col) {
+    return board.getMark(row, col);
+}
 public Player getCurrentPlayer() { return currentPlayer; }
 public Player getWinner() { return winner; }
 public GameStatus getStatus() { return status; }`} />
@@ -912,7 +987,7 @@ public final class TicTacToeDemo {
         play(game, bob,   1, 1);
         play(game, alice, 0, 2);
 
-        System.out.println(game.getBoard());
+        printBoard(game);
         System.out.println("Status: " + game.getStatus());
         System.out.println("Winner: " + game.getWinner());
     }
@@ -921,6 +996,17 @@ public final class TicTacToeDemo {
         MoveResult result = game.makeMove(player, row, column);
         System.out.printf("%s -> (%d,%d): %s%n",
                 player.getName(), row, column, result);
+    }
+
+    private static void printBoard(Game game) {
+        for (int row = 0; row < Board.SIZE; row++) {
+            for (int column = 0; column < Board.SIZE; column++) {
+                Mark mark = game.getMark(row, column);
+                System.out.print((mark == null ? "." : mark)
+                        + (column == Board.SIZE - 1 ? "" : " "));
+            }
+            System.out.println();
+        }
     }
 }
 ```
@@ -939,6 +1025,7 @@ play(game, alice, 0, 1);
 play(game, bob,   1, 1);
 play(game, alice, 0, 2);
 
+System.out.println(game.getMark(0, 2)); // X
 System.out.println(game.getStatus()); // X_WON
 System.out.println(game.getWinner()); // Alice (X)`} />
 </FocusOnly>

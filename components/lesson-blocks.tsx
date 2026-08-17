@@ -97,7 +97,7 @@ export function LevelStrip({ junior, mid, senior }: { junior: string; mid: strin
 
 export function ConceptImage({ src, alt, caption, width = 1536, height = 1024, mobileScrollable = false, eager = false }: { src: string; alt: string; caption: string; width?: number; height?: number; mobileScrollable?: boolean; eager?: boolean }) {
   return (
-    <figure className="my-7">
+    <figure className="concept-image my-7">
       {mobileScrollable && <p className="mb-2 text-right text-[10px] font-bold uppercase tracking-wider text-[var(--faint)] sm:hidden">Swipe to follow the flow →</p>}
       <div className={cn("rounded-xl border border-[var(--line)] bg-[#fbfaf7]", mobileScrollable ? "overflow-x-auto" : "overflow-hidden")}>
         <Image src={src} alt={alt} width={width} height={height} loading={eager ? "eager" : undefined} unoptimized className={cn("h-auto w-full", mobileScrollable && "min-w-[680px] sm:min-w-0")} />
@@ -152,7 +152,25 @@ export function QuestionGuide() {
   );
 }
 
-export function QuestionAnswer({ ask, why, answer, derived }: { ask: string; why: string; answer: string; derived: string }) {
+export function QuestionAnswer({ ask, why, answer, derived }: { ask: string; why?: string; answer: string; derived?: string }) {
+  if (!why && !derived) {
+    return (
+      <details className="group my-3 overflow-hidden rounded-xl border border-[var(--line)] bg-white open:shadow-sm">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--focus)] [&::-webkit-details-marker]:hidden">
+          <span className="shrink-0 rounded bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-extrabold uppercase text-[var(--accent-dark)]">Ask</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-extrabold leading-6 text-[var(--ink)] group-open:whitespace-normal">{ask}</span>
+          <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)] sm:inline group-open:hidden">Show answer</span>
+          <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)] sm:group-open:inline">Hide answer</span>
+          <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-[var(--faint)] transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="border-t border-[var(--line)] bg-[var(--blue-soft)] px-4 py-4 sm:px-5">
+          <p className="section-kicker !text-[#37627c]">Interviewer answers</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{answer}</p>
+        </div>
+      </details>
+    );
+  }
+
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-[var(--line)] bg-white">
       <div className="border-b border-[var(--line)] px-4 py-3"><span className="mr-2 rounded bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-extrabold uppercase text-[var(--accent-dark)]">Ask</span><strong className="text-sm leading-6">{ask}</strong></div>

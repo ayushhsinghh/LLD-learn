@@ -177,9 +177,43 @@ button { cursor: pointer; }
 }
 .focus-step .java-file { margin-left: -0.25rem; margin-right: -0.25rem; }
 .focus-card-body .learning-question { margin-block: 0; }
+.focus-card-body .focus-step {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.focus-card-body img {
+  max-width: 100%;
+  max-height: 100%;
+}
 .focus-card-body .concept-image,
 .focus-card-body .java-file,
 .focus-card-body [aria-label="Interactive Tic-Tac-Toe simulation"] { margin-block: 0; }
+.focus-card-body .focus-step:has(> .concept-image) {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+.focus-card-body .concept-image {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.focus-card-body .concept-image > div {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+.focus-card-body .concept-image img {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+.focus-card-body .concept-image figcaption { flex-shrink: 0; }
 .focus-card-body .entity-walkthrough { margin-block: 0; padding-left: 1rem; }
 .focus-card-body .entity-walkthrough p { margin-top: 0.5rem; font-size: 0.8rem; line-height: 1.45; }
 .focus-card-body .entity-walkthrough > div:last-child { margin-top: 0.6rem; padding: 0.65rem; font-size: 0.8rem; line-height: 1.45; }

@@ -1,9 +1,11 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, CircleHelp, Eye, Lightbulb, RotateCcw, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Eye, Lightbulb, RotateCcw, Sparkles, X } from "lucide-react";
+import Image from "next/image";
 import { RadioGroup } from "radix-ui";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 export type LearningChoice = {
@@ -56,6 +58,597 @@ export function FocusFrameworkRoadmap() {
       ))}
     </ol>
   );
+}
+
+const clarificationCandidates = [
+  {
+    id: "players",
+    question: "Who will play, which marks do they use, and who takes the first turn?",
+    useful: true,
+    feedback: "Defines the actors, their marks, and the starting turn.",
+  },
+  {
+    id: "rules",
+    question: "What board size, win, draw, and stopping rules should the game follow?",
+    useful: true,
+    feedback: "Makes the core game and completion rules precise.",
+  },
+  {
+    id: "errors",
+    question: "Which moves are invalid, and must rejection leave the game unchanged?",
+    useful: true,
+    feedback: "Creates an observable rejection contract.",
+  },
+  {
+    id: "scope",
+    question: "Which features are deliberately outside the first version?",
+    useful: true,
+    feedback: "Prevents bots, history, and networking from expanding the scope.",
+  },
+  {
+    id: "design",
+    question: "Which Java classes and design patterns should the solution use?",
+    useful: false,
+    feedback: "Skip this for now. Design choices come after the behavior is clear.",
+  },
+] as const;
+
+export function ClarificationQuestionPicker() {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [checked, setChecked] = useState(false);
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const usefulIds = clarificationCandidates.filter((candidate) => candidate.useful).map((candidate) => candidate.id);
+  const isCorrect = selected.length === usefulIds.length && usefulIds.every((id) => selected.includes(id));
+  const reviewedCandidate = clarificationCandidates.find((candidate) => candidate.id === reviewId);
+
+  const toggle = (id: string) => {
+    setSelected((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  };
+
+  const reset = () => {
+    setSelected([]);
+    setChecked(false);
+    setReviewId(null);
+  };
+
+  const checkSelection = () => {
+    setReviewId("design");
+    setChecked(true);
+  };
+
+  return (
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="learning-question-icon"><CircleHelp /></span>
+        <div>
+          <p className="section-kicker">Build your question list</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Select every question that clarifies behavior before design.</p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-1.5">
+        {clarificationCandidates.map((candidate) => {
+          const selectedNow = selected.includes(candidate.id);
+          return checked ? (
+            <button
+              key={candidate.id}
+              type="button"
+              aria-pressed={reviewId === candidate.id}
+              onClick={() => setReviewId(candidate.id)}
+              className={cn(
+                "flex w-full items-start gap-2.5 rounded-lg border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]",
+                candidate.useful ? "border-[#92c8b5] bg-[var(--mint-soft)]" : "border-[#efc2bb] bg-[#fff3f0]",
+                reviewId === candidate.id && "ring-2 ring-[var(--ink)]",
+              )}
+            >
+              <span className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full text-white", candidate.useful ? "bg-[#24785f]" : "bg-[#a23d2e]")}>{candidate.useful ? <Check className="size-3" /> : <X className="size-3" />}</span>
+              <span className="min-w-0 flex-1 text-xs font-bold leading-4 text-[var(--ink)]">{candidate.question}</span>
+              <span className={cn("flex shrink-0 items-center text-[10px] font-extrabold uppercase", candidate.useful ? "text-[#24785f]" : "text-[#a23d2e]")}>{candidate.useful ? "Ask" : "Skip"}</span>
+            </button>
+          ) : (
+            <label key={candidate.id} className={cn("rounded-lg border bg-white px-3 py-2", selectedNow ? "border-[var(--ink)]" : "border-[var(--line)]")}>
+              <span className="flex items-start gap-2.5">
+                <input type="checkbox" checked={selectedNow} onChange={() => toggle(candidate.id)} className="mt-0.5 size-4 shrink-0 accent-[var(--ink)]" />
+                <span className="min-w-0 flex-1 text-xs font-bold leading-5 text-[var(--ink)]">{candidate.question}</span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      {checked && reviewedCandidate && (
+        <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--faint)]">{reviewedCandidate.useful ? "Why ask it" : "Why skip it"}</p>
+          <p className="mt-0.5 text-[10px] leading-4 text-[var(--muted)]">{reviewedCandidate.feedback}</p>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center gap-3">
+        {!checked ? <Button size="sm" onClick={checkSelection} disabled={selected.length === 0}>Check selection</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}
+        <p className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]") )} aria-live="polite">{checked && (isCorrect ? "Exactly right." : "Review the Ask and Skip labels.")}</p>
+      </div>
+    </section>
+  );
+}
+
+const clarificationAnswers = [
+  {
+    id: "players",
+    question: "Who plays, which marks do they use, and who starts?",
+    answer: "Two local players use X and O. X takes the first turn.",
+  },
+  {
+    id: "rules",
+    question: "What board, win, draw, and stopping rules apply?",
+    answer: "Use a fixed 3 by 3 board. Three equal marks in a row, column, or diagonal wins. A full board without a winner is a draw, and play stops after either result.",
+  },
+  {
+    id: "errors",
+    question: "Which moves are invalid, and what happens after rejection?",
+    answer: "Reject wrong turns, out-of-range cells, occupied cells, and moves after completion. A rejection must not change the board or current player.",
+  },
+  {
+    id: "scope",
+    question: "What is outside the first version?",
+    answer: "No computer player, undo, score history, variable board, online play, UI, or storage.",
+  },
+] as const;
+
+export function ClarificationAnswerDeck() {
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+      <p className="border-b border-[var(--line)] bg-[var(--paper-2)] px-4 py-2.5 text-xs leading-5 text-[var(--muted)]">Open one question at a time to hear the interviewer&apos;s answer.</p>
+      <div>
+        {clarificationAnswers.map((item, index) => {
+          const isOpen = openId === item.id;
+          return (
+            <div key={item.id} className="border-b border-[var(--line)] last:border-b-0">
+              <button type="button" aria-expanded={isOpen} onClick={() => setOpenId(isOpen ? null : item.id)} className="flex w-full items-center gap-3 px-3 py-3 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--focus)] sm:px-4">
+                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--ink)] font-mono text-[10px] font-bold text-white">{index + 1}</span>
+                <span className="min-w-0 flex-1 text-xs font-extrabold leading-5 text-[var(--ink)] sm:text-sm">{item.question}</span>
+                <ChevronDown className={cn("size-4 shrink-0 text-[var(--faint)] transition-transform", isOpen && "rotate-180")} />
+              </button>
+              {isOpen && <div className="border-t border-[var(--line)] bg-[var(--blue-soft)] px-4 py-3 text-xs leading-5 text-[var(--muted)] sm:pl-13 sm:pr-5">{item.answer}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const entityCandidates = [
+  { id: "game", label: "Game", isClass: true, feedback: "Game remembers the current player, status, and winner while coordinating a complete move." },
+  { id: "board", label: "Board", isClass: true, feedback: "Board owns the changing cells and every rule that can be answered from them." },
+  { id: "player", label: "Player", isClass: true, feedback: "Player keeps a name and assigned mark together as one stable identity." },
+  { id: "cell", label: "Cell", isClass: false, feedback: "A cell adds no behavior here; one Mark value inside Board is enough." },
+  { id: "mark", label: "Mark", isClass: false, feedback: "X and O are choices from a fixed set, so Mark is an enum." },
+  { id: "winning-rule", label: "WinningRule", isClass: false, feedback: "There is only one fixed winning rule, so a separate abstraction would be premature." },
+] as const;
+
+const entityIntroductionSteps = [
+  ["Extract candidates", "Find nouns such as Game, Board, Player, Cell, Mark, and WinningRule."],
+  ["Choose real classes", "Keep candidates that own meaningful state, behavior, or rules."],
+  ["Model simple concepts", "Use enums for fixed choices and fields or parameters for simple values."],
+  ["Assign responsibility", "Put each rule beside the object that owns the information it needs."],
+  ["Trace the relationships", "Follow one move through Player, Game, and Board."],
+] as const;
+
+export function FocusEntityIntroduction() {
+  return (
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+      <p className="text-xs leading-5 text-[var(--muted)] sm:text-sm sm:leading-6">With clear requirements in hand, the next step is figuring out what objects make up the system. A useful starting point is to find the nouns in the requirements—but not every noun deserves its own class.</p>
+      <p className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--faint)]">What comes next</p>
+      <ol className="mt-2 grid gap-1.5 sm:grid-cols-2">
+        {entityIntroductionSteps.map(([title, description], index) => (
+          <li key={title} className="flex gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--ink)] font-mono text-[9px] font-bold text-white">{index + 1}</span>
+            <p className="text-[10px] leading-4 text-[var(--muted)] sm:text-xs sm:leading-5"><strong className="text-[var(--ink)]">{title}</strong> — {description}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-3 py-2 text-[10px] font-bold leading-4 text-[var(--ink)] sm:text-xs sm:leading-5">The goal is not to create the most classes. It is to create the smallest model that can satisfy the confirmed requirements.</p>
+    </section>
+  );
+}
+
+export function EntityClassPicker() {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [checked, setChecked] = useState(false);
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const expected = entityCandidates.filter((candidate) => candidate.isClass).map((candidate) => candidate.id);
+  const isCorrect = selected.length === expected.length && expected.every((id) => selected.includes(id));
+  const reviewed = entityCandidates.find((candidate) => candidate.id === reviewId);
+
+  const reset = () => {
+    setSelected([]);
+    setChecked(false);
+    setReviewId(null);
+  };
+
+  return (
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+      <p className="text-xs leading-5 text-[var(--muted)]">Select every concept that owns meaningful state or rules.</p>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {entityCandidates.map((candidate) => checked ? (
+          <button key={candidate.id} type="button" aria-pressed={reviewId === candidate.id} onClick={() => setReviewId(candidate.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", candidate.isClass ? "border-[#92c8b5] bg-[var(--mint-soft)]" : "border-[#efc2bb] bg-[#fff3f0]", reviewId === candidate.id && "ring-2 ring-[var(--ink)]")}>
+            <span className="text-xs font-extrabold text-[var(--ink)]">{candidate.label}</span>
+            <span className={cn("text-[9px] font-extrabold uppercase", candidate.isClass ? "text-[#24785f]" : "text-[#a23d2e]")}>{candidate.isClass ? "Class" : "Not class"}</span>
+          </button>
+        ) : (
+          <label key={candidate.id} className={cn("flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs font-extrabold text-[var(--ink)]", selected.includes(candidate.id) ? "border-[var(--ink)]" : "border-[var(--line)]")}>
+            <input type="checkbox" checked={selected.includes(candidate.id)} onChange={() => setSelected((current) => current.includes(candidate.id) ? current.filter((id) => id !== candidate.id) : [...current, candidate.id])} className="size-4 accent-[var(--ink)]" />
+            {candidate.label}
+          </label>
+        ))}
+      </div>
+      {checked && reviewed && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--muted)]"><strong className="text-[var(--ink)]">{reviewed.label}: </strong>{reviewed.feedback}</div>}
+      <div className="mt-3 flex items-center gap-3">
+        {!checked ? <Button size="sm" disabled={selected.length === 0} onClick={() => { setChecked(true); setReviewId("cell"); }}>Check classes</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}
+        <p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "Exactly right." : "Review each Class label.")}</p>
+      </div>
+    </section>
+  );
+}
+
+type EntityModelOption = { id: string; label: string; feedback: string };
+type EntityModelRow = { id: string; label: string; answer: string; options: EntityModelOption[] };
+
+const entityModelRows: EntityModelRow[] = [
+  { id: "cell", label: "Cell", answer: "field", options: [
+    { id: "class", label: "Class", feedback: "A class would wrap one value without adding a rule." },
+    { id: "field", label: "Field", feedback: "Correct: store a Mark value directly in Board's cell array." },
+    { id: "enum", label: "Enum", feedback: "The position is not a fixed choice; the value stored at it is." },
+    { id: "leave", label: "Leave out", feedback: "The cell state is required, even though a Cell class is not." },
+  ] },
+  { id: "closed-values", label: "Mark, status, result", answer: "enum", options: [
+    { id: "class", label: "Class", feedback: "These concepts name closed choices, not independent objects." },
+    { id: "number", label: "Number", feedback: "Numbers hide meaning and allow invalid states." },
+    { id: "enum", label: "Enum", feedback: "Correct: enums restrict each concept to its valid named values." },
+    { id: "string", label: "String", feedback: "Strings allow spelling errors and unsupported values." },
+  ] },
+  { id: "coordinates", label: "Row and column", answer: "number", options: [
+    { id: "class", label: "Class", feedback: "A Position class is unnecessary for this small fixed scope." },
+    { id: "number", label: "Number fields", feedback: "Correct: row and column are simple integer inputs." },
+    { id: "enum", label: "Enum", feedback: "Coordinates are numeric positions, not named domain states." },
+    { id: "leave", label: "Leave out", feedback: "A move still needs coordinates to identify its target." },
+  ] },
+  { id: "winning-rule", label: "WinningRule", answer: "leave", options: [
+    { id: "class", label: "Class", feedback: "A separate class adds indirection for one fixed rule." },
+    { id: "interface", label: "Interface", feedback: "An interface becomes useful only when rule implementations vary." },
+    { id: "field", label: "Field", feedback: "The winning check is behavior that reads Board state, not stored data." },
+    { id: "leave", label: "Leave out", feedback: "Correct: keep the fixed winning check inside Board for now." },
+  ] },
+];
+
+export function EntityModelClassifier() {
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState(false);
+  const [reviewRowId, setReviewRowId] = useState("cell");
+  const reviewedRow = entityModelRows.find((row) => row.id === reviewRowId)!;
+  const reviewedCorrectOption = reviewedRow.options.find((option) => option.id === reviewedRow.answer)!;
+  const isCorrect = entityModelRows.every((row) => answers[row.id] === row.answer);
+
+  const reset = () => {
+    setAnswers({});
+    setChecked(false);
+    setReviewRowId("cell");
+  };
+
+  const checkModels = () => {
+    const firstIncorrect = entityModelRows.find((row) => answers[row.id] !== row.answer);
+    setReviewRowId(firstIncorrect?.id ?? "cell");
+    setChecked(true);
+  };
+
+  return (
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+      <div className="grid gap-2">
+        {entityModelRows.map((row) => {
+          const selectedOption = row.options.find((option) => option.id === answers[row.id])!;
+          const correctOption = row.options.find((option) => option.id === row.answer)!;
+          const rowIsCorrect = answers[row.id] === row.answer;
+          return checked ? (
+          <button key={row.id} type="button" aria-pressed={reviewRowId === row.id} onClick={() => setReviewRowId(row.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewRowId === row.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}>
+            <span className="text-xs font-extrabold text-[var(--ink)]">{row.label}</span>
+            {rowIsCorrect ? (
+              <span className="flex shrink-0 items-center gap-1 text-[10px] font-extrabold text-[#24785f]"><Check className="size-3.5" /> {correctOption.label}</span>
+            ) : (
+              <span className="flex shrink-0 items-center gap-2 text-[9px] font-extrabold">
+                <span className="flex items-center gap-1 text-[#a23d2e]"><X className="size-3.5" /> {selectedOption.label}</span>
+                <span className="flex items-center gap-1 text-[#24785f]"><Check className="size-3.5" /> {correctOption.label}</span>
+              </span>
+            )}
+          </button>
+        ) : (
+          <div key={row.id} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+            <p className="text-[11px] font-extrabold text-[var(--ink)]">{row.label}</p>
+            <div className="mt-1 grid grid-cols-4 gap-1">{row.options.map((option) => <button key={option.id} type="button" aria-pressed={answers[row.id] === option.id} onClick={() => setAnswers((current) => ({ ...current, [row.id]: option.id }))} className={cn("rounded-md border px-1 py-1 text-[9px] font-extrabold leading-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", answers[row.id] === option.id ? "border-[var(--ink)] bg-[var(--ink)] text-white" : "border-[var(--line)] bg-[var(--paper-2)] text-[var(--muted)]")}>{option.label}</button>)}</div>
+          </div>
+        );})}
+      </div>
+      {checked && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white p-2.5">
+        <p className="flex items-center gap-1 text-[10px] font-extrabold text-[#24785f]"><Check className="size-3.5" /> Why {reviewedRow.label} is {reviewedCorrectOption.label}</p>
+        <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewedCorrectOption.feedback.replace("Correct: ", "")}</p>
+      </div>}
+      <div className="mt-3 flex items-center gap-3">
+        {!checked ? <Button size="sm" disabled={Object.keys(answers).length !== entityModelRows.length} onClick={checkModels}>Check models</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}
+        <p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "All four fit the scope." : "Review the marked rows.")}</p>
+      </div>
+    </section>
+  );
+}
+
+const responsibilityRules = [
+  { id: "occupied", label: "Cell is already occupied", owner: "Board", feedback: "Board stores the cells, so it can check whether the chosen cell is empty." },
+  { id: "range", label: "Position is outside the board", owner: "Board", feedback: "Board knows its size, so it can reject an invalid row or column." },
+  { id: "winner", label: "Three marks form a line", owner: "Board", feedback: "Board stores every mark, so it can check rows, columns, and diagonals." },
+  { id: "turn", label: "The wrong player moves", owner: "Game", feedback: "Game remembers the current player, so it can reject anyone else." },
+  { id: "complete", label: "A move happens after the game ends", owner: "Game", feedback: "Game remembers whether the match ended, so it can block another move." },
+  { id: "change", label: "Switch to the next player", owner: "Game", feedback: "Game controls the turn, so it switches players only after a valid move." },
+] as const;
+
+export function EntityResponsibilityQuiz() {
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState(false);
+  const [reviewId, setReviewId] = useState("occupied");
+  const reviewed = responsibilityRules.find((rule) => rule.id === reviewId)!;
+  const isCorrect = responsibilityRules.every((rule) => answers[rule.id] === rule.owner);
+
+  const reset = () => { setAnswers({}); setChecked(false); setReviewId("occupied"); };
+
+  return (
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+      <div className="mb-2 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-3 py-2">
+        <p className="text-[10px] font-extrabold leading-4 text-[var(--ink)]">Give each rule to the class that has the information needed to check it.</p>
+        <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">Board stores the cells, so it checks cell rules. Game stores the current player and match status, so it checks game rules.</p>
+      </div>
+      {!checked ? <div className="grid gap-1.5">{responsibilityRules.map((rule) => <div key={rule.id} className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5"><span className="text-[11px] font-bold leading-4 text-[var(--ink)]">{rule.label}</span><div className="flex rounded-md bg-[var(--paper-2)] p-0.5">{["Game", "Board"].map((owner) => <button key={owner} type="button" aria-pressed={answers[rule.id] === owner} onClick={() => setAnswers((current) => ({ ...current, [rule.id]: owner }))} className={cn("rounded px-2 py-1 text-[9px] font-extrabold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", answers[rule.id] === owner ? "bg-[var(--ink)] text-white" : "text-[var(--muted)]")}>{owner}</button>)}</div></div>)}</div> : (
+        <div className="grid grid-cols-2 gap-2">{["Game", "Board"].map((owner) => <div key={owner} className="rounded-lg border border-[var(--line)] bg-white p-2"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)]">{owner} owns</p><div className="mt-1.5 grid gap-1">{responsibilityRules.filter((rule) => rule.owner === owner).map((rule) => <button key={rule.id} type="button" onClick={() => setReviewId(rule.id)} className={cn("rounded-md px-2 py-1 text-left text-[9px] font-bold leading-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", answers[rule.id] === rule.owner ? "bg-[var(--mint-soft)] text-[#24785f]" : "bg-[#fff3f0] text-[#a23d2e]", reviewId === rule.id && "ring-2 ring-[var(--ink)]")}>{rule.label}</button>)}</div></div>)}</div>
+      )}
+      {checked && <>
+        <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+          <p className="text-[10px] font-extrabold text-[var(--ink)]">Why {reviewed.owner}?</p>
+          <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p>
+        </div>
+      </>}
+      <div className="mt-3 flex items-center gap-3">
+        {!checked ? <Button size="sm" disabled={Object.keys(answers).length !== responsibilityRules.length} onClick={() => setChecked(true)}>Check owners</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}
+        <p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "Every rule has its owner." : "The groups show the right owners.")}</p>
+      </div>
+    </section>
+  );
+}
+
+const entityFlowItems = [
+  { id: "choose", label: "Player chooses a cell", reasoning: "The flow starts with the player's action: choosing where to place a mark." },
+  { id: "check", label: "Game checks whether the move is allowed", reasoning: "Game knows whose turn it is and whether the match has already ended." },
+  { id: "send", label: "Game asks Board to place the mark", reasoning: "Game coordinates the move, but Board owns the cells and must handle placement." },
+  { id: "place", label: "Board checks the cell and places the mark", reasoning: "Board checks the position and occupancy before changing its cell data." },
+  { id: "report", label: "Board reports whether the move worked", reasoning: "Game needs the placement result so a rejected move does not change the turn." },
+  { id: "finish", label: "Game ends the match or switches the player", reasoning: "Only an accepted move can create a win, draw, or next turn." },
+] as const;
+
+const entityFlowDisplayOrder = ["report", "choose", "send", "finish", "place", "check"];
+
+export function EntityFlowChallenge() {
+  const [order, setOrder] = useState<string[]>([]);
+  const [checked, setChecked] = useState(false);
+  const [view, setView] = useState<"results" | "diagram">("results");
+  const correctOrder = entityFlowItems.map((item) => item.id);
+  const isCorrect = correctOrder.every((id, index) => order[index] === id);
+  const correctCount = correctOrder.filter((id, index) => order[index] === id).length;
+  const remaining = entityFlowDisplayOrder.map((id) => entityFlowItems.find((item) => item.id === id)!).filter((item) => !order.includes(item.id));
+  const reset = () => { setOrder([]); setChecked(false); setView("results"); };
+
+  const removeStep = (id: string) => {
+    setOrder((current) => current.filter((value) => value !== id));
+    setChecked(false);
+  };
+
+  const checkFlow = () => {
+    setView("results");
+    setChecked(true);
+  };
+
+  return (
+    <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+      {view === "results" ? <div className="min-h-0 flex-1">
+        <p className="text-xs leading-5 text-[var(--muted)]">Tap the six actions in execution order. Tap a chosen action to remove it.</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">{remaining.map((item) => <button key={item.id} type="button" onClick={() => setOrder((current) => [...current, item.id])} className="rounded-lg border border-[var(--line)] bg-white px-2.5 py-1.5 text-[10px] font-bold leading-4 text-[var(--ink)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]">{item.label}</button>)}</div>
+        <ol className="mt-2 grid grid-cols-2 gap-1.5">{order.map((id, index) => {
+          const item = entityFlowItems.find((flowItem) => flowItem.id === id)!;
+          const positionIsCorrect = correctOrder[index] === id;
+          return <li key={id}><button type="button" onClick={() => removeStep(id)} aria-label={`Remove step ${index + 1}: ${item.label}`} className={cn("flex h-full w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-left text-[9px] font-bold leading-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", !checked && "border-transparent bg-white", checked && positionIsCorrect && "border-[#8bcab3] bg-[var(--mint-soft)] text-[#24785f]", checked && !positionIsCorrect && "border-[#efaaa0] bg-[#fff0ed] text-[#a23d2e]")}>
+            <span className={cn("grid size-4 shrink-0 place-items-center rounded-full font-mono text-[8px]", !checked && "bg-[var(--ink)] text-white", checked && positionIsCorrect && "bg-[#24785f] text-white", checked && !positionIsCorrect && "bg-[#a23d2e] text-white")}>{checked ? positionIsCorrect ? <Check className="size-3" /> : <X className="size-3" /> : index + 1}</span>
+            <span><span className="block">{index + 1}. {item.label}</span>{checked && <span className="block text-[8px] font-extrabold uppercase tracking-wide">{positionIsCorrect ? "Correct position" : "Wrong position"}</span>}</span>
+          </button></li>;
+        })}</ol>
+        {checked && <p className={cn("mt-2 text-xs font-extrabold", isCorrect ? "text-[#24785f]" : "text-[#a23d2e]")} aria-live="polite">{correctCount} of {entityFlowItems.length} positions correct</p>}
+      </div> : <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg border border-[var(--line)] bg-white"><Image src="/images/tic-tac-toe-entity-flow.png" alt="Player sends makeMove to Game, Game delegates placement to Board, and Board returns a result" width={1774} height={887} className="h-full w-full object-contain" priority unoptimized /></div>
+        <ol className="mt-2 grid shrink-0 grid-cols-2 gap-1 text-[9px] font-bold leading-4">{entityFlowItems.map((item, index) => <li key={item.id} className="flex gap-1.5 rounded-md bg-white px-2 py-1"><span className="text-[var(--orange)]">{index + 1}.</span><span>{item.label}</span></li>)}</ol>
+      </div>}
+      <div className="mt-3 flex shrink-0 items-center gap-3">
+        {view === "results" && <Button size="sm" disabled={order.length !== entityFlowItems.length} onClick={checkFlow}>{checked ? "Check again" : "Check flow"}</Button>}
+        {checked && view === "results" && <Button variant="outline" size="sm" onClick={() => setView("diagram")}>{isCorrect ? "See final diagram" : "Reveal solution"}</Button>}
+        {view === "results" && order.length > 0 && <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Start over</Button>}
+        {view === "diagram" && <Button variant="outline" size="sm" onClick={() => setView("results")}><ChevronLeft /> Back to my flow</Button>}
+      </div>
+    </section>
+  );
+}
+
+const classDesignRoadmap = [
+  ["Responsibility", "What job does this class own?"],
+  ["State", "What must it remember to do that job?"],
+  ["Behavior", "What can it decide or change using that state?"],
+  ["Public API", "What may callers ask without bypassing rules?"],
+  ["Relationships", "Which objects does it contain or collaborate with?"],
+  ["Principles", "Does the design protect state and keep jobs focused?"],
+] as const;
+
+export function ClassDesignIntroduction() {
+  return (
+    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+      <p className="text-xs leading-5 text-[var(--muted)] sm:text-sm sm:leading-6">Entities tell us which objects exist. Class design turns each object into a clear promise: the state it protects, the behavior it owns, and the small API other objects may use.</p>
+      <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {classDesignRoadmap.map(([title, description], index) => <div key={title} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+          <p className="flex items-center gap-1.5 text-[10px] font-extrabold text-[var(--ink)]"><span className="grid size-4 place-items-center rounded-full bg-[var(--ink)] font-mono text-[8px] text-white">{index + 1}</span>{title}</p>
+          <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{description}</p>
+        </div>)}
+      </div>
+      <p className="mt-3 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-3 py-2 text-[10px] font-bold leading-4 text-[var(--ink)] sm:text-xs">We will design Player first, then Board, then Game—the coordinator that composes them.</p>
+    </section>
+  );
+}
+
+type ClassDesignItem = { id: string; label: string; answer: string; feedback: string };
+type ClassDesignScenario = { instruction: string; principle: string; categories: Array<{ id: string; label: string }>; items: ClassDesignItem[]; success: string };
+
+const classDesignScenarios: Record<string, ClassDesignScenario> = {
+  player: {
+    instruction: "Classify what Player remembers, does, or should not own.",
+    principle: "Immutability: name and mark cannot change after construction.",
+    categories: [{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not Player" }],
+    items: [
+      { id: "name", label: "name", answer: "state", feedback: "A player's name is stable identity data." },
+      { id: "mark", label: "mark", answer: "state", feedback: "The assigned X or O stays with the player." },
+      { id: "validate", label: "Validate identity", answer: "behavior", feedback: "Construction rejects a missing name or mark, so invalid Player objects never exist." },
+      { id: "read", label: "Expose identity", answer: "behavior", feedback: "Callers may read the name and fixed mark without changing them." },
+      { id: "turn", label: "Manage turns", answer: "other", feedback: "Turn order changes during a match, so Game owns it." },
+      { id: "place", label: "Place marks", answer: "other", feedback: "Board owns the cells and placement rules." },
+    ],
+    success: "Player is a small immutable identity.",
+  },
+  board: {
+    instruction: "Keep only the state and rules that can be answered from the grid.",
+    principle: "Encapsulation: Board protects its private cells and controls every grid change.",
+    categories: [{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not Board" }],
+    items: [
+      { id: "cells", label: "cells", answer: "state", feedback: "The private Mark grid is the state Board protects." },
+      { id: "inside", label: "Check coordinates", answer: "behavior", feedback: "Board knows its size, so it validates row and column." },
+      { id: "place", label: "Place a mark", answer: "behavior", feedback: "Board checks occupancy before changing its own cells." },
+      { id: "winner", label: "Find winning line", answer: "behavior", feedback: "Rows, columns, and diagonals depend only on the grid." },
+      { id: "full", label: "Check full board", answer: "behavior", feedback: "Board can inspect every cell to answer this." },
+      { id: "read", label: "Read one cell", answer: "behavior", feedback: "A bounded read exposes state without returning the mutable array." },
+      { id: "current", label: "currentPlayer", answer: "other", feedback: "Current player is match-flow state owned by Game." },
+      { id: "status", label: "match status", answer: "other", feedback: "Board detects grid facts; Game decides the match status." },
+    ],
+    success: "Board keeps grid state and grid rules together.",
+  },
+  "game-state": {
+    instruction: "Match each candidate to Game state or another owner.",
+    principle: "Single responsibility: Game remembers match flow; Board remembers cells.",
+    categories: [{ id: "state", label: "Game state" }, { id: "other", label: "Other class" }],
+    items: [
+      { id: "board", label: "board", answer: "state", feedback: "Game composes one Board and coordinates moves through it." },
+      { id: "players", label: "playerX and playerO", answer: "state", feedback: "Game keeps the two participants needed to alternate turns." },
+      { id: "current", label: "currentPlayer", answer: "state", feedback: "Game must remember whose turn is allowed now." },
+      { id: "winner", label: "winner", answer: "state", feedback: "The requirement to expose the winner creates this field." },
+      { id: "status", label: "status", answer: "state", feedback: "Game needs status to reject moves after completion." },
+      { id: "cells", label: "cells", answer: "other", feedback: "The grid remains private inside Board." },
+    ],
+    success: "Every Game field comes from match flow.",
+  },
+  "game-api": {
+    instruction: "Decide what belongs in Game's public API and what must stay elsewhere.",
+    principle: "Public methods expose use cases without exposing mutable internals.",
+    categories: [{ id: "public", label: "Public API" }, { id: "internal", label: "Internal" }, { id: "other", label: "Other class" }],
+    items: [
+      { id: "move", label: "makeMove", answer: "public", feedback: "This is the single public command that may change an active match." },
+      { id: "reset", label: "reset", answer: "public", feedback: "Reset is a confirmed caller operation." },
+      { id: "reads", label: "getMark and match getters", answer: "public", feedback: "These reads expose required state without returning mutable Board." },
+      { id: "switch", label: "Switch current player", answer: "internal", feedback: "Game performs this only after an accepted non-final move; callers must not trigger it." },
+      { id: "setters", label: "setStatus / setWinner", answer: "internal", feedback: "Game changes these fields while resolving a move, but public setters would bypass its rules." },
+      { id: "grid", label: "Place and inspect lines", answer: "other", feedback: "Placement and winning-line checks belong to Board." },
+      { id: "get-board", label: "getBoard", answer: "other", feedback: "Returning mutable Board would let callers place or clear marks without Game validation." },
+    ],
+    success: "The public API exposes use cases, not internal state changes.",
+  },
+  patterns: {
+    instruction: "Classify each design idea against the confirmed requirements.",
+    principle: "Pattern discipline: add an abstraction only when a real behavior varies.",
+    categories: [{ id: "now", label: "Use now" }, { id: "later", label: "Use later" }, { id: "no", label: "Do not use" }],
+    items: [
+      { id: "composition", label: "Compose Game from objects", answer: "now", feedback: "Game needs one Board and two Players now, so composition directly models the relationship." },
+      { id: "strategy", label: "Strategy for human game", answer: "no", feedback: "The fixed game has no interchangeable move-selection algorithms." },
+      { id: "bot-strategy", label: "Strategy for several bots", answer: "later", feedback: "Easy, medium, and hard bots would create genuinely replaceable algorithms." },
+      { id: "singleton", label: "Singleton Game", answer: "no", feedback: "Multiple games should be possible; global state would make tests and tournaments harder." },
+      { id: "factory", label: "Factory for two objects", answer: "no", feedback: "Constructors are clear while there is only one simple setup path." },
+      { id: "observer", label: "Observer for UI updates", answer: "no", feedback: "The confirmed scope has no UI or notification subscribers." },
+    ],
+    success: "Use composition now; wait for real variation before adding a pattern.",
+  },
+};
+
+export function ClassDesignClassifier({ scenario }: { scenario: keyof typeof classDesignScenarios }) {
+  const config = classDesignScenarios[scenario];
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState(false);
+  const [reviewId, setReviewId] = useState(config.items[0].id);
+  const reviewed = config.items.find((item) => item.id === reviewId)!;
+  const isCorrect = config.items.every((item) => answers[item.id] === item.answer);
+  const reset = () => { setAnswers({}); setChecked(false); setReviewId(config.items[0].id); };
+  const check = () => { setReviewId(config.items.find((item) => answers[item.id] !== item.answer)?.id ?? config.items[0].id); setChecked(true); };
+
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+    <p className="text-xs leading-5 text-[var(--muted)]">{config.instruction}</p>
+    <p className="mt-1 rounded-md bg-[var(--mint-soft)] px-2 py-1 text-[9px] font-bold leading-4 text-[var(--ink)]">{config.principle}</p>
+    <div className="mt-2 grid gap-1.5 sm:grid-cols-2">{config.items.map((item) => {
+      const selected = config.categories.find((category) => category.id === answers[item.id]);
+      const correct = config.categories.find((category) => category.id === item.answer)!;
+      const rowCorrect = answers[item.id] === item.answer;
+      return checked ? <button key={item.id} type="button" aria-pressed={reviewId === item.id} onClick={() => setReviewId(item.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewId === item.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}><span className="text-[10px] font-extrabold text-[var(--ink)] sm:text-xs">{item.label}</span><span className={cn("flex shrink-0 items-center gap-1 text-[9px] font-extrabold", rowCorrect ? "text-[#24785f]" : "text-[#a23d2e]")}>{rowCorrect ? <Check className="size-3" /> : <X className="size-3" />}{rowCorrect ? correct.label : `${selected?.label} → ${correct.label}`}</span></button> : <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5"><span className="text-[10px] font-extrabold leading-4 text-[var(--ink)] sm:text-xs">{item.label}</span><div className="flex rounded-md bg-[var(--paper-2)] p-0.5">{config.categories.map((category) => <button key={category.id} type="button" aria-pressed={answers[item.id] === category.id} onClick={() => setAnswers((current) => ({ ...current, [item.id]: category.id }))} className={cn("rounded px-1.5 py-1 text-[8px] font-extrabold leading-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)] sm:px-2 sm:text-[9px]", answers[item.id] === category.id ? "bg-[var(--ink)] text-white" : "text-[var(--muted)]")}>{category.label}</button>)}</div></div>;
+    })}</div>
+    {checked && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"><p className="text-[10px] font-extrabold text-[var(--ink)]">Why {config.categories.find((category) => category.id === reviewed.answer)?.label}?</p><p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p></div>}
+    <div className="mt-3 flex items-center gap-3">{!checked ? <Button size="sm" disabled={Object.keys(answers).length !== config.items.length} onClick={check}>Check design</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}<p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? config.success : "Review the marked decisions.")}</p></div>
+  </section>;
+}
+
+const classRelationships = [
+  { id: "board", label: "Game has one Board", correct: true, feedback: "Game composes and coordinates the board used by this match." },
+  { id: "players", label: "Game has two Players", correct: true, feedback: "The match keeps both participants so it can validate and alternate turns." },
+  { id: "player-mark", label: "Player has one Mark", correct: true, feedback: "A fixed mark is part of Player's immutable identity." },
+  { id: "board-mark", label: "Board stores Mark values", correct: true, feedback: "Each grid position is empty or contains an enum value." },
+  { id: "game-board-inherit", label: "Game extends Board", correct: false, feedback: "A Game is not a kind of Board; it has and coordinates one." },
+  { id: "player-game-inherit", label: "Player extends Game", correct: false, feedback: "A Player participates in a Game but is not a specialized Game." },
+] as const;
+
+export function ClassRelationshipChallenge() {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [checked, setChecked] = useState(false);
+  const [reviewId, setReviewId] = useState("game-board-inherit");
+  const reviewed = classRelationships.find((item) => item.id === reviewId)!;
+  const expected = classRelationships.filter((item) => item.correct).map((item) => item.id);
+  const isCorrect = selected.length === expected.length && expected.every((id) => selected.includes(id));
+  const reset = () => { setSelected([]); setChecked(false); setReviewId("game-board-inherit"); };
+
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+    <p className="text-xs leading-5 text-[var(--muted)]">Select every relationship that describes the model.</p>
+    <div className="mt-3 grid grid-cols-2 gap-2">{classRelationships.map((item) => checked ? <button key={item.id} type="button" onClick={() => setReviewId(item.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-[10px] font-extrabold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", item.correct ? "border-[#92c8b5] bg-[var(--mint-soft)]" : "border-[#efc2bb] bg-[#fff3f0]", reviewId === item.id && "ring-2 ring-[var(--ink)]")}><span>{item.label}</span>{item.correct ? <Check className="size-3.5 text-[#24785f]" /> : <X className="size-3.5 text-[#a23d2e]" />}</button> : <label key={item.id} className={cn("flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-[10px] font-extrabold text-[var(--ink)]", selected.includes(item.id) ? "border-[var(--ink)]" : "border-[var(--line)]")}><input type="checkbox" checked={selected.includes(item.id)} onChange={() => setSelected((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} className="size-4 accent-[var(--ink)]" />{item.label}</label>)}</div>
+    {checked && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"><p className="text-[10px] font-extrabold text-[var(--ink)]">{reviewed.correct ? "Composition" : "Why not inheritance?"}</p><p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p></div>}
+    <div className="mt-3 flex items-center gap-3">{!checked ? <Button size="sm" disabled={selected.length === 0} onClick={() => setChecked(true)}>Check relationships</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}<p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "Composition matches the model." : "Review each relationship.")}</p></div>
+  </section>;
+}
+
+const classBlueprints = {
+  player: { name: "Player", state: "name, mark", behavior: "validate and expose identity", api: "getName(), getMark()", principle: "Immutability and cohesion" },
+  board: { name: "Board", state: "private Mark[][] cells", behavior: "validate, place, detect lines/fullness, clear, read", api: "Used by Game; never returned", principle: "Encapsulation and information ownership" },
+  game: { name: "Game", state: "board, players, currentPlayer, winner, status", behavior: "validate and coordinate one move; reset", api: "makeMove(), reset(), getMark(), match getters", principle: "Single responsibility and composition" },
+} as const;
+
+export function FinalClassBlueprint() {
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+    <Tabs defaultValue="player">
+      <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="player" className="py-1.5 text-xs">Player</TabsTrigger><TabsTrigger value="board" className="py-1.5 text-xs">Board</TabsTrigger><TabsTrigger value="game" className="py-1.5 text-xs">Game</TabsTrigger></TabsList>
+      {Object.entries(classBlueprints).map(([id, model]) => <TabsContent key={id} value={id} className="mt-2 rounded-lg border border-[var(--line)] bg-white p-3"><h3 className="!text-sm font-extrabold">{model.name}</h3><dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px] leading-4"><dt className="font-extrabold text-[var(--faint)]">State</dt><dd>{model.state}</dd><dt className="font-extrabold text-[var(--faint)]">Behavior</dt><dd>{model.behavior}</dd><dt className="font-extrabold text-[var(--faint)]">Public API</dt><dd>{model.api}</dd><dt className="font-extrabold text-[var(--faint)]">Principle</dt><dd>{model.principle}</dd></dl></TabsContent>)}
+    </Tabs>
+    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px] font-bold leading-4"><p className="rounded-md bg-white px-2 py-1.5">Game → one Board + two Players</p><p className="rounded-md bg-white px-2 py-1.5">Enums → Mark, GameStatus, MoveResult</p></div>
+    <ul className="mt-2 grid gap-1 text-[9px] font-bold leading-4 text-[var(--muted)] sm:grid-cols-2"><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> Every requirement has an owner.</li><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> No public API bypasses Game rules.</li><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> Mutable state stays private.</li><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> No pattern exists without variation.</li></ul>
+  </section>;
 }
 
 export function PredictReveal({ prompt, hint, children }: { prompt: string; hint?: string; children: React.ReactNode }) {

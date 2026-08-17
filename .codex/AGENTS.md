@@ -30,6 +30,8 @@ When adding or revising an LLD topic, follow this file as an acceptance checklis
 
 A lesson may add a Focus Mode alongside its complete walkthrough. Focus Mode is a second way to learn the same lesson, not a shortened replacement or a separate source of truth.
 
+Before adding, redesigning, or reviewing Focus Mode for any LLD lesson, read `.codex/focus-mode-guidelines.md` completely. Treat it as the Focus Mode implementation and acceptance checklist; the project-wide rules in this file continue to apply.
+
 - Keep the complete walkthrough available at `/problems/<topic>/` and add Focus Mode at `/problems/<topic>/learn/`.
 - Reuse the same MDX content in both routes. Wrap meaningful sections with `LessonStep`; the wrapper must add no DOM in the complete walkthrough and show only the active section in Focus Mode.
 - Register the ordered steps in `lib/learning-paths.ts`. Give each step one clear objective, a short time estimate, and a stable hash ID so links and browser navigation work.
