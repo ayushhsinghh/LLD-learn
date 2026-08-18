@@ -149,6 +149,8 @@ button { cursor: pointer; }
 
 .focus-step > h2:first-child,
 .focus-step > h3:first-child { display: none; }
+.focus-step > h2:first-child + *,
+.focus-step > h3:first-child + * { margin-top: 0; }
 .focus-step:has([aria-label="Interactive Tic-Tac-Toe simulation"]) { height: 100%; }
 .focus-step > *:first-child { margin-top: 0; }
 .focus-step > *:last-child { margin-bottom: 0; }

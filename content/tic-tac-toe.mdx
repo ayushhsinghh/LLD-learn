@@ -1,7 +1,7 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { TicTacToeSimulator } from "@/components/simulations/tic-tac-toe-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
-import { ClarificationAnswerDeck, ClarificationQuestionPicker, ClassificationChallenge, ClassDesignIntroduction, ClassRelationshipChallenge, EntityClassPicker, EntityFlowChallenge, EntityModelClassifier, EntityResponsibilityQuiz, FinalClassBlueprint, FocusEntityIntroduction, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, PredictionChecklist, PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, OrderQuestion, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
+import { ClarificationAnswerDeck, ClarificationQuestionPicker, ClassificationChallenge, ClassDesignIntroduction, EntityClassPicker, EntityFlowChallenge, EntityModelClassifier, EntityResponsibilityQuiz, FinalClassBlueprint, FocusEntityIntroduction, FocusSpec, ImplementationCodeMap, InterviewDialogueExample, InterviewDynamicsGuide, PassiveLearningCards, PredictionChecklist, PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, OrderQuestion, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 
 <LessonStep id="orientation">
 <Lead>Design a two-player game that accepts legal moves, alternates turns, and stops with a win or draw.</Lead>
@@ -161,22 +161,15 @@ Before thinking about classes, turn the familiar game into a precise promise tha
 
 <LessonStep id="modeling-vocabulary">
 <FocusOnly>
-<ClassificationChallenge
-  instruction="Match each modeling choice to the test that justifies it."
-  categories={[
-    { id: "class", label: "State + rules" },
-    { id: "enum", label: "Fixed set" },
-    { id: "field", label: "Simple value" },
-    { id: "leave", label: "Leave out" }
-  ]}
+<PassiveLearningCards
+  intro="These are four different modeling decisions. Use the smallest one that still protects the confirmed requirements."
   items={[
-    { id: "class", label: "Class", answer: "class", feedback: "A class owns changing information and enforces rules on that information." },
-    { id: "enum", label: "Enum", answer: "enum", feedback: "An enum names a small closed set of valid choices without independent changing state." },
-    { id: "field", label: "Field", answer: "field", feedback: "A field is a simple value that belongs inside another class and adds no behavior here." },
-    { id: "leave", label: "Leave out", answer: "leave", feedback: "Leave out a concept outside the requirements or a separate abstraction with only one fixed implementation." }
+    { title: "Class", label: "State + rules", body: "Use it when a concept owns meaningful state and enforces behavior on that state. A noun alone is not enough." },
+    { title: "Enum", label: "Fixed choices", body: "Use it for a small closed vocabulary such as X or O. Avoid free-form strings for known choices." },
+    { title: "Field", label: "Simple value", body: "Use it when the value belongs inside another object and adds no independent rules, such as row or column." },
+    { title: "Leave out", label: "No current need", body: "Omit concepts outside scope or abstractions that have only one fixed implementation today." }
   ]}
-  success="You can now test each candidate before turning it into a class."
-  submitLabel="Check matches"
+  conclusion="Ask: does this concept own state and rules, name fixed choices, fit inside another object, or add nothing to this version?"
 />
 </FocusOnly>
 </LessonStep>
@@ -393,12 +386,12 @@ This is also cohesion: all Player members contribute to one focused job—repres
   callout="Immutability: name and mark cannot change after construction."
   categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not Player" }]}
   items={[
-    { id: "name", label: "name", answer: "state", feedback: "A player's name is stable identity data." },
-    { id: "mark", label: "mark", answer: "state", feedback: "The assigned X or O stays with the player." },
-    { id: "validate", label: "Validate identity", answer: "behavior", feedback: "Construction rejects a missing name or mark, so invalid Player objects never exist." },
-    { id: "read", label: "Expose identity", answer: "behavior", feedback: "Callers may read the name and fixed mark without changing them." },
     { id: "turn", label: "Manage turns", answer: "other", feedback: "Turn order changes during a match, so Game owns it." },
-    { id: "place", label: "Place marks", answer: "other", feedback: "Board owns the cells and placement rules." }
+    { id: "name", label: "name", answer: "state", feedback: "A player's name is stable identity data." },
+    { id: "validate", label: "Validate identity", answer: "behavior", feedback: "Construction rejects a missing name or mark, so invalid Player objects never exist." },
+    { id: "place", label: "Place marks", answer: "other", feedback: "Board owns the cells and placement rules." },
+    { id: "mark", label: "mark", answer: "state", feedback: "The assigned X or O stays with the player." },
+    { id: "read", label: "Expose identity", answer: "behavior", feedback: "Callers may read the name and fixed mark without changing them." }
   ]}
   success="Player is a small immutable identity."
 /></FocusOnly>
@@ -430,14 +423,14 @@ Board does not store `currentPlayer`, `winner`, or `status`. Those values requir
   callout="Encapsulation: Board protects its private cells and controls every grid change."
   categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not Board" }]}
   items={[
-    { id: "cells", label: "cells", answer: "state", feedback: "The private Mark grid is the state Board protects." },
-    { id: "inside", label: "Check coordinates", answer: "behavior", feedback: "Board knows its size, so it validates row and column." },
-    { id: "place", label: "Place a mark", answer: "behavior", feedback: "Board checks occupancy before changing its own cells." },
-    { id: "winner", label: "Find winning line", answer: "behavior", feedback: "Rows, columns, and diagonals depend only on the grid." },
-    { id: "full", label: "Check full board", answer: "behavior", feedback: "Board can inspect every cell to answer this." },
-    { id: "read", label: "Read one cell", answer: "behavior", feedback: "A bounded read exposes state without returning the mutable array." },
     { id: "current", label: "currentPlayer", answer: "other", feedback: "Current player is match-flow state owned by Game." },
-    { id: "status", label: "match status", answer: "other", feedback: "Board detects grid facts; Game decides the match status." }
+    { id: "cells", label: "cells", answer: "state", feedback: "The private Mark grid is the state Board protects." },
+    { id: "place", label: "Place a mark", answer: "behavior", feedback: "Board checks occupancy before changing its own cells." },
+    { id: "status", label: "match status", answer: "other", feedback: "Board detects grid facts; Game decides the match status." },
+    { id: "inside", label: "Check coordinates", answer: "behavior", feedback: "Board knows its size, so it validates row and column." },
+    { id: "read", label: "Read one cell", answer: "behavior", feedback: "A bounded read exposes state without returning the mutable array." },
+    { id: "winner", label: "Find winning line", answer: "behavior", feedback: "Rows, columns, and diagonals depend only on the grid." },
+    { id: "full", label: "Check full board", answer: "behavior", feedback: "Board can inspect every cell to answer this." }
   ]}
   success="Board keeps grid state and grid rules together."
 /></FocusOnly>
@@ -465,12 +458,12 @@ Game does not duplicate `cells`. Single responsibility does not mean “one meth
   callout="Single responsibility: Game remembers match flow; Board remembers cells."
   categories={[{ id: "state", label: "Game state" }, { id: "other", label: "Other class" }]}
   items={[
-    { id: "board", label: "board", answer: "state", feedback: "Game composes one Board and coordinates moves through it." },
-    { id: "players", label: "playerX and playerO", answer: "state", feedback: "Game keeps both participants so it can alternate turns." },
+    { id: "cells", label: "cells", answer: "other", feedback: "The grid remains private inside Board." },
     { id: "current", label: "currentPlayer", answer: "state", feedback: "Game must remember whose turn is allowed now." },
-    { id: "winner", label: "winner", answer: "state", feedback: "The requirement to expose the winner creates this field." },
+    { id: "board", label: "board", answer: "state", feedback: "Game composes one Board and coordinates moves through it." },
     { id: "status", label: "status", answer: "state", feedback: "Game needs status to reject moves after completion." },
-    { id: "cells", label: "cells", answer: "other", feedback: "The grid remains private inside Board." }
+    { id: "players", label: "playerX and playerO", answer: "state", feedback: "Game keeps both participants so it can alternate turns." },
+    { id: "winner", label: "winner", answer: "state", feedback: "The requirement to expose the winner creates this field." }
   ]}
   success="Every Game field comes from match flow."
 /></FocusOnly>
@@ -501,13 +494,13 @@ Returning `Board` would leak a mutable object: a caller could invoke `place` or 
   callout="Public methods expose use cases without exposing mutable internals."
   categories={[{ id: "public", label: "Public API" }, { id: "internal", label: "Internal" }, { id: "other", label: "Other class" }]}
   items={[
-    { id: "move", label: "makeMove", answer: "public", feedback: "This is the single public command that may change an active match." },
-    { id: "reset", label: "reset", answer: "public", feedback: "Reset is a confirmed caller operation." },
-    { id: "reads", label: "getMark and match getters", answer: "public", feedback: "These reads expose required state without returning mutable Board." },
-    { id: "switch", label: "Switch current player", answer: "internal", feedback: "Game performs this only after an accepted non-final move; callers must not trigger it." },
-    { id: "setters", label: "setStatus / setWinner", answer: "internal", feedback: "Game changes these fields while resolving a move, but public setters would bypass its rules." },
     { id: "grid", label: "Place and inspect lines", answer: "other", feedback: "Placement and winning-line checks belong to Board." },
-    { id: "get-board", label: "getBoard", answer: "other", feedback: "Returning mutable Board would let callers place or clear marks without Game validation." }
+    { id: "move", label: "makeMove", answer: "public", feedback: "This is the single public command that may change an active match." },
+    { id: "switch", label: "Switch current player", answer: "internal", feedback: "Game performs this only after an accepted non-final move; callers must not trigger it." },
+    { id: "get-board", label: "getBoard", answer: "other", feedback: "Returning mutable Board would let callers place or clear marks without Game validation." },
+    { id: "reset", label: "reset", answer: "public", feedback: "Reset is a confirmed caller operation." },
+    { id: "setters", label: "setStatus / setWinner", answer: "internal", feedback: "Game changes these fields while resolving a move, but public setters would bypass its rules." },
+    { id: "reads", label: "getMark and match getters", answer: "public", feedback: "These reads expose required state without returning mutable Board." }
   ]}
   success="The public API exposes use cases, not internal state changes."
 /></FocusOnly>
@@ -528,7 +521,16 @@ There is no inheritance because none of these statements are true: “Game is a 
 - **Cohesion:** each class keeps related state and behavior together.
 </WalkthroughOnly>
 
-<FocusOnly><ClassRelationshipChallenge /></FocusOnly>
+<FocusOnly><PassiveLearningCards
+  intro="Apply each design tool where it solves a concrete problem in this model."
+  items={[
+    { title: "Player", label: "Immutability + cohesion", body: "Keep name and mark together and fixed. Every member supports one stable identity." },
+    { title: "Board", label: "Encapsulation", body: "Hide the grid and make Board validate every read or change involving cells." },
+    { title: "Game", label: "Single responsibility", body: "Own turn, status, and winner while delegating all grid calculations to Board." },
+    { title: "Relationships", label: "Composition", body: "Game has one Board and two Players. None of these classes is a specialized form of another." }
+  ]}
+  conclusion="Use a principle to protect a rule: stable identity, safe grid mutation, focused match flow, and honest has-a relationships."
+/></FocusOnly>
 </LessonStep>
 
 <LessonStep id="pattern-decisions">
@@ -554,19 +556,15 @@ Before choosing a pattern, ask what rule has multiple versions **right now**. Th
 </PatternDecision>
 </WalkthroughOnly>
 
-<FocusOnly><ClassificationChallenge
-  instruction="Classify each design idea against the confirmed requirements."
-  callout="Pattern discipline: add an abstraction only when a real behavior varies."
-  categories={[{ id: "now", label: "Use now" }, { id: "later", label: "Use later" }, { id: "no", label: "Do not use" }]}
+<FocusOnly><PassiveLearningCards
+  intro="A named pattern is useful only when the requirement creates the variation that pattern manages. The basic game needs no formal GoF pattern."
   items={[
-    { id: "composition", label: "Compose Game from objects", answer: "now", feedback: "Game needs one Board and two Players now, so composition directly models the relationship." },
-    { id: "strategy", label: "Strategy for human game", answer: "no", feedback: "The fixed game has no interchangeable move-selection algorithms." },
-    { id: "bot-strategy", label: "Strategy for several bots", answer: "later", feedback: "Easy, medium, and hard bots would create genuinely replaceable algorithms." },
-    { id: "singleton", label: "Singleton Game", answer: "no", feedback: "Multiple games should be possible; global state would make tests and tournaments harder." },
-    { id: "factory", label: "Factory for two objects", answer: "no", feedback: "Constructors are clear while there is only one simple setup path." },
-    { id: "observer", label: "Observer for UI updates", answer: "no", feedback: "The confirmed scope has no UI or notification subscribers." }
+    { title: "Strategy", label: "Later, if behavior varies", body: "Use it when easy, medium, and hard bots provide multiple move-selection algorithms—not for two human players." },
+    { title: "Singleton", label: "Do not use", body: "A normal Game object supports independent matches and isolated tests. Global state would make both harder." },
+    { title: "Factory", label: "Not yet", body: "Constructors are clear while there is one simple setup. Add a factory only when creation paths genuinely vary." },
+    { title: "Observer", label: "Outside scope", body: "The confirmed version has no UI subscribers or notification requirement, so there is nothing to observe." }
   ]}
-  success="Use composition now; wait for real variation before adding a pattern."
+  conclusion="Composition is the right structural choice now. Wait for an extension to create a second implementation before adding an interface or pattern."
 /></FocusOnly>
 </LessonStep>
 
@@ -606,17 +604,7 @@ This is the complete Java version. The main method changes state only after vali
 </WalkthroughOnly>
 
 <FocusOnly>
-<div className="grid gap-2 sm:grid-cols-3">
-  <div className="rounded-lg border border-[var(--line)] bg-[var(--paper-2)] p-3"><strong>Player</strong><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Keeps immutable name and mark.</p></div>
-  <div className="rounded-lg border border-[var(--line)] bg-[var(--paper-2)] p-3"><strong>Board</strong><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Validates and changes cells.</p></div>
-  <div className="rounded-lg border border-[var(--line)] bg-[var(--paper-2)] p-3"><strong>Game</strong><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Validates and coordinates the match.</p></div>
-</div>
-<ol className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold leading-5 text-[var(--muted)]">
-  <li className="rounded-lg bg-[var(--paper-2)] px-3 py-2">1. Game checks status and turn.</li>
-  <li className="rounded-lg bg-[var(--paper-2)] px-3 py-2">2. Board validates and places.</li>
-  <li className="rounded-lg bg-[var(--paper-2)] px-3 py-2">3. Board reports grid facts.</li>
-  <li className="rounded-lg bg-[var(--paper-2)] px-3 py-2">4. Game ends or switches turn.</li>
-</ol>
+<ImplementationCodeMap />
 </FocusOnly>
 </LessonStep>
 
@@ -635,12 +623,12 @@ This is the complete Java version. The main method changes state only after vali
 <OrderQuestion
   prompt="In what order should Game.makeMove process one request?"
   items={[
-    { id: "status", label: "Check game status" },
-    { id: "turn", label: "Check current player" },
-    { id: "coordinate", label: "Validate the coordinate" },
-    { id: "place", label: "Place the mark" },
     { id: "result", label: "Evaluate win or draw" },
-    { id: "switch", label: "Switch turn only if play continues" }
+    { id: "turn", label: "Check current player" },
+    { id: "place", label: "Place the mark" },
+    { id: "status", label: "Check game status" },
+    { id: "switch", label: "Switch turn only if play continues" },
+    { id: "coordinate", label: "Validate the coordinate" }
   ]}
   correctOrder={["status", "turn", "coordinate", "place", "result", "switch"]}
   explanation="Every expected rejection must happen before the corresponding state change. Only an accepted placement may lead to result calculation or a turn switch."
@@ -771,11 +759,23 @@ enum MoveResult {
 </LessonStep>
 
 <LessonStep id="move-result-check">
+<WalkthroughOnly>
 <ChoiceQuestion prompt="Why return MoveResult instead of throwing for an occupied cell?" choices={[
   { id: "expected", label: "An occupied cell is an expected user outcome", correct: true, feedback: "A result enum makes normal rejection explicit and keeps exceptions for broken construction or programmer misuse." },
   { id: "exceptions", label: "Java exceptions cannot contain messages", correct: false, feedback: "Exceptions can carry messages, but that does not make them the best model for expected control flow." },
   { id: "boolean", label: "MoveResult uses less memory than boolean", correct: false, feedback: "The design goal is clarity: the enum explains exactly why the move failed." }
 ]} />
+</WalkthroughOnly>
+<FocusOnly><PassiveLearningCards
+  intro="Choose the return type by asking whether the failure is an expected outcome or a broken programming contract."
+  items={[
+    { title: "Expected move rejection", label: "Return MoveResult", body: "Occupied cells, wrong turns, bad coordinates, and completed games are normal requests the caller must handle." },
+    { title: "Invalid construction", label: "Throw an exception", body: "A missing name or duplicate player mark means the program tried to create an object that cannot be valid." },
+    { title: "Why not boolean?", label: "Preserve the reason", body: "false says only that a move failed. MoveResult tells the caller exactly which expected rule rejected it." },
+    { title: "Why not strings?", label: "Use a closed vocabulary", body: "An enum prevents spelling mistakes and makes every supported outcome visible to the compiler." }
+  ]}
+  conclusion="Return values describe expected outcomes; exceptions protect construction and programming contracts."
+/></FocusOnly>
 </LessonStep>
 
 <LessonStep id="player-code">
@@ -1138,7 +1138,7 @@ public Game(Player first, Player second) {
     board = new Board();
     reset();
 }` },
-  { id: "guards", label: "Reject moves", code: `public MoveResult makeMove(Player player, int row, int col) {
+  { id: "move", label: "Complete move", code: `public MoveResult makeMove(Player player, int row, int col) {
     if (status != GameStatus.IN_PROGRESS)
         return MoveResult.GAME_ALREADY_OVER;
     if (player != currentPlayer)
@@ -1148,19 +1148,18 @@ public Game(Player first, Player second) {
     if (!board.place(row, col, player.getMark()))
         return MoveResult.CELL_OCCUPIED;
 
-    // Only an accepted placement continues.
-}` },
-  { id: "resolve", label: "Resolve move", code: `if (board.hasWinningLine(player.getMark())) {
-    winner = player;
-    status = player.getMark() == Mark.X
-            ? GameStatus.X_WON : GameStatus.O_WON;
-} else if (board.isFull()) {
-    status = GameStatus.DRAW;
-} else {
-    currentPlayer = currentPlayer == playerX ? playerO : playerX;
-}
+    if (board.hasWinningLine(player.getMark())) {
+        winner = player;
+        status = player.getMark() == Mark.X
+                ? GameStatus.X_WON : GameStatus.O_WON;
+    } else if (board.isFull()) {
+        status = GameStatus.DRAW;
+    } else {
+        currentPlayer = currentPlayer == playerX ? playerO : playerX;
+    }
 
-return MoveResult.ACCEPTED;` },
+    return MoveResult.ACCEPTED;
+}` },
   { id: "support", label: "Reset & reads", code: `public void reset() {
     board.clear();
     currentPlayer = playerX;

@@ -137,13 +137,7 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
               <AnimatePresence mode="wait" initial={false} custom={direction}>
                 <m.section key={activeStep.id} custom={direction} initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * 24 }} animate={{ opacity: 1, x: 0 }} exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * -18 }} transition={{ duration: reducedMotion ? 0.01 : 0.2 }} className="focus-card flex h-full min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-[var(--line)] bg-white shadow-[0_12px_38px_rgba(23,28,36,0.07)]">
                   <header className="shrink-0 border-b border-[var(--line)] px-4 py-2 sm:px-6 sm:py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="section-kicker text-[var(--accent-dark)]">{activeStep.eyebrow} · {activeStep.minutes} min</p>
-                        <h1 ref={headingRef} tabIndex={-1} className="mt-1.5 text-xl font-extrabold leading-tight tracking-[-0.025em] outline-none sm:text-2xl">{activeStep.title}</h1>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-[var(--paper-2)] px-2.5 py-1 font-mono text-[10px] font-bold text-[var(--faint)] sm:hidden">{activeIndex + 1}/{steps.length}</span>
-                    </div>
+                    <h1 ref={headingRef} tabIndex={-1} className="text-xl font-extrabold leading-tight tracking-[-0.025em] outline-none sm:text-2xl">{activeStep.title}</h1>
                   </header>
                   <div className="focus-card-body min-h-0 flex-1 overflow-hidden p-3 sm:p-6">
                     <FocusStepProvider activeStepId={activeStep.id}>{children}</FocusStepProvider>

@@ -28,6 +28,7 @@ Read this file completely before adding or changing Focus Mode for any LLD topic
   - one objective-focused title;
   - a short eyebrow;
   - a realistic minute estimate.
+- Keep eyebrow and minute metadata available for navigation and planning, but do not render it inside the active card. The card header shows only the objective-focused title; show the current step count only once in the shell header.
 - Preserve stable IDs when redesigning a phase unless breaking old direct links is explicitly approved.
 - Keep the route, ordered learning path, MDX step IDs, phase labels, and displayed step count synchronized.
 
@@ -68,7 +69,7 @@ Do not jump directly from a final answer in one phase to an unexplained exercise
 - Never reduce text below a readable size to make a slide fit. Simplify, use tabs, reveal one explanation at a time, or split the objective.
 - Teach vocabulary and principles just-in-time, immediately before the exercise that uses them, not in a separate pre-lesson.
 - Group related boilerplate code (getters, reset, support methods) into tabbed views rather than giving each method its own slide.
-- Keep the overall interactive-to-passive ratio above 40 percent. If a phase drops below 30 percent interactive, add predict-before-reveal or classification exercises before passive code or information slides.
+- There is no interaction quota. Prefer a passive explanation when it teaches the idea more directly, and never add a quiz merely to raise an interaction percentage.
 
 ### Recommended Start pattern
 
@@ -89,7 +90,7 @@ Do not jump directly from a final answer in one phase to an unexplained exercise
 ### Recommended Entities pattern
 
 - Introduce noun extraction and explicitly state that not every noun deserves a class.
-- Before asking the learner to classify candidates, teach the four modeling choices—class, enum, field, and leave out—with a short interactive matching exercise. The learner must understand the test for each choice before applying it:
+- Before asking the learner to classify candidates, teach the four modeling choices—class, enum, field, and leave out—with a short passive lesson or matching exercise. Choose interaction only when matching the choices creates useful reasoning. The learner must understand the test for each choice before applying it:
   - Class: owns information that changes while the program runs AND enforces rules on that information.
   - Enum: a value from a small fixed set with no independent changing state.
   - Field: a simple value with no behavior in this scope, belonging inside another class.
@@ -106,7 +107,7 @@ Teach this repeatable sequence:
 
 > Requirement → responsibility → state → behavior → public API → relationships → principles → patterns
 
-- Before the first class design exercise, teach whichever design principles this topic's design will exercise. Use a "match the principle to the failure it prevents" interaction. Each principle is introduced with the concrete problem it solves, not with a textbook definition.
+- Before the first class design exercise, teach whichever design principles this topic's design will exercise. A matcher is useful when the failures are plausibly confusable; otherwise use a compact passive explanation. Each principle is introduced with the concrete problem it solves, not with a textbook definition.
 - Choose from the principle catalog below or check if any additional LLD principle is more suited for the current problem satement. A beginner topic may need only three or four; a harder topic that exercises interfaces, concurrency, or algorithmic separation may need more:
   - **Encapsulation:** without it, a caller changes state directly and skips validation.
   - **Single responsibility:** without it, unrelated concerns share a class and a change in one breaks the other.
@@ -126,9 +127,10 @@ Teach this repeatable sequence:
 - Derive state and behavior from requirements rather than presenting an unexplained class table.
 - Distinguish public use cases from internal behavior and another class's responsibility.
 - Apply the taught principles naturally during each class's classification exercise. Reference the principle by name only after the learner has seen the concrete failure it prevents.
+- When a classification exercise includes a principle callout, reveal it only after `Check answers`; never place a principle hint above unanswered options when it gives away the classification.
 - Check whether a proposed public API leaks mutable internals or lets a caller bypass invariants.
 - Discuss patterns only after identifying a real source of variation. Explain both why a pattern is rejected now and what future requirement could justify it.
-- Finish with a compact final blueprint covering state, behavior, API, relationships, enums, and protected invariants.
+- Finish with a compact final blueprint covering state, behavior, API, relationships, enums, and protected invariants. A tabbed, generated sketch-style UML image for each class is appropriate when each tab also includes a short diagram reading and the principle the class demonstrates.
 
 ### Recommended Implementation pattern
 
@@ -138,7 +140,7 @@ Teach this repeatable sequence:
 - Before each major code block, add a predict-before-reveal exercise. Ask the learner to predict what checks a method performs, what order guards execute in, or what result a method returns given a specific state. Then show the code as verification of the prediction.
 - Group an entire class's code (validation, core logic, and support methods) into a tabbed code view when the class has more than two Focus-visible methods. Each tab should cover one coherent responsibility: validate and mutate, detect outcomes, support and reset.
 - Keep each tab focused on one coherent method or concept. Do not place unrelated methods in the same tab.
-- Show complete production-quality code in the walkthrough; use readable excerpts in Focus Mode.
+- Show complete production-quality code in the walkthrough; use readable excerpts in Focus Mode. Syntax-color all Focus Mode code. An excerpt may omit unrelated methods, but every method or function it shows must be complete from signature through closing brace—never show a detached partial body.
 - Teach difficult concepts before relying on them in code.
 - Connect every guard, state mutation, result enum, and helper back to a requirement or invariant.
 - Include deterministic scenarios that prove accepted and rejected paths.
@@ -169,12 +171,14 @@ Use interaction only when it practices reasoning. Suitable patterns include:
 
 Avoid interaction that only makes the learner click through prose.
 
+When a passive lesson can state a modeling rule, design tool, or rejected pattern more clearly than a forced classification, use the passive lesson. The goal is comprehension, not activity completion.
+
 ### Submission and feedback
 
 - Let the learner make the complete decision before submission when the items belong to one model.
 - Disable submission until the minimum required input is complete.
 - After submission, show a compact score or overall result.
-- Use icons and explicit text such as `Correct`, `Incorrect`, `Correct position`, or `Wrong position`. Never depend on green and red alone.
+- Use icons and accessible correctness text. A compact flow may show only a visible check or cross when its button label or live feedback announces `Correct` or `Incorrect`; never depend on green and red alone.
 - Explain why every option is right or wrong.
 - Reveal only one detailed explanation at a time when showing all explanations would overflow the card.
 - Automatically select the first incorrect item for review; select the first item when everything is correct.
@@ -185,8 +189,9 @@ Avoid interaction that only makes the learner click through prose.
 ### Ordering and flow challenges
 
 - Present choices in a fixed scrambled order.
+- Scramble candidates deliberately in every ordering and classification list. Do not group items by their correct category or place them in the same order as the solution.
 - Keep the learner's sequence visible after checking.
-- Mark each position with icon, text, and color.
+- Mark each position with an icon and color, plus accessible correctness text. Visible `Correct position` and `Wrong position` labels are optional when they add clutter without adding meaning.
 - Let every chosen row remain editable so the learner can rearrange and check again.
 - Do not reveal the correct item beside every wrong position if the intended learning loop is retry-first.
 - Offer `Reveal solution` after an incomplete attempt.
@@ -237,6 +242,7 @@ Focus Mode is a slide deck, not a vertically scrolling document.
 - Use `h-full`, `min-h-0`, bounded flex children, and `overflow-hidden` intentionally throughout the shell and large interactive views.
 - Do not solve overflow with an inner vertical scrollbar.
 - Use responsive grids to reduce laptop height while preserving readable mobile rows.
+- Compact simulations around the primary action and the minimum state needed to explain it. Remove duplicated labels, secondary controls, and verbose logs before shrinking text or allowing overflow.
 - Validate the tallest states, not only the initial state:
   - every option selected;
   - partially and fully incorrect feedback;
@@ -260,6 +266,7 @@ Focus Mode is a slide deck, not a vertically scrolling document.
 
 - Prefer code-native diagrams when the learner manipulates the state.
 - Use generated images only for conceptual scenes or object flows that benefit from illustration.
+- Generated sketch UML class diagrams may be used in a final blueprint when tabs keep each class readable and the surrounding text explains both the diagram and its design principle.
 - Keep images inside a bounded flex region with `min-height: 0`.
 - Use `max-width: 100%`, `max-height: 100%`, and `object-fit: contain` so an image scales against both available width and height.
 - Reserve space for captions, answers, and controls before sizing the image.
@@ -303,7 +310,7 @@ Focus Mode is a slide deck, not a vertically scrolling document.
 
 The following component types support OOP teaching, interview skills, and leaner implementation across all topics:
 
-- **Vocabulary matcher:** an interactive exercise where the learner matches a term to its test or the failure it prevents. In the entity phase the terms are the modeling choices (class, enum, field, leave out). In the class design phase the terms are whichever principles the topic exercises, drawn from the principle catalog. The component accepts any list of terms and definitions as props so it works for any topic and any subset of the catalog.
+- **Vocabulary lesson or matcher:** a passive card set or interactive exercise where the learner learns a term's test or the failure it prevents. Use the matcher only when choosing among definitions creates insight. The component accepts topic data as props.
 - **Predict-before-reveal challenge:** the learner predicts what a method checks, returns, or the order of guards before seeing the actual code. Use multi-select for "what does it check" and ordering for "in what order."
 - **Tabbed code view:** displays multiple related code excerpts from one class as tabs instead of consecutive slides. Each tab has a label, syntax-colored code, and horizontal scroll for long lines.
 - **Tabbed concept view:** groups two or three related conceptual notes (such as ownership, enum usage, and pattern restraint) into tabs instead of consecutive info slides.
@@ -353,7 +360,9 @@ Before considering Focus Mode complete:
 - [ ] Interview dynamics (time budget, talking aloud, interviewer signals) appear in the Start phase.
 - [ ] Interview dialogue rhythm is demonstrated before the first requirements question exercise.
 - [ ] Extensions include an interactive verbal-presentation exercise, not only a static explanation.
-- [ ] The implementation phase interactive ratio is at or above 30 percent.
+- [ ] Every interaction earns its place by practicing reasoning; no interaction exists only to satisfy a quota.
 - [ ] Related code from one class is grouped into tabbed views rather than consecutive single-method slides.
 - [ ] A predict-before-reveal exercise precedes every major code block (Board code, Game code).
 - [ ] Every tabbed code view fits at both laptop and mobile widths for every tab.
+- [ ] Focus Mode code is syntax-colored, and every visible method or function is complete.
+- [ ] Compact simulations remove duplicated state and secondary controls before reducing readable text.

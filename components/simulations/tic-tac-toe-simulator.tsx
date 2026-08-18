@@ -84,18 +84,18 @@ export function TicTacToeSimulator({ compact = false }: { compact?: boolean }) {
           {!compact && <p className="mt-6 text-center text-sm font-bold text-[var(--muted)]">Choose an empty cell. Try clicking an occupied cell too.</p>}
         </div>
 
-        <div className={compact ? "min-w-0 p-2.5 sm:p-4" : "p-5 sm:p-7"}>
+        <div className={cn("min-h-0 min-w-0", compact ? "flex flex-col p-2 sm:p-3" : "p-5 sm:p-7")}>
           {compact && <div className="flex flex-wrap gap-1.5"><Badge>Move {moveCount}</Badge><Badge className="bg-[var(--paper-2)] text-[var(--ink)]">{statusLabel}</Badge></div>}
-          <p className="section-kicker">Live object state</p>
-          <div className={cn("mt-3 grid", compact ? "gap-1.5" : "gap-3 sm:grid-cols-3")}>
-            <StateCard label="Game.status" value={result.status} accent="#52a78c" />
-            <StateCard label="Game.current" value={result.status === "IN_PROGRESS" ? `Player ${turn}` : "—"} accent="#f58a4a" />
-            <StateCard label="Board.moves" value={`${moveCount} / 9`} accent="#f7d66f" />
+          {!compact && <p className="section-kicker">Live object state</p>}
+          <div className={cn("grid", compact ? "mt-2 grid-cols-2 gap-1.5" : "mt-3 gap-3 sm:grid-cols-3")}>
+            <StateCard compact={compact} label="Game.status" value={result.status} accent="#52a78c" />
+            <StateCard compact={compact} label="Game.current" value={result.status === "IN_PROGRESS" ? `Player ${turn}` : "—"} accent="#f58a4a" />
+            {!compact && <StateCard label="Board.moves" value={`${moveCount} / 9`} accent="#f7d66f" />}
           </div>
 
-          <div className={cn("rounded-xl border border-[var(--line)]", compact ? "mt-3 p-2.5" : "mt-6 p-4")}>
-            <p className="flex items-center gap-2 text-sm font-extrabold"><Sparkles className="size-4 text-[var(--accent)]" /> What happened</p>
-            <ol aria-live="polite" className={cn("font-mono text-[10px] leading-4 text-[var(--muted)]", compact ? "mt-2" : "mt-3 space-y-2")}>{(compact ? events.slice(0, 1) : events).map((event, index) => <li key={`${event}-${index}`} className={cn("rounded-lg", compact ? "bg-[var(--mint-soft)] px-2 py-1.5 font-medium text-[var(--ink)]" : index === 0 ? "bg-[var(--mint-soft)] px-3 py-2 font-medium text-[var(--ink)]" : "bg-[var(--paper-2)] px-3 py-2 opacity-65")}>{event}</li>)}</ol>
+          <div className={cn(compact ? "mt-2 min-h-0" : "mt-6 rounded-xl border border-[var(--line)] p-4")}>
+            {!compact && <p className="flex items-center gap-2 text-sm font-extrabold"><Sparkles className="size-4 text-[var(--accent)]" /> What happened</p>}
+            <ol aria-live="polite" className={cn("font-mono text-[10px] leading-4 text-[var(--muted)]", !compact && "mt-3 space-y-2")}>{(compact ? events.slice(0, 1) : events).map((event, index) => <li key={`${event}-${index}`} className={cn("rounded-lg", compact ? "bg-[var(--mint-soft)] px-2 py-1.5 font-medium text-[var(--ink)]" : index === 0 ? "bg-[var(--mint-soft)] px-3 py-2 font-medium text-[var(--ink)]" : "bg-[var(--paper-2)] px-3 py-2 opacity-65")}>{event}</li>)}</ol>
           </div>
 
           <div className={cn("flex flex-wrap gap-1.5", compact ? "mt-3" : "mt-6 gap-2")}>
@@ -113,6 +113,6 @@ export function TicTacToeSimulator({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function StateCard({ label, value, accent }: { label: string; value: string; accent: string }) {
-  return <div className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-3"><div className="mb-3 h-1 w-7 rounded-full" style={{ background: accent }} /><p className="font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--faint)]">{label}</p><p className="mt-1 truncate font-mono text-xs font-bold text-[var(--ink)]">{value}</p></div>;
+function StateCard({ label, value, accent, compact = false }: { label: string; value: string; accent: string; compact?: boolean }) {
+  return <div className={cn("rounded-xl border border-[var(--line)] bg-[var(--paper)]", compact ? "p-2" : "p-3")}><div className={cn("h-1 rounded-full", compact ? "mb-1.5 w-5" : "mb-3 w-7")} style={{ background: accent }} /><p className="font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--faint)]">{label}</p><p className={cn("truncate font-mono font-bold text-[var(--ink)]", compact ? "mt-0.5 text-[10px]" : "mt-1 text-xs")}>{value}</p></div>;
 }

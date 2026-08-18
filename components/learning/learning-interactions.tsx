@@ -15,6 +15,68 @@ export type LearningChoice = {
   feedback: string;
 };
 
+type JavaToken = { text: string; kind?: "comment" | "string" | "annotation" | "keyword" | "literal" | "number" | "type" | "method" };
+
+function highlightJava(source: string): JavaToken[] {
+  const pattern = /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|@[A-Za-z_$][\w$]*|\b(?:abstract|assert|boolean|break|byte|case|catch|char|class|const|continue|default|do|double|else|enum|extends|final|finally|float|for|goto|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|record|return|sealed|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|var|void|volatile|while|yield|permits|non-sealed)\b|\b(?:true|false|null)\b|\b(?:0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?)\b|\b[A-Z][A-Za-z0-9_$]*\b|\b[A-Za-z_$][\w$]*(?=\s*\()/g;
+  const tokens: JavaToken[] = [];
+  let cursor = 0;
+  for (const match of source.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) tokens.push({ text: source.slice(cursor, index) });
+    const text = match[0];
+    let kind: JavaToken["kind"];
+    if (text.startsWith("//") || text.startsWith("/*")) kind = "comment";
+    else if (text.startsWith('"') || text.startsWith("'")) kind = "string";
+    else if (text.startsWith("@")) kind = "annotation";
+    else if (/^(true|false|null)$/.test(text)) kind = "literal";
+    else if (/^(?:0[xX][0-9a-fA-F]+|\d)/.test(text)) kind = "number";
+    else if (/^[A-Z]/.test(text)) kind = "type";
+    else if (/^[a-zA-Z_$]/.test(text) && source.slice(index + text.length).match(/^\s*\(/)) kind = "method";
+    else kind = "keyword";
+    tokens.push({ text, kind });
+    cursor = index + text.length;
+  }
+  if (cursor < source.length) tokens.push({ text: source.slice(cursor) });
+  return tokens;
+}
+
+function HighlightedJava({ code }: { code: string }) {
+  return <>{highlightJava(code).map((token, index) => <span key={`${index}-${token.text.slice(0, 8)}`} className={token.kind ? `java-token-${token.kind}` : undefined}>{token.text}</span>)}</>;
+}
+
+export function PassiveLearningCards({ intro, items, conclusion }: { intro: string; items: Array<{ title: string; body: string; label?: string }>; conclusion?: string }) {
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
+    <p className="text-xs leading-5 text-[var(--muted)]">{intro}</p>
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">{items.map((item) => <article key={item.title} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+      {item.label && <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-[var(--accent-dark)]">{item.label}</p>}
+      <h3 className="mt-0.5 !text-xs font-extrabold text-[var(--ink)]">{item.title}</h3>
+      <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{item.body}</p>
+    </article>)}</div>
+    {conclusion && <p className="mt-3 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-3 py-2 text-[10px] font-bold leading-4 text-[var(--ink)]">{conclusion}</p>}
+  </section>;
+}
+
+export function ImplementationCodeMap() {
+  return <section className="grid min-h-0 gap-3">
+    <div className="grid grid-cols-3 gap-2">{[
+      ["Player", "Identity", "Keeps name and mark fixed."],
+      ["Board", "Grid rules", "Validates and changes cells."],
+      ["Game", "Match flow", "Coordinates one complete move."],
+    ].map(([name, role, body]) => <article key={name} className="rounded-lg border border-[var(--line)] bg-[var(--paper-2)] p-2.5">
+      <p className="text-[9px] font-extrabold uppercase tracking-wider text-[var(--accent-dark)]">{role}</p><h3 className="mt-0.5 !text-xs font-extrabold">{name}</h3><p className="mt-1 text-[9px] leading-4 text-[var(--muted)]">{body}</p>
+    </article>)}</div>
+    <ol className="grid min-h-0 grid-cols-2 gap-2">{[
+      ["1", "Game checks", "Status and current player"],
+      ["2", "Board validates", "Coordinate and empty cell"],
+      ["3", "Board reports", "Placement, win, and fullness"],
+      ["4", "Game resolves", "End the match or switch turns"],
+    ].map(([number, title, body]) => <li key={number} className="flex min-h-0 items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2">
+      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--ink)] font-mono text-[10px] font-bold text-white">{number}</span><span><strong className="block text-[10px]">{title}</strong><span className="block text-[9px] leading-4 text-[var(--muted)]">{body}</span></span>
+    </li>)}</ol>
+  </section>;
+}
+
 const frameworkPhases = [
   {
     name: "Requirements",
@@ -383,10 +445,10 @@ export function EntityModelClassifier() {
 
 const responsibilityRules = [
   { id: "occupied", label: "Cell is already occupied", owner: "Board", feedback: "Board stores the cells, so it can check whether the chosen cell is empty." },
-  { id: "range", label: "Position is outside the board", owner: "Board", feedback: "Board knows its size, so it can reject an invalid row or column." },
-  { id: "winner", label: "Three marks form a line", owner: "Board", feedback: "Board stores every mark, so it can check rows, columns, and diagonals." },
   { id: "turn", label: "The wrong player moves", owner: "Game", feedback: "Game remembers the current player, so it can reject anyone else." },
+  { id: "winner", label: "Three marks form a line", owner: "Board", feedback: "Board stores every mark, so it can check rows, columns, and diagonals." },
   { id: "complete", label: "A move happens after the game ends", owner: "Game", feedback: "Game remembers whether the match ended, so it can block another move." },
+  { id: "range", label: "Position is outside the board", owner: "Board", feedback: "Board knows its size, so it can reject an invalid row or column." },
   { id: "change", label: "Switch to the next player", owner: "Game", feedback: "Game controls the turn, so it switches players only after a valid move." },
 ] as const;
 
@@ -461,9 +523,9 @@ export function EntityFlowChallenge() {
         <ol className="mt-2 grid grid-cols-2 gap-1.5">{order.map((id, index) => {
           const item = entityFlowItems.find((flowItem) => flowItem.id === id)!;
           const positionIsCorrect = correctOrder[index] === id;
-          return <li key={id}><button type="button" onClick={() => removeStep(id)} aria-label={`Remove step ${index + 1}: ${item.label}`} className={cn("flex h-full w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-left text-[9px] font-bold leading-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", !checked && "border-transparent bg-white", checked && positionIsCorrect && "border-[#8bcab3] bg-[var(--mint-soft)] text-[#24785f]", checked && !positionIsCorrect && "border-[#efaaa0] bg-[#fff0ed] text-[#a23d2e]")}>
+          return <li key={id}><button type="button" onClick={() => removeStep(id)} aria-label={`${checked ? positionIsCorrect ? "Correct. " : "Incorrect. " : ""}Remove step ${index + 1}: ${item.label}`} className={cn("flex h-full w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-left text-[9px] font-bold leading-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", !checked && "border-transparent bg-white", checked && positionIsCorrect && "border-[#8bcab3] bg-[var(--mint-soft)] text-[#24785f]", checked && !positionIsCorrect && "border-[#efaaa0] bg-[#fff0ed] text-[#a23d2e]")}>
             <span className={cn("grid size-4 shrink-0 place-items-center rounded-full font-mono text-[8px]", !checked && "bg-[var(--ink)] text-white", checked && positionIsCorrect && "bg-[#24785f] text-white", checked && !positionIsCorrect && "bg-[#a23d2e] text-white")}>{checked ? positionIsCorrect ? <Check className="size-3" /> : <X className="size-3" /> : index + 1}</span>
-            <span><span className="block">{index + 1}. {item.label}</span>{checked && <span className="block text-[8px] font-extrabold uppercase tracking-wide">{positionIsCorrect ? "Correct position" : "Wrong position"}</span>}</span>
+            <span>{index + 1}. {item.label}</span>
           </button></li>;
         })}</ol>
         {checked && <p className={cn("mt-2 text-xs font-extrabold", isCorrect ? "text-[#24785f]" : "text-[#a23d2e]")} aria-live="polite">{correctCount} of {entityFlowItems.length} positions correct</p>}
@@ -519,7 +581,7 @@ export function ClassificationChallenge({ instruction, callout, categories, item
 
   return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
     <p className="text-xs leading-5 text-[var(--muted)]">{instruction}</p>
-    {callout && <p className="mt-1 rounded-md bg-[var(--mint-soft)] px-2 py-1 text-[9px] font-bold leading-4 text-[var(--ink)]">{callout}</p>}
+    {checked && callout && <p className="mt-2 rounded-md bg-[var(--mint-soft)] px-2 py-1 text-[9px] font-bold leading-4 text-[var(--ink)]">{callout}</p>}
     <div className="mt-2 grid gap-1.5 sm:grid-cols-2">{items.map((item) => {
       const selected = categories.find((category) => category.id === answers[item.id]);
       const correct = categories.find((category) => category.id === item.answer)!;
@@ -564,7 +626,7 @@ export function PredictionChecklist({ prompt, items, success }: { prompt: string
 }
 
 export function TabbedCodeView({ tabs, label }: { tabs: Array<{ id: string; label: string; code: string }>; label: string }) {
-  return <section aria-label={label} className="flex h-full min-h-0 flex-col rounded-xl border border-[#2e3947] bg-[#18212c] text-white"><Tabs defaultValue={tabs[0].id} className="flex h-full min-h-0 flex-col"><div className="shrink-0 overflow-x-auto border-b border-white/10 p-2"><TabsList className="grid min-w-max grid-flow-col border-white/10 bg-white/5 p-0.5">{tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="whitespace-nowrap px-2.5 py-1.5 text-[10px] text-white/70 data-[state=active]:bg-white data-[state=active]:text-[var(--ink)]">{tab.label}</TabsTrigger>)}</TabsList></div>{tabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="min-h-0 flex-1 overflow-hidden"><pre className="h-full overflow-x-auto overflow-y-hidden p-3 text-[10px] leading-[1.35] sm:p-4 sm:text-[11px]"><code>{tab.code}</code></pre></TabsContent>)}</Tabs></section>;
+  return <section aria-label={label} className="flex h-full min-h-0 flex-col rounded-xl border border-[#2e3947] bg-[#18212c] text-white"><Tabs defaultValue={tabs[0].id} className="flex h-full min-h-0 flex-col"><div className="shrink-0 overflow-x-auto border-b border-white/10 p-2"><TabsList className="grid min-w-max grid-flow-col border-white/10 bg-white/5 p-0.5">{tabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="whitespace-nowrap px-2.5 py-1.5 text-[10px] text-white/70 data-[state=active]:bg-white data-[state=active]:text-[var(--ink)]">{tab.label}</TabsTrigger>)}</TabsList></div>{tabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="min-h-0 flex-1 overflow-hidden"><pre className="h-full overflow-x-auto overflow-y-hidden p-3 text-[10px] leading-[1.35] sm:p-4 sm:text-[11px]"><code><HighlightedJava code={tab.code} /></code></pre></TabsContent>)}</Tabs></section>;
 }
 
 export function TabbedConceptView({ tabs }: { tabs: Array<{ id: string; label: string; title: string; body: string }> }) {
@@ -598,19 +660,17 @@ export function ClassRelationshipChallenge() {
 }
 
 const classBlueprints = {
-  player: { name: "Player", state: "name, mark", behavior: "validate and expose identity", api: "getName(), getMark()", principle: "Immutability and cohesion" },
-  board: { name: "Board", state: "private Mark[][] cells", behavior: "validate, place, detect lines/fullness, clear, read", api: "Used by Game; never returned", principle: "Encapsulation and information ownership" },
-  game: { name: "Game", state: "board, players, currentPlayer, winner, status", behavior: "validate and coordinate one move; reset", api: "makeMove(), reset(), getMark(), match getters", principle: "Single responsibility and composition" },
+  player: { image: "/images/tic-tac-toe-player-class.png", alt: "Sketch UML diagram of the Player class", diagram: "Two private fields form one stable identity. Construction sets them once, and getters provide safe reads.", principle: "Immutability and cohesion prevent a player's mark changing mid-game." },
+  board: { image: "/images/tic-tac-toe-board-class.png", alt: "Sketch UML diagram of the Board class", diagram: "Board hides the cell grid and owns every operation decided by inspecting those cells.", principle: "Encapsulation keeps validation beside mutable grid state, so callers cannot bypass placement rules." },
+  game: { image: "/images/tic-tac-toe-game-class.png", alt: "Sketch UML diagram of the Game class", diagram: "Game composes one Board and two Players, then coordinates a move from validation to result.", principle: "Single responsibility and composition separate match flow from grid algorithms." },
 } as const;
 
 export function FinalClassBlueprint() {
-  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
-    <Tabs defaultValue="player">
+  return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-4">
+    <Tabs defaultValue="player" className="flex min-h-0 flex-1 flex-col">
       <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="player" className="py-1.5 text-xs">Player</TabsTrigger><TabsTrigger value="board" className="py-1.5 text-xs">Board</TabsTrigger><TabsTrigger value="game" className="py-1.5 text-xs">Game</TabsTrigger></TabsList>
-      {Object.entries(classBlueprints).map(([id, model]) => <TabsContent key={id} value={id} className="mt-2 rounded-lg border border-[var(--line)] bg-white p-3"><h3 className="!text-sm font-extrabold">{model.name}</h3><dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px] leading-4"><dt className="font-extrabold text-[var(--faint)]">State</dt><dd>{model.state}</dd><dt className="font-extrabold text-[var(--faint)]">Behavior</dt><dd>{model.behavior}</dd><dt className="font-extrabold text-[var(--faint)]">Public API</dt><dd>{model.api}</dd><dt className="font-extrabold text-[var(--faint)]">Principle</dt><dd>{model.principle}</dd></dl></TabsContent>)}
+      {Object.entries(classBlueprints).map(([id, model]) => <TabsContent key={id} value={id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={model.image} alt={model.alt} width={1536} height={1024} className="h-full w-full object-contain" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--ink)]">Read the diagram: </strong>{model.diagram}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{model.principle}</p></div></article></TabsContent>)}
     </Tabs>
-    <div className="mt-2 grid grid-cols-2 gap-1.5 text-[9px] font-bold leading-4"><p className="rounded-md bg-white px-2 py-1.5">Game → one Board + two Players</p><p className="rounded-md bg-white px-2 py-1.5">Enums → Mark, GameStatus, MoveResult</p></div>
-    <ul className="mt-2 grid gap-1 text-[9px] font-bold leading-4 text-[var(--muted)] sm:grid-cols-2"><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> Every requirement has an owner.</li><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> No public API bypasses Game rules.</li><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> Mutable state stays private.</li><li className="flex gap-1"><Check className="size-3 shrink-0 text-[#24785f]" /> No pattern exists without variation.</li></ul>
   </section>;
 }
 
@@ -744,7 +804,7 @@ export function FocusCode({ label, code }: { label: string; code: string }) {
   return (
     <div className="focus-code overflow-hidden rounded-xl border border-[#2e3947] bg-[#18212c] text-white">
       <div className="border-b border-white/10 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-[#9fcfbe]">{label}</div>
-      <pre className="overflow-x-auto p-3 text-[11px] leading-[1.45] sm:p-4 sm:text-xs"><code>{code}</code></pre>
+      <pre className="overflow-x-auto p-3 text-[11px] leading-[1.45] sm:p-4 sm:text-xs"><code><HighlightedJava code={code} /></code></pre>
     </div>
   );
 }
