@@ -132,6 +132,15 @@ Teach this repeatable sequence:
 - Discuss patterns only after identifying a real source of variation. Explain both why a pattern is rejected now and what future requirement could justify it.
 - Finish with a compact final blueprint covering state, behavior, API, relationships, enums, and protected invariants. A tabbed, generated sketch-style UML image for each class is appropriate when each tab also includes a short diagram reading and the principle the class demonstrates.
 
+### End-of-Entities checkpoint
+
+- End the Entities phase with one passive `Review the final entity model` slide after the entity-flow exercise and before Class Design.
+- Show every finalized class, interface, and immutable value with one short sentence explaining how it helps satisfy the requirements.
+- Include compact supporting groups for enums, simple fields, infrastructure where relevant, and concepts deliberately left out.
+- Finish with one relationship sentence explaining how the state owners, coordinator, and replaceable behavior work together.
+- Use a compact grouped table that is readable at mobile and laptop sizes without tabs, reveal controls, interaction, or vertical scrolling.
+- Treat this slide as the contract for Class Design: later fields, methods, and principles must derive from the finalized model shown here.
+
 ### Recommended Implementation pattern
 
 - Start with a code map that connects each class to its responsibility.

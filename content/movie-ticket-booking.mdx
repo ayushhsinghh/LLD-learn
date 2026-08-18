@@ -1,7 +1,7 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { MovieTicketBookingSimulator } from "@/components/simulations/movie-ticket-booking-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
-import { PassiveLearningCards, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, FocusCode, ChoiceQuestion } from "@/components/learning/learning-interactions"
+import { PassiveLearningCards, EntityModelSummary, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, FocusCode, ChoiceQuestion } from "@/components/learning/learning-interactions"
 import { MovieOwnershipQuiz, MovieHoldFlow, MovieStateMachine, MovieClassBlueprint, MovieImplementationMap } from "@/components/learning/movie-ticket-booking-focus"
 
 <LessonStep id="movie-orientation"><FocusOnly><ConceptImage
@@ -84,6 +84,25 @@ import { MovieOwnershipQuiz, MovieHoldFlow, MovieStateMachine, MovieClassBluepri
 
 <LessonStep id="movie-ownership"><FocusOnly><MovieOwnershipQuiz /></FocusOnly></LessonStep>
 <LessonStep id="movie-entity-flow"><FocusOnly><MovieHoldFlow /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-entity-summary"><FocusOnly><EntityModelSummary
+  items={[
+    { name: "Movie", kind: "Immutable value", purpose: "Keeps a movie's stable ID and title." },
+    { name: "Seat", kind: "Immutable value", purpose: "Identifies one permanent physical seat." },
+    { name: "Screen", kind: "Class", purpose: "Owns the permanent physical seat layout." },
+    { name: "ShowSeat", kind: "Class", purpose: "Owns one seat's state for one screening." },
+    { name: "Show", kind: "Class", purpose: "Protects group seat changes and the per-show lock." },
+    { name: "SeatHold", kind: "Immutable value", purpose: "Records an accepted temporary seat claim." },
+    { name: "Booking", kind: "Immutable value", purpose: "Records a completed confirmation." },
+    { name: "BookingService", kind: "Class", purpose: "Coordinates lookup, IDs, holds, and bookings." },
+    { name: "HoldResult", kind: "Immutable value", purpose: "Returns a hold status and accepted hold." },
+    { name: "ConfirmationResult", kind: "Immutable value", purpose: "Returns a confirmation status and booking." }
+  ]}
+  enums={["SeatState", "HoldStatus", "ConfirmationStatus"]}
+  fields={["user ID", "show ID", "start time", "expiry time"]}
+  omitted={["User class", "Payment", "Refund"]}
+  relationship="Screen owns physical Seats; Show owns per-screening ShowSeats; BookingService records accepted holds and bookings."
+/></FocusOnly></LessonStep>
 
 <LessonStep id="movie-principles"><FocusOnly><ClassificationChallenge
   instruction="Match each concrete failure to the design principle that prevents it."

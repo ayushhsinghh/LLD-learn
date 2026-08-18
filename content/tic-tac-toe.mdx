@@ -1,7 +1,7 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { TicTacToeSimulator } from "@/components/simulations/tic-tac-toe-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
-import { ClarificationAnswerDeck, ClarificationQuestionPicker, ClassificationChallenge, ClassDesignIntroduction, EntityClassPicker, EntityFlowChallenge, EntityModelClassifier, EntityResponsibilityQuiz, FinalClassBlueprint, FocusEntityIntroduction, FocusSpec, ImplementationCodeMap, InterviewDialogueExample, InterviewDynamicsGuide, PassiveLearningCards, PredictionChecklist, PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, OrderQuestion, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
+import { ClarificationAnswerDeck, ClarificationQuestionPicker, ClassificationChallenge, ClassDesignIntroduction, EntityClassPicker, EntityFlowChallenge, EntityModelClassifier, EntityModelSummary, EntityResponsibilityQuiz, FinalClassBlueprint, FocusEntityIntroduction, FocusSpec, ImplementationCodeMap, InterviewDialogueExample, InterviewDynamicsGuide, PassiveLearningCards, PredictionChecklist, PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, OrderQuestion, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 
 <LessonStep id="orientation">
 <Lead>Design a two-player game that accepts legal moves, alternates turns, and stops with a win or draw.</Lead>
@@ -314,6 +314,22 @@ For each candidate, ask: **what information changes here, and which rule needs t
 </WalkthroughOnly>
 <FocusOnly>
 <EntityFlowChallenge />
+</FocusOnly>
+</LessonStep>
+
+<LessonStep id="entity-summary">
+<FocusOnly>
+<EntityModelSummary
+  items={[
+    { name: "Game", kind: "Class", purpose: "Coordinates turns, match status, winner, and reset." },
+    { name: "Board", kind: "Class", purpose: "Owns cells, placement checks, and winning lines." },
+    { name: "Player", kind: "Class", purpose: "Keeps one player's name and mark together." }
+  ]}
+  enums={["Mark", "GameStatus", "MoveResult"]}
+  fields={["Mark[][] cells", "row", "column"]}
+  omitted={["Cell class", "WinningRule"]}
+  relationship="Game coordinates two Players and one Board; Board protects every rule that needs cell state."
+/>
 </FocusOnly>
 </LessonStep>
 

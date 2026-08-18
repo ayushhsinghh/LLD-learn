@@ -32,7 +32,7 @@ function evaluateRoom(room: Room, start: number, end: number, attendees: number,
   return { room, accepted: true, reason: "suitable and available" };
 }
 
-export function MeetingRoomSchedulerSimulator() {
+export function MeetingRoomSchedulerSimulator({ compact = false }: { compact?: boolean }) {
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [start, setStart] = useState(20);
   const [end, setEnd] = useState(21);
@@ -95,6 +95,15 @@ export function MeetingRoomSchedulerSimulator() {
     setEquipment("PROJECTOR");
     setEvents(["Capacity edge loaded: eight people need a projector. Only Atlas is large enough."]);
   };
+
+  if (compact) return (
+    <section aria-label="Compact meeting room scheduler simulation" className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3">
+      <div className="grid shrink-0 grid-cols-3 gap-1.5">{rooms.map((room) => { const result = evaluations.find((item) => item.room.id === room.id)!; const own = room.meetings.find((meeting) => meeting.createdByUser); return <article key={room.id} className={cn("min-w-0 rounded-lg border bg-white p-2", chosenRoom?.id === room.id && "border-[#68a892]")}><div className="flex items-center justify-between gap-1"><strong className="truncate text-[10px]">{room.name} · {room.capacity}</strong>{own && <button type="button" aria-label={`Cancel ${own.id}`} onClick={() => cancel(room.id, own.id)} className="rounded bg-[#fff0ed] p-1 text-[#a23d2e]"><X className="size-3" /></button>}</div><p className={cn("mt-1 text-[8px] font-bold leading-3", result.accepted ? "text-[#24785f]" : "text-[#a23d2e]")}>{result.reason}</p><p className="mt-1 truncate text-[7px] text-[var(--muted)]">{room.meetings.map((meeting) => `${formatTime(meeting.start)}–${formatTime(meeting.end)}`).join(", ") || "Free"}</p></article>; })}</div>
+      <div className="mt-2 grid shrink-0 grid-cols-4 gap-1.5"><label className="text-[8px] font-bold">Start<select aria-label="Meeting start" value={start} onChange={(event) => setStart(Number(event.target.value))} className="mt-1 h-8 w-full rounded border bg-white px-1 text-[9px]">{timeOptions.slice(0,-1).map((time) => <option key={time} value={time}>{formatTime(time)}</option>)}</select></label><label className="text-[8px] font-bold">End<select aria-label="Meeting end" value={end} onChange={(event) => setEnd(Number(event.target.value))} className="mt-1 h-8 w-full rounded border bg-white px-1 text-[9px]">{timeOptions.slice(1).map((time) => <option key={time} value={time}>{formatTime(time)}</option>)}</select></label><label className="text-[8px] font-bold">People<input aria-label="Attendee count" type="number" min={1} max={12} value={attendees} onChange={(event) => setAttendees(Math.max(1, Number(event.target.value)))} className="mt-1 h-8 w-full rounded border bg-white px-1 text-[9px]" /></label><label className="text-[8px] font-bold">Equipment<select aria-label="Required equipment" value={equipment} onChange={(event) => setEquipment(event.target.value as EquipmentChoice)} className="mt-1 h-8 w-full rounded border bg-white px-1 text-[8px]"><option value="NONE">None</option><option value="PROJECTOR">Projector</option><option value="WHITEBOARD">Whiteboard</option><option value="VIDEO">Video</option></select></label></div>
+      <div className="mt-2 flex shrink-0 flex-wrap gap-1.5"><Button size="sm" variant="accent" onClick={schedule}><CalendarClock /> Schedule</Button><Button size="sm" variant="outline" onClick={reset}><RotateCcw /> Reset</Button><Button size="sm" variant="ghost" onClick={() => { setStart(20); setEnd(21); setAttendees(4); setEquipment("PROJECTOR"); }}>Touching</Button><Button size="sm" variant="ghost" onClick={loadOverlapEdge}>Overlap</Button><Button size="sm" variant="ghost" onClick={loadCapacityEdge}>Capacity</Button></div>
+      <div aria-live="polite" className="mt-2 min-h-0 flex-1 rounded-lg border bg-white p-2"><p className="text-[9px] font-extrabold">Latest result</p><p className="mt-1 text-[9px] leading-4 text-[var(--muted)]">{events[0]}</p><p className="mt-1 text-[8px] font-bold text-[var(--accent-dark)]">Selection: capacity + equipment + no overlap → lowest capacity → room ID.</p></div>
+    </section>
+  );
 
   return (
     <section aria-label="Interactive meeting room scheduler simulation" className="my-10 overflow-hidden rounded-[1.4rem] border border-[var(--line)] bg-white shadow-[5px_6px_0_#dfd9cd]">

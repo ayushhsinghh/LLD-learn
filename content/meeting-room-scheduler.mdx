@@ -1,5 +1,74 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { MeetingRoomSchedulerSimulator } from "@/components/simulations/meeting-room-scheduler-simulator"
+import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
+import { EntityModelSummary } from "@/components/learning/learning-interactions"
+import { MeetingRoomFocusSlide } from "@/components/learning/meeting-room-scheduler-focus"
+
+<LessonStep id="meeting-orientation"><FocusOnly><MeetingRoomFocusSlide id="meeting-orientation" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-framework"><FocusOnly><MeetingRoomFocusSlide id="meeting-framework" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-interview"><FocusOnly><MeetingRoomFocusSlide id="meeting-interview" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-orientation-check"><FocusOnly><MeetingRoomFocusSlide id="meeting-orientation-check" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-incomplete"><FocusOnly><MeetingRoomFocusSlide id="meeting-incomplete" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-dialogue"><FocusOnly><MeetingRoomFocusSlide id="meeting-dialogue" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-questions"><FocusOnly><MeetingRoomFocusSlide id="meeting-questions" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-answers"><FocusOnly><MeetingRoomFocusSlide id="meeting-answers" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-spec"><FocusOnly><MeetingRoomFocusSlide id="meeting-spec" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-entity-transition"><FocusOnly><MeetingRoomFocusSlide id="meeting-entity-transition" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-modeling-vocabulary"><FocusOnly><MeetingRoomFocusSlide id="meeting-modeling-vocabulary" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-types"><FocusOnly><MeetingRoomFocusSlide id="meeting-types" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-values"><FocusOnly><MeetingRoomFocusSlide id="meeting-values" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-ownership"><FocusOnly><MeetingRoomFocusSlide id="meeting-ownership" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-entity-flow"><FocusOnly><MeetingRoomFocusSlide id="meeting-entity-flow" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-entity-summary"><FocusOnly><EntityModelSummary
+  items={[
+    { name: "TimeSlot", kind: "Immutable value", purpose: "Validates boundaries and owns overlap reasoning." },
+    { name: "MeetingRequest", kind: "Immutable value", purpose: "Carries one organizer's scheduling intent." },
+    { name: "Meeting", kind: "Immutable value", purpose: "Records one accepted room reservation." },
+    { name: "Room", kind: "Class", purpose: "Owns suitability and its ordered schedule." },
+    { name: "RoomSelectionStrategy", kind: "Interface", purpose: "Keeps deterministic room choice replaceable." },
+    { name: "MeetingScheduler", kind: "Class", purpose: "Coordinates selection, IDs, indexing, and cancellation." },
+    { name: "ScheduleResult", kind: "Immutable value", purpose: "Returns a named scheduling outcome." }
+  ]}
+  enums={["Equipment", "ScheduleStatus", "CancellationStatus"]}
+  fields={["organizer ID", "attendee count", "room ID", "meeting ID"]}
+  infrastructure={["Room TreeMap schedule"]}
+  omitted={["Calendar class", "Organizer class", "Attendee class"]}
+  relationship="MeetingScheduler delegates selection to Strategy while each Room protects its own ordered schedule."
+/></FocusOnly></LessonStep>
+<LessonStep id="meeting-principles"><FocusOnly><MeetingRoomFocusSlide id="meeting-principles" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-design-method"><FocusOnly><MeetingRoomFocusSlide id="meeting-design-method" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-immutable-values"><FocusOnly><MeetingRoomFocusSlide id="meeting-immutable-values" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-half-open"><FocusOnly><MeetingRoomFocusSlide id="meeting-half-open" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-overlap-practice"><FocusOnly><MeetingRoomFocusSlide id="meeting-overlap-practice" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-room-design"><FocusOnly><MeetingRoomFocusSlide id="meeting-room-design" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-invariant"><FocusOnly><MeetingRoomFocusSlide id="meeting-invariant" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-neighbours"><FocusOnly><MeetingRoomFocusSlide id="meeting-neighbours" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-complexity"><FocusOnly><MeetingRoomFocusSlide id="meeting-complexity" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-strategy-design"><FocusOnly><MeetingRoomFocusSlide id="meeting-strategy-design" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-scheduler-design"><FocusOnly><MeetingRoomFocusSlide id="meeting-scheduler-design" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-blueprint"><FocusOnly><MeetingRoomFocusSlide id="meeting-blueprint" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-code-map"><FocusOnly><MeetingRoomFocusSlide id="meeting-code-map" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-schedule-order"><FocusOnly><MeetingRoomFocusSlide id="meeting-schedule-order" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-code-concepts"><FocusOnly><MeetingRoomFocusSlide id="meeting-code-concepts" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-enums"><FocusOnly><MeetingRoomFocusSlide id="meeting-enums" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-records"><FocusOnly><MeetingRoomFocusSlide id="meeting-records" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-timeslot-predict"><FocusOnly><MeetingRoomFocusSlide id="meeting-timeslot-predict" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-timeslot-code"><FocusOnly><MeetingRoomFocusSlide id="meeting-timeslot-code" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-room-availability-predict"><FocusOnly><MeetingRoomFocusSlide id="meeting-room-availability-predict" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-room-setup-code"><FocusOnly><MeetingRoomFocusSlide id="meeting-room-setup-code" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-room-availability-code"><FocusOnly><MeetingRoomFocusSlide id="meeting-room-availability-code" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-selection-predict"><FocusOnly><MeetingRoomFocusSlide id="meeting-selection-predict" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-strategy-code"><FocusOnly><MeetingRoomFocusSlide id="meeting-strategy-code" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-scheduler-predict"><FocusOnly><MeetingRoomFocusSlide id="meeting-scheduler-predict" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-scheduler-code"><FocusOnly><MeetingRoomFocusSlide id="meeting-scheduler-code" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-demo"><FocusOnly><MeetingRoomFocusSlide id="meeting-demo" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-success-trace"><FocusOnly><MeetingRoomFocusSlide id="meeting-success-trace" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-rejection-proof"><FocusOnly><MeetingRoomFocusSlide id="meeting-rejection-proof" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-simulator"><FocusOnly><MeetingRoomFocusSlide id="meeting-simulator" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-rule-extensions"><FocusOnly><MeetingRoomFocusSlide id="meeting-rule-extensions" /></FocusOnly></LessonStep>
+<LessonStep id="meeting-concurrency-close"><FocusOnly><MeetingRoomFocusSlide id="meeting-concurrency-close" /></FocusOnly></LessonStep>
+
+<WalkthroughOnly>
 
 <Lead>Design a meeting-room scheduler that finds a room with enough space and equipment, prevents time conflicts, and makes the room reusable after cancellation.</Lead>
 
@@ -859,3 +928,5 @@ With thousands of rooms, first index fixed properties such as building, capacity
 <Insight title="A strong spoken interview explanation" tone="mint">
   “I treat every meeting as a half-open interval, so touching boundaries are allowed. Each Room owns a non-overlapping TreeMap schedule and checks only the predecessor and successor before insertion. A Strategy chooses the smallest qualified room, while MeetingScheduler handles IDs and owner-only cancellation. This version is sequential and in memory; concurrency or recurrence would change the boundary explicitly.”
 </Insight>
+
+</WalkthroughOnly>

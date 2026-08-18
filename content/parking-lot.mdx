@@ -1,7 +1,7 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { ParkingLotSimulator } from "@/components/simulations/parking-lot-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
-import { ChoiceQuestion, ClassificationChallenge, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
+import { ChoiceQuestion, ClassificationChallenge, EntityModelSummary, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 import { ParkingClassBlueprint, ParkingClassPicker, ParkingEntryFlow, ParkingImplementationMap, ParkingOwnershipQuiz, ParkingStateProof } from "@/components/learning/parking-lot-focus"
 
 <LessonStep id="parking-orientation"><FocusOnly>
@@ -69,6 +69,23 @@ import { ParkingClassBlueprint, ParkingClassPicker, ParkingEntryFlow, ParkingImp
 
 <LessonStep id="parking-ownership"><FocusOnly><ParkingOwnershipQuiz /></FocusOnly></LessonStep>
 <LessonStep id="parking-entity-flow"><FocusOnly><ParkingEntryFlow /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-entity-summary"><FocusOnly><EntityModelSummary
+  items={[
+    { name: "Vehicle", kind: "Immutable value", purpose: "Carries the plate and vehicle type together." },
+    { name: "ParkingSpot", kind: "Class", purpose: "Owns compatibility, availability, occupation, and release." },
+    { name: "ParkingFloor", kind: "Class", purpose: "Groups and locates spots on one numbered floor." },
+    { name: "ParkingLot", kind: "Class", purpose: "Coordinates entry, tickets, indexes, and exit." },
+    { name: "ParkingTicket", kind: "Immutable value", purpose: "Records the accepted vehicle-to-spot assignment." },
+    { name: "SpotAssignmentStrategy", kind: "Interface", purpose: "Keeps the candidate ranking policy replaceable." },
+    { name: "SpotSelection", kind: "Immutable value", purpose: "Returns the selected floor and spot together." },
+    { name: "ParkingResult", kind: "Immutable value", purpose: "Returns a named status and optional ticket." }
+  ]}
+  enums={["VehicleType", "SpotType", "ParkingStatus", "ExitStatus"]}
+  fields={["plate", "floor number", "spot ID", "ticket ID"]}
+  omitted={["gate hardware", "payment", "address"]}
+  relationship="ParkingLot coordinates floors, delegates ranking to Strategy, and lets each ParkingSpot own occupation."
+/></FocusOnly></LessonStep>
 
 <LessonStep id="parking-principles"><FocusOnly><ClassificationChallenge
   instruction="Match each concrete failure to the design principle that prevents it."

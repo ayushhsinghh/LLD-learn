@@ -66,6 +66,7 @@ export const lessons: Lesson[] = [
     duration: "45 min",
     summary: "Turn time ranges into precise interval rules, choose the smallest suitable available room, and test the design with complete Java and an interactive schedule.",
     accent: "#7fc7ae",
+    focusHref: "/problems/meeting-room-scheduler/learn/",
   },
   {
     slug: "splitwise",

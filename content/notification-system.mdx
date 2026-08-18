@@ -1,7 +1,7 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { NotificationSystemSimulator } from "@/components/simulations/notification-system-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
-import { PassiveLearningCards, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, ChoiceQuestion } from "@/components/learning/learning-interactions"
+import { PassiveLearningCards, EntityModelSummary, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, ChoiceQuestion } from "@/components/learning/learning-interactions"
 import { NotificationOwnershipQuiz, NotificationDeliveryFlow, NotificationJobStateMachine, NotificationClassBlueprint, NotificationImplementationMap } from "@/components/learning/notification-system-focus"
 
 <LessonStep id="notification-orientation"><FocusOnly><ConceptImage src="/images/notification-system-overview.png" alt="A caller submits email, SMS, and push notifications while a temporary SMS failure is retried" caption="Submission and delivery are different events. One failed channel attempt can retry without blocking the caller or unrelated notifications." width={1693} height={929} eager={true} /></FocusOnly></LessonStep>
@@ -107,6 +107,24 @@ import { NotificationOwnershipQuiz, NotificationDeliveryFlow, NotificationJobSta
 
 <LessonStep id="notification-ownership"><FocusOnly><NotificationOwnershipQuiz /></FocusOnly></LessonStep>
 <LessonStep id="notification-entity-flow"><FocusOnly><NotificationDeliveryFlow /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-entity-summary"><FocusOnly><EntityModelSummary
+  items={[
+    { name: "NotificationRequest", kind: "Immutable value", purpose: "Preserves the validated content accepted for delivery." },
+    { name: "DeliveryJob", kind: "Class", purpose: "Owns one job's status, attempts, and latest failure." },
+    { name: "NotificationSender", kind: "Interface", purpose: "Defines one replaceable channel delivery attempt." },
+    { name: "Email / SMS / Push Sender", kind: "Class", purpose: "Own each channel's provider-specific behavior." },
+    { name: "RetryPolicy", kind: "Immutable value", purpose: "Names and validates the total-attempt boundary." },
+    { name: "NotificationService", kind: "Class", purpose: "Coordinates submission, indexing, workers, and lifecycle." },
+    { name: "SubmissionReceipt", kind: "Immutable value", purpose: "Returns the accepted job ID immediately." },
+    { name: "DeliverySnapshot", kind: "Immutable value", purpose: "Exposes progress without leaking the mutable job." }
+  ]}
+  enums={["NotificationChannel", "DeliveryStatus"]}
+  fields={["job ID", "recipient ID", "destination", "subject", "body", "attempts", "last error"]}
+  infrastructure={["ExecutorService", "worker queue"]}
+  omitted={["recipient profile", "template", "preferences", "domain queue"]}
+  relationship="NotificationService schedules one DeliveryJob and delegates each attempt to the registered NotificationSender."
+/></FocusOnly></LessonStep>
 
 <LessonStep id="notification-principles"><FocusOnly><ClassificationChallenge instruction="Match each concrete failure to the principle that prevents it." categories={[{ id: "encapsulation", label: "Encapsulation" }, { id: "srp", label: "Single responsibility" }, { id: "immutable", label: "Immutability" }, { id: "open", label: "Open/closed" }, { id: "thread", label: "Thread safety" }]} items={[
   { id: "setter", label: "A caller sets a job to SENT", answer: "encapsulation", feedback: "Private state and guarded transitions stop callers bypassing delivery." },
