@@ -27,9 +27,10 @@ The guide is live at **[learn.ayush.ltd](https://learn.ayush.ltd/)**.
 | 02 | [Tic-Tac-Toe](https://learn.ayush.ltd/problems/tic-tac-toe/) | Turn rules, move validation, and game completion | Beginner |
 | 03 | [Parking Lot](https://learn.ayush.ltd/problems/parking-lot/) | Spot allocation and ticket lifecycle | Intermediate |
 | 04 | [Movie Ticket Booking](https://learn.ayush.ltd/problems/movie-ticket-booking/) | Seat state and safe concurrent booking | Intermediate |
-| 05 | [Meeting Room Scheduler](https://learn.ayush.ltd/problems/meeting-room-scheduler/) | Time intervals and deterministic room selection | Intermediate |
-| 06 | [Splitwise](https://learn.ayush.ltd/problems/splitwise/) | Exact expense splitting and debt simplification | Intermediate |
-| 07 | [Ride Sharing](https://learn.ayush.ltd/problems/ride-sharing/) | Driver matching, Dijkstra routing, and ride lifecycle | Intermediate |
+| 05 | [Notification System](https://learn.ayush.ltd/problems/notification-system/) | Asynchronous channels, retries, and thread-safe job state | Intermediate |
+| 06 | [Meeting Room Scheduler](https://learn.ayush.ltd/problems/meeting-room-scheduler/) | Time intervals and deterministic room selection | Intermediate |
+| 07 | [Splitwise](https://learn.ayush.ltd/problems/splitwise/) | Exact expense splitting and debt simplification | Intermediate |
+| 08 | [Ride Sharing](https://learn.ayush.ltd/problems/ride-sharing/) | Driver matching, Dijkstra routing, and ride lifecycle | Intermediate |
 
 ## The lesson pattern
 
@@ -45,7 +46,7 @@ The reasoning rhythm stays consistent:
 
 > Recall the requirement → ask a useful question → reason from the answer → make the design decision → explain what the decision enables.
 
-Complex topics receive an additional deep explanation inside these phases. For example, Movie Ticket Booking teaches the booking race and lock boundary, while Ride Sharing teaches weighted road graphs and Dijkstra's algorithm step by step.
+Complex topics receive an additional deep explanation inside these phases. For example, Movie Ticket Booking teaches the booking race and lock boundary, Notification System separates asynchronous acceptance from bounded delivery retries, and Ride Sharing teaches weighted road graphs and Dijkstra's algorithm step by step.
 
 ## Technology
 
@@ -96,4 +97,3 @@ Also register the lesson in `lib/lessons.ts`, update adjacent previous/next link
 ## Deployment
 
 Pushes to `main` are validated and exported by [the GitHub Pages workflow](.github/workflows/deploy-pages.yml). The custom domain serves the generated site from `/`, so production builds leave `NEXT_PUBLIC_BASE_PATH` empty.
-

@@ -16,5 +16,5 @@ const toc = [
 ];
 
 export default function MeetingRoomSchedulerPage() {
-  return <LessonShell title="Meeting Room Scheduler" eyebrow="Problem 05 · Complete walkthrough" difficulty="Intermediate" duration="45 min" toc={toc} previous={{ href: "/problems/movie-ticket-booking/", label: "Movie Ticket Booking" }} next={{ href: "/problems/splitwise/", label: "Splitwise" }}><MeetingRoomSchedulerLesson /></LessonShell>;
+  return <LessonShell title="Meeting Room Scheduler" eyebrow="Problem 06 · Complete walkthrough" difficulty="Intermediate" duration="45 min" toc={toc} previous={{ href: "/problems/notification-system/", label: "Notification System" }} next={{ href: "/problems/splitwise/", label: "Splitwise" }}><MeetingRoomSchedulerLesson /></LessonShell>;
 }

@@ -16,5 +16,5 @@ const toc = [
 ];
 
 export default function SplitwisePage() {
-  return <LessonShell title="Splitwise" eyebrow="Problem 06 · Complete walkthrough" difficulty="Intermediate" duration="50 min" toc={toc} previous={{ href: "/problems/meeting-room-scheduler/", label: "Meeting Room Scheduler" }} next={{ href: "/problems/ride-sharing/", label: "Ride Sharing" }}><SplitwiseLesson /></LessonShell>;
+  return <LessonShell title="Splitwise" eyebrow="Problem 07 · Complete walkthrough" difficulty="Intermediate" duration="50 min" toc={toc} previous={{ href: "/problems/meeting-room-scheduler/", label: "Meeting Room Scheduler" }} next={{ href: "/problems/ride-sharing/", label: "Ride Sharing" }}><SplitwiseLesson /></LessonShell>;
 }

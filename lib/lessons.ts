@@ -46,6 +46,17 @@ export const lessons: Lesson[] = [
     duration: "50 min",
     summary: "Derive seat holds and booking rules, make concurrent requests safe, and prove the design with complete Java and an interactive race lab.",
     accent: "#ee9360",
+    focusHref: "/problems/movie-ticket-booking/learn/",
+  },
+  {
+    slug: "notification-system",
+    title: "Notification System",
+    eyebrow: "Complete walkthrough",
+    difficulty: "Intermediate",
+    duration: "50 min",
+    summary: "Design asynchronous multi-channel delivery, bounded retries, thread-safe job tracking, and graceful shutdown with complete Java and an interactive worker lab.",
+    accent: "#6aa99b",
+    focusHref: "/problems/notification-system/learn/",
   },
   {
     slug: "meeting-room-scheduler",

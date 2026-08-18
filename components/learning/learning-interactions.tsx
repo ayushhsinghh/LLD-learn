@@ -809,7 +809,7 @@ export function FocusCode({ label, code }: { label: string; code: string }) {
   );
 }
 
-export function FocusSpec({ requirements, outOfScope }: { requirements: string[]; outOfScope: string[] }) {
+export function FocusSpec({ requirements, outOfScope, compact = false }: { requirements: string[]; outOfScope: string[]; compact?: boolean }) {
   const [tab, setTab] = useState<"requirements" | "scope">("requirements");
   const items = tab === "requirements" ? requirements : outOfScope;
   return (
@@ -818,8 +818,8 @@ export function FocusSpec({ requirements, outOfScope }: { requirements: string[]
         <button role="tab" aria-selected={tab === "requirements"} onClick={() => setTab("requirements")} className={cn("rounded-md px-3 py-2 text-xs font-extrabold", tab === "requirements" && "bg-[var(--ink)] text-white")}>Requirements</button>
         <button role="tab" aria-selected={tab === "scope"} onClick={() => setTab("scope")} className={cn("rounded-md px-3 py-2 text-xs font-extrabold", tab === "scope" && "bg-[var(--ink)] text-white")}>Not building</button>
       </div>
-      <ol className="mt-3 grid gap-2 sm:grid-cols-2">
-        {items.map((item, index) => <li key={item} className="flex gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold leading-5 text-[var(--muted)]"><span className="font-mono text-[var(--accent-dark)]">{tab === "requirements" ? index + 1 : "—"}</span><span>{item}</span></li>)}
+      <ol className={cn("mt-3 grid gap-2 sm:grid-cols-2", compact && "grid-cols-2 gap-1.5")}>
+        {items.map((item, index) => <li key={item} className={cn("flex gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold leading-5 text-[var(--muted)]", compact && "px-2 py-1.5 text-[9px] leading-4")}><span className="font-mono text-[var(--accent-dark)]">{tab === "requirements" ? index + 1 : "—"}</span><span>{item}</span></li>)}
       </ol>
     </section>
   );

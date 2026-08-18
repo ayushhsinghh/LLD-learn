@@ -16,5 +16,5 @@ const toc = [
 ];
 
 export default function RideSharingPage() {
-  return <LessonShell title="Ride Sharing" eyebrow="Problem 07 · Complete walkthrough" difficulty="Intermediate" duration="60 min" toc={toc} previous={{ href: "/problems/splitwise/", label: "Splitwise" }}><RideSharingLesson /></LessonShell>;
+  return <LessonShell title="Ride Sharing" eyebrow="Problem 08 · Complete walkthrough" difficulty="Intermediate" duration="60 min" toc={toc} previous={{ href: "/problems/splitwise/", label: "Splitwise" }}><RideSharingLesson /></LessonShell>;
 }

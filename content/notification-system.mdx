@@ -1,0 +1,939 @@
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { NotificationSystemSimulator } from "@/components/simulations/notification-system-simulator"
+import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
+import { PassiveLearningCards, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, ChoiceQuestion } from "@/components/learning/learning-interactions"
+import { NotificationOwnershipQuiz, NotificationDeliveryFlow, NotificationJobStateMachine, NotificationClassBlueprint, NotificationImplementationMap } from "@/components/learning/notification-system-focus"
+
+<LessonStep id="notification-orientation"><FocusOnly><ConceptImage src="/images/notification-system-overview.png" alt="A caller submits email, SMS, and push notifications while a temporary SMS failure is retried" caption="Submission and delivery are different events. One failed channel attempt can retry without blocking the caller or unrelated notifications." width={1693} height={929} eager={true} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-framework"><FocusOnly><FocusFrameworkRoadmap /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-interview"><FocusOnly><InterviewDynamicsGuide
+  timing={[{ label: "Requirements", minutes: "5 min" }, { label: "Entities", minutes: "3 min" }, { label: "Class design", minutes: "15 min" }, { label: "Code", minutes: "15 min" }, { label: "Extensions", minutes: "5 min" }]}
+  speaking={["Say what submit guarantees: accepted for processing, not already delivered.", "Define failure and the total attempt limit before designing retries.", "State the boundary: the executor and job index live in one Java process."]}
+  signals={[{ id: "async", signal: "What does asynchronous mean here?", response: "Confirm that submit returns a job ID before provider delivery finishes." }, { id: "new-channel", signal: "How would WhatsApp fit?", response: "Locate the varying channel operation and depend on its interface." }, { id: "crash", signal: "What if the process stops?", response: "Admit that an in-memory executor is not durable, then move the authority to a broker or database." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="notification-orientation-check"><FocusOnly><PredictionChecklist prompt="Before naming classes, which facts must the interviewer confirm?" items={[
+  { id: "channels", label: "Supported channels and destination form", correct: true, feedback: "The sender boundary and request data depend on this." },
+  { id: "return", label: "What submit returns", correct: true, feedback: "Acceptance and delivery need separate observable results." },
+  { id: "attempts", label: "Whether three means attempts or retries", correct: true, feedback: "We confirm three total attempts: one initial try and two retries." },
+  { id: "status", label: "Whether callers can query status", correct: true, feedback: "This creates a job index and immutable snapshot." },
+  { id: "ordering", label: "Whether separate jobs need ordering", correct: true, feedback: "A thread pool does not promise completion order." },
+  { id: "boundary", label: "One process or durable workers", correct: true, feedback: "In-memory concurrency cannot survive a process crash." },
+  { id: "font", label: "Notification card typography", correct: false, feedback: "Presentation does not change the delivery model." }
+]} success="You found the rules that determine the asynchronous contract." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-incomplete"><FocusOnly><PassiveLearningCards intro="‘Send notifications asynchronously’ describes an intention, not testable behavior." items={[
+  { title: "Acceptance", body: "Does submit mean queued or delivered?" },
+  { title: "Failure", body: "Which failures retry, and how many attempts occur?" },
+  { title: "Observation", body: "Can the caller see progress after submit returns?" },
+  { title: "Lifetime", body: "What happens to queued work during shutdown or a crash?" }
+]} conclusion="Clarify caller-visible behavior before choosing a queue, class, or pattern." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-dialogue"><FocusOnly><InterviewDialogueExample turns={[
+  { speaker: "Candidate", text: "When submit succeeds, has the provider delivered the message or only accepted it for background work?" },
+  { speaker: "Interviewer", text: "Return immediately with a job ID. The caller can query QUEUED, SENDING, SENT, or FAILED." },
+  { speaker: "Candidate", text: "I’ll create and index a QUEUED job before scheduling its worker, then expose immutable status snapshots." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-questions"><FocusOnly><PredictionChecklist prompt="Select the questions that change the first implementation." items={[
+  { id: "actions", label: "Which channels and request fields are required?", correct: true, feedback: "This defines the immutable input and sender registry." },
+  { id: "accepted", label: "What does submit return immediately?", correct: true, feedback: "A receipt separates acceptance from delivery." },
+  { id: "retry", label: "How many total attempts are allowed?", correct: true, feedback: "The retry boundary must be precise and testable." },
+  { id: "query", label: "Can callers query current delivery state?", correct: true, feedback: "This creates a private job index and public snapshots." },
+  { id: "order", label: "Must separate jobs finish in submission order?", correct: true, feedback: "Parallel workers normally make no such promise." },
+  { id: "shutdown", label: "What should graceful shutdown do?", correct: true, feedback: "Lifecycle ownership affects new submissions and queued work." },
+  { id: "color", label: "Which color represents PUSH?", correct: false, feedback: "That belongs to presentation, not delivery correctness." },
+  { id: "database", label: "Which database should we use?", correct: false, feedback: "Persistence is outside the confirmed in-memory scope." }
+]} success="These questions make acceptance, progress, retry, and lifecycle observable." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-answers"><FocusOnly><PassiveLearningCards intro="Read each answer as a rule a caller or test can observe." items={[
+  { title: "Three channels", body: "EMAIL, SMS, and PUSH each have one sender." },
+  { title: "Immutable content", body: "Recipient, destination, channel, optional subject, and required body are fixed after submit." },
+  { title: "Immediate receipt", body: "Submit returns a job ID after the QUEUED job is indexed." },
+  { title: "Three attempts", body: "A provider failure gets at most one initial attempt plus two retries." },
+  { title: "Status snapshot", body: "Callers may read status, attempts, and the latest error without mutating the job." },
+  { title: "Process boundary", body: "The fixed thread pool is parallel but not durable across a crash." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-spec"><FocusOnly><FocusSpec compact={true} requirements={[
+  "Support EMAIL, SMS, and PUSH through replaceable senders.",
+  "Each immutable request targets one recipient destination and one channel.",
+  "The message body is mandatory; the subject is optional.",
+  "Submit returns a job ID immediately after queue acceptance.",
+  "A fixed thread pool delivers separate jobs in parallel.",
+  "A failed delivery receives at most three total attempts.",
+  "Callers can query QUEUED, SENDING, SENT, or FAILED snapshots.",
+  "New senders do not change the service workflow.",
+  "Shutdown rejects new work and finishes already accepted tasks."
+]} outOfScope={["Persistent queue or database", "Guaranteed delivery after process crashes", "Distributed workers", "Delayed or exponential backoff", "Templates and localization", "Channel fallback and preferences", "Provider SDKs and rate limiting"]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-entity-transition"><FocusOnly><PassiveLearningCards intro="The requirements now reveal candidate nouns. Keep a type only when it owns a rule, changing state, or one meaningful value." items={[
+  { title: "Stable input", body: "NotificationRequest carries facts that must not change while queued." },
+  { title: "Changing state", body: "DeliveryJob owns status, attempt count, and latest error." },
+  { title: "Variation", body: "NotificationSender represents the operation that differs by channel." },
+  { title: "Coordination", body: "NotificationService indexes jobs and schedules workers." },
+  { title: "Infrastructure", body: "The executor queue is used by the model but is not a domain entity." }
+]} conclusion="Next, choose the smallest honest representation for each candidate." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-modeling-vocabulary"><FocusOnly><PassiveLearningCards intro="Choose the smallest model that can protect the confirmed rule." items={[
+  { title: "Class", body: "Owns identity, changing state, or important behavior." },
+  { title: "Interface", body: "Defines one operation with several replaceable implementations." },
+  { title: "Enum", body: "Names a small fixed set such as EMAIL, SMS, PUSH." },
+  { title: "Immutable value", body: "Carries related stable facts with no setters." },
+  { title: "Field", body: "A simple value belonging inside another type." },
+  { title: "Leave out", body: "A real concept with no responsibility in this scope." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-types"><FocusOnly><PredictionChecklist prompt="Which candidates deserve a class, record, or interface?" items={[
+  { id: "request", label: "NotificationRequest", correct: true, feedback: "It carries the immutable accepted input." },
+  { id: "job", label: "DeliveryJob", correct: true, feedback: "It owns one job's changing delivery state." },
+  { id: "sender", label: "NotificationSender", correct: true, feedback: "Its implementations vary by channel." },
+  { id: "service", label: "NotificationService", correct: true, feedback: "It coordinates validation, indexing, and scheduling." },
+  { id: "policy", label: "RetryPolicy", correct: true, feedback: "It names and validates the retry boundary." },
+  { id: "recipient", label: "Recipient profile", correct: false, feedback: "Only recipientId and destination are needed; no profile behavior is required." },
+  { id: "queue", label: "Domain Queue", correct: false, feedback: "ExecutorService already owns the implementation queue." },
+  { id: "template", label: "Template", correct: false, feedback: "Templates are explicitly outside the first version." }
+]} success="The model contains the state owner, coordinator, policy, values, and variation boundary." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-values"><FocusOnly><ClassificationChallenge instruction="Choose the smallest representation for each remaining concept." categories={[{ id: "enum", label: "Enum" }, { id: "value", label: "Immutable value" }, { id: "field", label: "Field" }, { id: "infra", label: "Infrastructure" }, { id: "omit", label: "Leave out" }]} items={[
+  { id: "fixed", label: "Channel and delivery status", answer: "enum", feedback: "Both are small closed choices in this version." },
+  { id: "results", label: "SubmissionReceipt and DeliverySnapshot", answer: "value", feedback: "They safely cross the public boundary as stable facts." },
+  { id: "data", label: "jobId, destination, subject, body, attempts", answer: "field", feedback: "Each belongs inside a request, job, or snapshot." },
+  { id: "executor", label: "Thread pool and work queue", answer: "infra", feedback: "ExecutorService supplies execution mechanics, not domain identity." },
+  { id: "extras", label: "Template and user preferences", answer: "omit", feedback: "No confirmed rule needs them yet." }
+]} success="Every candidate now has the smallest useful shape." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-ownership"><FocusOnly><NotificationOwnershipQuiz /></FocusOnly></LessonStep>
+<LessonStep id="notification-entity-flow"><FocusOnly><NotificationDeliveryFlow /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-principles"><FocusOnly><ClassificationChallenge instruction="Match each concrete failure to the principle that prevents it." categories={[{ id: "encapsulation", label: "Encapsulation" }, { id: "srp", label: "Single responsibility" }, { id: "immutable", label: "Immutability" }, { id: "open", label: "Open/closed" }, { id: "thread", label: "Thread safety" }]} items={[
+  { id: "setter", label: "A caller sets a job to SENT", answer: "encapsulation", feedback: "Private state and guarded transitions stop callers bypassing delivery." },
+  { id: "providers", label: "Service contains every provider API call", answer: "srp", feedback: "Workflow and provider integration change for different reasons." },
+  { id: "edit", label: "Queued body changes before a worker reads it", answer: "immutable", feedback: "An immutable request preserves the accepted message." },
+  { id: "switch", label: "Adding WhatsApp rewrites the retry workflow", answer: "open", feedback: "A sender interface localizes the new channel implementation." },
+  { id: "torn", label: "Status and attempt count disagree", answer: "thread", feedback: "Synchronized transitions publish one consistent snapshot." }
+]} callout="The principles protect concrete delivery invariants; they are not decoration." success="You connected each principle to the failure it prevents." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-design-method"><FocusOnly><PassiveLearningCards intro="Use one repeatable chain for every type: requirement → responsibility → state → behavior → public API → relationships → principles → patterns." items={[
+  { title: "Responsibility", body: "Name the rule this type owns." }, { title: "State", body: "Store only the information required by that rule." }, { title: "Behavior", body: "Keep checks and changes beside the state." }, { title: "API", body: "Expose use cases, never mutable internals." }, { title: "Relationship", body: "Prefer has-a composition between distinct jobs." }, { title: "Pattern", body: "Add abstraction only where behavior actually varies." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-request-design"><FocusOnly><ClassificationChallenge instruction="Classify each NotificationRequest candidate." categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "outside", label: "Does not belong" }]} items={[
+  { id: "content", label: "recipientId, destination, channel, subject, body", answer: "state", feedback: "These are the stable facts accepted by submit." },
+  { id: "validate", label: "Reject blank identity, destination, or body", answer: "behavior", feedback: "Construction protects every later consumer." },
+  { id: "status", label: "Current delivery status", answer: "outside", feedback: "DeliveryJob owns changing execution state." },
+  { id: "send", label: "Call a provider", answer: "outside", feedback: "NotificationSender owns channel delivery." }
+]} callout="Immutability makes the worker see exactly what the caller submitted." success="NotificationRequest is a small validated immutable value." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-sender-design"><FocusOnly><PassiveLearningCards intro="The delivery operation varies by channel, so place it behind one small interface." items={[
+  { title: "Contract", body: "channel() identifies the registry key; send(request) performs one attempt." },
+  { title: "Implementations", body: "EmailSender, SmsSender, and PushSender own provider-specific work." },
+  { title: "Boundary", body: "Senders do not retry, create IDs, index jobs, or change public status." },
+  { title: "Why Strategy", body: "The service selects one replaceable implementation without a channel switch." }
+]} conclusion="A new sender extends channel behavior while the workflow stays stable." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-retry-design"><FocusOnly><ChoiceQuestion prompt="After the second provider failure, may the worker try again?" choices={[
+  { id: "yes", label: "Yes—one third and final attempt", correct: true, feedback: "Three total attempts means initial try plus two retries." },
+  { id: "no", label: "No—two failures exhaust it", correct: false, feedback: "That would implement only two total attempts." },
+  { id: "forever", label: "Retry until success", correct: false, feedback: "Unbounded work violates the confirmed failure rule." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-job-design"><FocusOnly><ClassificationChallenge instruction="Classify each DeliveryJob candidate." categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "outside", label: "Does not belong" }]} items={[
+  { id: "identity", label: "jobId and immutable request", answer: "state", feedback: "They identify the work and never change." },
+  { id: "progress", label: "status, attempts, lastError", answer: "state", feedback: "Together they describe current progress." },
+  { id: "transition", label: "Start attempt and mark terminal result", answer: "behavior", feedback: "Guarded synchronized methods keep these values consistent." },
+  { id: "snapshot", label: "Return immutable snapshot", answer: "behavior", feedback: "Callers observe progress without receiving the mutable job." },
+  { id: "provider", label: "Choose an EMAIL provider", answer: "outside", feedback: "The service registry and sender own routing and provider work." }
+]} callout="Encapsulation and thread safety keep one job's published state internally consistent." success="DeliveryJob owns one lifecycle and exposes only snapshots." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-state-machine"><FocusOnly><NotificationJobStateMachine /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-service-state"><FocusOnly><ClassificationChallenge instruction="Where should each piece of state live?" categories={[{ id: "service", label: "Service state" }, { id: "job", label: "Job state" }, { id: "outside", label: "Do not store" }]} items={[
+  { id: "senders", label: "sendersByChannel", answer: "service", feedback: "The coordinator must route each accepted request." },
+  { id: "jobs", label: "jobsById", answer: "service", feedback: "Status lookup starts with a public job ID." },
+  { id: "executor", label: "executor and retryPolicy", answer: "service", feedback: "They configure how the service runs accepted work." },
+  { id: "sequence", label: "atomic job sequence and accepting flag", answer: "service", feedback: "They coordinate IDs and lifecycle across submissions." },
+  { id: "attempt", label: "attempt count and lastError", answer: "job", feedback: "They describe one job, not the whole service." },
+  { id: "history", label: "Every old provider response", answer: "outside", feedback: "The requirement needs only latest status and error." }
+]} callout="Single responsibility keeps workflow indexes in the service and per-delivery progress in the job." success="Each mutable value now has one clear owner." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-service-api"><FocusOnly><ClassificationChallenge instruction="Classify each proposed NotificationService method." categories={[{ id: "public", label: "Public API" }, { id: "internal", label: "Internal" }, { id: "other", label: "Another type" }]} items={[
+  { id: "submit", label: "submit(request)", answer: "public", feedback: "This is the main accepted use case." },
+  { id: "status", label: "getStatus(jobId)", answer: "public", feedback: "It returns an immutable snapshot or empty result." },
+  { id: "close", label: "close()", answer: "public", feedback: "The application needs a lifecycle boundary." },
+  { id: "deliver", label: "deliver(job)", answer: "internal", feedback: "Only an executor task runs the retry workflow." },
+  { id: "set", label: "setJobStatus(...)", answer: "other", feedback: "No public setter should bypass DeliveryJob transitions." },
+  { id: "provider", label: "sendEmail(...)", answer: "other", feedback: "EmailSender owns provider-specific behavior." }
+]} callout="Encapsulation exposes use cases while hiding the mutable job and worker mechanics." success="The public boundary is narrow and cannot bypass delivery rules." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-thread-safety"><FocusOnly><PassiveLearningCards intro="Several workers may run separate jobs together. One worker owns each accepted job, while status readers may observe it from other threads." items={[
+  { title: "Atomic transitions", body: "A synchronized job method updates status, attempts, and error as one visible state." },
+  { title: "Safe index", body: "ConcurrentHashMap supports job insertion and lookup from different threads." },
+  { title: "Unique IDs", body: "AtomicLong gives each concurrent submission one in-process ID." },
+  { title: "Immutable reads", body: "A snapshot copies the job state while holding the same monitor." }
+]} conclusion="Thread safety here protects one process. It does not coordinate separate servers." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-executor-ownership"><FocusOnly><PassiveLearningCards intro="The application creates the ExecutorService and passes it to NotificationService, making the execution policy explicit and testable." items={[
+  { title: "Fixed pool", body: "A bounded worker count limits parallel provider calls." },
+  { title: "Accepted work", body: "A job is indexed before its task is submitted, so fast workers cannot finish an invisible job." },
+  { title: "Graceful close", body: "Stop accepting submissions, call shutdown(), and let accepted tasks finish." },
+  { title: "Honest limit", body: "Queued tasks disappear if the Java process crashes." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-blueprint"><FocusOnly><NotificationClassBlueprint /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-code-map"><FocusOnly><NotificationImplementationMap /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-submit-order"><FocusOnly><OrderQuestion prompt="Order one safe asynchronous submission." items={[
+  { id: "task", label: "Submit the worker task" }, { id: "validate", label: "Validate request, lifecycle, and sender" }, { id: "return", label: "Return SubmissionReceipt" }, { id: "id", label: "Allocate a unique job ID" }, { id: "index", label: "Create and index the QUEUED job" }
+]} correctOrder={["validate", "id", "index", "task", "return"]} explanation="Index before scheduling: a fast worker must never complete a job that status lookup cannot yet find." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-code-concepts"><FocusOnly><TabbedConceptView tabs={[
+  { id: "executor", label: "Executor", title: "ExecutorService owns worker scheduling", body: "submit queues a Runnable and returns immediately. A fixed pool caps the number of simultaneous sends." },
+  { id: "maps", label: "Concurrent map", title: "ConcurrentHashMap protects individual index operations", body: "It supports submission, worker, and status-reader threads. DeliveryJob still protects its multi-field state." },
+  { id: "ids", label: "Atomic ID", title: "AtomicLong prevents duplicate in-process IDs", body: "getAndIncrement is one indivisible operation, but it does not coordinate another process." },
+  { id: "snapshot", label: "Snapshot", title: "Immutable records cross thread boundaries", body: "The caller never receives the mutable DeliveryJob or sender registry." },
+  { id: "shutdown", label: "Shutdown", title: "Graceful shutdown has two decisions", body: "Reject new work first, then ask the executor to finish tasks it already accepted." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-enums"><FocusOnly><TabbedCodeView label="Channels and job lifecycle" tabs={[
+  { id: "channel", label: "Channel", code: `public enum NotificationChannel {
+    EMAIL,
+    SMS,
+    PUSH
+}` },
+  { id: "status", label: "Status", code: `public enum DeliveryStatus {
+    QUEUED,
+    SENDING,
+    SENT,
+    FAILED
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-records"><FocusOnly><TabbedCodeView label="Immutable public values" tabs={[
+  { id: "request", label: "Request", code: `public record NotificationRequest(
+        String recipientId,
+        String destination,
+        NotificationChannel channel,
+        String subject,
+        String body) {
+    public NotificationRequest {
+        if (recipientId == null || recipientId.isBlank()
+                || destination == null || destination.isBlank()
+                || channel == null || body == null || body.isBlank()) {
+            throw new IllegalArgumentException("Complete notification details are required");
+        }
+        subject = subject == null ? "" : subject;
+    }
+}` },
+  { id: "receipt", label: "Receipt", code: `public record SubmissionReceipt(String jobId) {
+    public SubmissionReceipt {
+        if (jobId == null || jobId.isBlank()) {
+            throw new IllegalArgumentException("Job id is required");
+        }
+    }
+}` },
+  { id: "snapshot", label: "Snapshot", code: `public record DeliverySnapshot(
+        String jobId,
+        DeliveryStatus status,
+        int attempts,
+        String lastError) {
+}` },
+  { id: "policy", label: "Retry policy", code: `public record RetryPolicy(int maxAttempts) {
+    public RetryPolicy {
+        if (maxAttempts < 1) {
+            throw new IllegalArgumentException("At least one attempt is required");
+        }
+    }
+
+    public boolean canRetry(int completedAttempts) {
+        return completedAttempts < maxAttempts;
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-sender-predict"><FocusOnly><PredictionChecklist prompt="What belongs in NotificationSender.send?" items={[
+  { id: "provider", label: "Perform one provider call", correct: true, feedback: "One invocation represents one delivery attempt." },
+  { id: "throw", label: "Report provider failure with DeliveryException", correct: true, feedback: "The service needs one expected failure signal for retry." },
+  { id: "retry", label: "Loop three times", correct: false, feedback: "Retry belongs to the service workflow, not every sender." },
+  { id: "job", label: "Update DeliveryJob status", correct: false, feedback: "The job protects its state and the service orders transitions." },
+  { id: "id", label: "Allocate a job ID", correct: false, feedback: "The service coordinates IDs before scheduling." }
+]} success="A sender performs exactly one channel-specific attempt." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-sender-code"><FocusOnly><TabbedCodeView label="Replaceable channel delivery" tabs={[
+  { id: "interface", label: "Contract", code: `public interface NotificationSender {
+    NotificationChannel channel();
+
+    void send(NotificationRequest request) throws DeliveryException;
+}` },
+  { id: "exception", label: "Failure", code: `public final class DeliveryException extends Exception {
+    public DeliveryException(String message) {
+        super(message);
+    }
+}` },
+  { id: "email", label: "Email", code: `public final class EmailSender implements NotificationSender {
+    @Override
+    public NotificationChannel channel() {
+        return NotificationChannel.EMAIL;
+    }
+
+    @Override
+    public void send(NotificationRequest request) throws DeliveryException {
+        System.out.println("EMAIL -> " + request.destination() + ": " + request.body());
+    }
+}` },
+  { id: "sms", label: "SMS", code: `public final class SmsSender implements NotificationSender {
+    @Override
+    public NotificationChannel channel() {
+        return NotificationChannel.SMS;
+    }
+
+    @Override
+    public void send(NotificationRequest request) throws DeliveryException {
+        System.out.println("SMS -> " + request.destination() + ": " + request.body());
+    }
+}` },
+  { id: "push", label: "Push", code: `public final class PushSender implements NotificationSender {
+    @Override
+    public NotificationChannel channel() {
+        return NotificationChannel.PUSH;
+    }
+
+    @Override
+    public void send(NotificationRequest request) throws DeliveryException {
+        System.out.println("PUSH -> " + request.destination() + ": " + request.body());
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-job-predict"><FocusOnly><ChoiceQuestion prompt="A transient sender fails once and succeeds next. What snapshot should the job publish?" choices={[
+  { id: "sent2", label: "SENT, attempts 2, no error", correct: true, feedback: "Each started attempt increments once; success clears the old error." },
+  { id: "sent1", label: "SENT, attempts 1", correct: false, feedback: "The failed provider call still counts as a completed attempt." },
+  { id: "failed", label: "FAILED after the first exception", correct: false, feedback: "RetryPolicy permits another attempt until three are completed." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-job-code"><FocusOnly><TabbedCodeView label="Thread-safe DeliveryJob" tabs={[
+  { id: "construct", label: "Construction", code: `final class DeliveryJob {
+    private final String jobId;
+    private final NotificationRequest request;
+    private DeliveryStatus status = DeliveryStatus.QUEUED;
+    private int attempts;
+    private String lastError;
+
+    DeliveryJob(String jobId, NotificationRequest request) {
+        this.jobId = Objects.requireNonNull(jobId);
+        this.request = Objects.requireNonNull(request);
+    }
+
+    NotificationRequest request() {
+        return request;
+    }
+}` },
+  { id: "transition", label: "Transitions", code: `synchronized void startAttempt() {
+    if (status == DeliveryStatus.SENT || status == DeliveryStatus.FAILED) {
+        throw new IllegalStateException("Terminal job cannot restart");
+    }
+    attempts++;
+    status = DeliveryStatus.SENDING;
+}
+
+synchronized void recordAttemptFailure(String message) {
+    if (status != DeliveryStatus.SENDING) {
+        throw new IllegalStateException("No active attempt");
+    }
+    lastError = Objects.requireNonNull(message);
+}` },
+  { id: "terminal", label: "Terminal state", code: `synchronized void markSent() {
+    if (status != DeliveryStatus.SENDING) {
+        throw new IllegalStateException("No active attempt");
+    }
+    status = DeliveryStatus.SENT;
+    lastError = null;
+}
+
+synchronized void markFailed() {
+    if (status != DeliveryStatus.SENDING) {
+        throw new IllegalStateException("No active attempt");
+    }
+    status = DeliveryStatus.FAILED;
+}` },
+  { id: "read", label: "Snapshot", code: `synchronized int attempts() {
+    return attempts;
+}
+
+synchronized DeliverySnapshot snapshot() {
+    return new DeliverySnapshot(jobId, status, attempts, lastError);
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-submit-predict"><FocusOnly><PredictionChecklist prompt="Which guards run before a job is accepted?" items={[
+  { id: "request", label: "Request construction already validated content", correct: true, feedback: "Invalid immutable values never reach submit." },
+  { id: "accepting", label: "Service is still accepting work", correct: true, feedback: "Close creates a clear lifecycle boundary." },
+  { id: "sender", label: "A sender exists for the channel", correct: true, feedback: "Unsupported work must not create an unreachable job." },
+  { id: "delivery", label: "Provider delivery succeeds", correct: false, feedback: "That happens later on a worker thread." },
+  { id: "retry", label: "All three attempts finish", correct: false, feedback: "Submit returns before delivery work completes." }
+]} success="Every acceptance guard runs before ID allocation and indexing." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-submit-code"><FocusOnly><TabbedCodeView label="NotificationService accepts work safely" tabs={[
+  { id: "fields", label: "Construction", code: `public final class NotificationService implements AutoCloseable {
+    private final Map<NotificationChannel, NotificationSender> senders;
+    private final ConcurrentMap<String, DeliveryJob> jobs = new ConcurrentHashMap<>();
+    private final ExecutorService executor;
+    private final RetryPolicy retryPolicy;
+    private final AtomicLong sequence = new AtomicLong(1);
+    private final AtomicBoolean accepting = new AtomicBoolean(true);
+
+    public NotificationService(List<NotificationSender> senders,
+            ExecutorService executor, RetryPolicy retryPolicy) {
+        this.executor = Objects.requireNonNull(executor);
+        this.retryPolicy = Objects.requireNonNull(retryPolicy);
+        EnumMap<NotificationChannel, NotificationSender> registry =
+                new EnumMap<>(NotificationChannel.class);
+        for (NotificationSender sender : List.copyOf(senders)) {
+            if (registry.putIfAbsent(sender.channel(), sender) != null) {
+                throw new IllegalArgumentException("Duplicate sender: " + sender.channel());
+            }
+        }
+        this.senders = Map.copyOf(registry);
+    }
+}` },
+  { id: "submit", label: "Submit", code: `public SubmissionReceipt submit(NotificationRequest request) {
+    Objects.requireNonNull(request);
+    if (!accepting.get()) {
+        throw new IllegalStateException("Service is closed");
+    }
+    if (!senders.containsKey(request.channel())) {
+        throw new IllegalArgumentException("No sender for " + request.channel());
+    }
+    String jobId = "N" + String.format("%03d", sequence.getAndIncrement());
+    DeliveryJob job = new DeliveryJob(jobId, request);
+    jobs.put(jobId, job);
+    try {
+        executor.submit(() -> deliver(job));
+    } catch (RejectedExecutionException failure) {
+        jobs.remove(jobId);
+        throw failure;
+    }
+    return new SubmissionReceipt(jobId);
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-retry-predict"><FocusOnly><ChoiceQuestion prompt="The provider fails on attempts 1, 2, and 3. When should the job become FAILED?" choices={[
+  { id: "third", label: "After recording the third failure", correct: true, feedback: "The third provider call counts, then RetryPolicy denies another attempt." },
+  { id: "before", label: "Before calling the provider a third time", correct: false, feedback: "That would allow only two total attempts." },
+  { id: "fourth", label: "After a fourth provider call", correct: false, feedback: "That would exceed the confirmed maximum." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-delivery-code"><FocusOnly><TabbedCodeView label="Complete background delivery method" tabs={[
+  { id: "deliver", label: "deliver(job)", code: `private void deliver(DeliveryJob job) {
+    NotificationSender sender = senders.get(job.request().channel());
+    while (true) {
+        job.startAttempt();
+        try {
+            sender.send(job.request());
+            job.markSent();
+            return;
+        } catch (DeliveryException failure) {
+            String message = failure.getMessage() == null
+                    ? "Delivery failed"
+                    : failure.getMessage();
+            job.recordAttemptFailure(message);
+            if (!retryPolicy.canRetry(job.attempts())) {
+                job.markFailed();
+                return;
+            }
+        }
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-lifecycle-code"><FocusOnly><TabbedCodeView label="Safe observation and shutdown" tabs={[
+  { id: "status", label: "Status", code: `public Optional<DeliverySnapshot> getStatus(String jobId) {
+    if (jobId == null || jobId.isBlank()) {
+        return Optional.empty();
+    }
+    DeliveryJob job = jobs.get(jobId);
+    return job == null ? Optional.empty() : Optional.of(job.snapshot());
+}` },
+  { id: "close", label: "Close", code: `@Override
+public void close() {
+    if (accepting.compareAndSet(true, false)) {
+        executor.shutdown();
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-async-proof"><FocusOnly><PassiveLearningCards intro="Use latches instead of sleep to prove that submit returns before delivery finishes." items={[
+  { title: "Block sender", body: "A fake sender announces it started, then waits on releaseDelivery." },
+  { title: "Submit", body: "The caller receives N001 while the sender remains blocked." },
+  { title: "Observe", body: "getStatus(N001) reports SENDING without exposing the job." },
+  { title: "Release", body: "Count down the latch and wait for SENT deterministically." }
+]} conclusion="The test controls event order, so it does not depend on machine speed." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-parallel-proof"><FocusOnly><PassiveLearningCards intro="A two-thread executor can prove both parallel work and bounded retry with controlled fake senders." items={[
+  { title: "Parallel", body: "Two sender calls reach a shared barrier before either returns." },
+  { title: "Transient", body: "A fake throws once, then succeeds; the snapshot is SENT with attempts=2." },
+  { title: "Permanent", body: "A fake always throws; the snapshot is FAILED with attempts=3." },
+  { title: "Isolation", body: "Every task changes only its own DeliveryJob." }
+]} conclusion="Completion order is deliberately unspecified, but each job's final state is deterministic." /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-demo"><FocusOnly><TabbedCodeView label="Public API demo" tabs={[
+  { id: "demo", label: "Demo", code: `ExecutorService workers = Executors.newFixedThreadPool(2);
+try (NotificationService service = new NotificationService(
+        List.of(new EmailSender(), new SmsSender(), new PushSender()),
+        workers,
+        new RetryPolicy(3))) {
+    SubmissionReceipt receipt = service.submit(new NotificationRequest(
+            "U1", "learner@example.com", NotificationChannel.EMAIL,
+            "Interview update", "Your interview starts at 3 PM."));
+    System.out.println("Accepted " + receipt.jobId());
+    while (service.getStatus(receipt.jobId()).orElseThrow().status()
+            != DeliveryStatus.SENT) {
+        Thread.onSpinWait();
+    }
+    System.out.println(service.getStatus(receipt.jobId()).orElseThrow());
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-simulator"><FocusOnly><NotificationSystemSimulator compact={true} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-durable"><FocusOnly><TabbedConceptView tabs={[
+  { id: "crash", label: "Process crash", title: "An executor queue is not durable", body: "If the Java process stops after returning N001, its queued task and in-memory job state disappear." },
+  { id: "broker", label: "Durable queue", title: "Move accepted work to shared storage", body: "A broker or transactional outbox persists work, supports acknowledgements, and lets another worker continue." },
+  { id: "duplicates", label: "Duplicates", title: "At-least-once work needs idempotency", body: "A provider may succeed before the worker crashes and retries. Use a stable delivery key when the provider supports it." },
+  { id: "dead", label: "Dead letter", title: "Permanent failures need an operational destination", body: "After retry exhaustion, retain the job for inspection instead of silently dropping it." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="notification-close"><FocusOnly><ChoiceQuestion prompt="How would you explain adding WhatsApp and production retries?" choices={[
+  { id: "strong", label: "Add a sender; move retry scheduling to durable infrastructure", correct: true, feedback: "This preserves the stable workflow, names the new variation, and admits the process boundary." },
+  { id: "switch", label: "Add WhatsApp cases throughout NotificationService", correct: false, feedback: "That couples stable orchestration to every provider and violates the chosen sender boundary." },
+  { id: "singleton", label: "Make the service a Singleton and retry forever", correct: false, feedback: "Singleton does not create durability, and unbounded retry has no failure boundary." }
+]} /></FocusOnly></LessonStep>
+
+<WalkthroughOnly>
+
+<Lead>Design an in-memory notification system that accepts EMAIL, SMS, and PUSH messages, returns immediately, delivers through a fixed worker pool, retries expected provider failures, and lets callers inspect progress. The difficult part is not drawing three sender classes. It is defining exactly what acceptance means, protecting each job's changing state, and stating honestly what one Java process can guarantee.</Lead>
+
+<ConceptImage src="/images/notification-system-overview.png" alt="A caller submits email, SMS, and push notifications while a temporary SMS failure is retried" caption="Notice that the caller starts several deliveries without waiting. One channel can retry while unrelated messages continue." width={1693} height={929} eager={true} />
+
+<FrameworkMap />
+
+<section id="requirements">
+
+## 1. Requirements
+
+<QuestionGuide />
+
+<QuestionAnswer ask="When submit returns successfully, has the message been delivered?" why="Without this answer, one method name can describe two very different contracts." answer="No. Return a job ID as soon as valid work is accepted by the in-memory executor." derived="Submission acceptance and provider delivery are separate events." />
+<QuestionAnswer ask="What content and channels are required?" why="This determines the immutable request and the operation that varies." answer="Support EMAIL, SMS, and PUSH. Require recipient ID, channel-specific destination, and body. Subject is optional." derived="One request targets one recipient destination and exactly one channel." />
+<QuestionAnswer ask="How should failure and retry work?" why="‘Retry a few times’ is not testable until the total attempts are explicit." answer="Try at most three times in total. The first version retries immediately." derived="A worker stops on success or after the third provider failure." />
+<QuestionAnswer ask="What may callers observe?" why="Progress observation creates state and a safe public read boundary." answer="Return QUEUED, SENDING, SENT, or FAILED plus attempts and the latest error." derived="The service stores private mutable jobs and returns immutable snapshots." />
+<QuestionAnswer ask="What concurrency and durability should we promise?" why="A Java thread pool solves parallel execution, not cross-process durability." answer="Use one fixed thread pool in one process. Persistent queues, distributed workers, and exactly-once delivery are outside scope." derived="Parallel jobs share in-memory indexes; a process crash may lose accepted work." />
+
+<RequirementBox requirements={[
+  "Support EMAIL, SMS, and PUSH through replaceable senders.",
+  "A validated immutable request contains recipient ID, destination, one channel, optional subject, and mandatory body.",
+  "Submit indexes a QUEUED job and immediately returns its ID.",
+  "A fixed ExecutorService runs separate jobs in parallel.",
+  "Provider failures receive no more than three total immediate attempts.",
+  "Callers can query an immutable status snapshot.",
+  "Shutdown rejects new work and lets accepted executor tasks finish.",
+  "No channel-specific branch belongs in NotificationService."
+]} outOfScope={["Persistence or message broker", "Distributed workers", "Exactly-once delivery", "Delayed backoff and jitter", "Templates and localization", "Preferences and fallback", "Real provider SDKs"]} />
+
+</section>
+
+<section id="entities">
+
+## 2. Entities and relationships
+
+Start with nouns, then ask what each must remember or enforce. A queue and thread pool are real implementation concepts, but they do not automatically become domain classes.
+
+<CandidateWalkthrough name="NotificationRequest" fromRequirement="Accepted content must not change before a worker reads it." question="Do these values form one meaningful stable input?" reasoning="Recipient, destination, channel, subject, and body travel together and require construction validation." decision="Class"><p>Use an immutable Java record. It owns no delivery progress.</p></CandidateWalkthrough>
+<CandidateWalkthrough name="DeliveryJob" fromRequirement="Callers query status while a worker changes it." question="What information changes together?" reasoning="Status, attempts, and lastError describe one execution lifecycle and must be read consistently." decision="Class"><p>Keep this mutable class private. Synchronized transitions publish immutable snapshots.</p></CandidateWalkthrough>
+<CandidateWalkthrough name="NotificationSender" fromRequirement="EMAIL, SMS, and PUSH perform different provider operations." question="Is there one behavior with multiple implementations?" reasoning="Every channel performs one attempt with the same input but different integration code." decision="Interface"><p>The service depends on this small Strategy boundary instead of channel-specific conditionals.</p></CandidateWalkthrough>
+<CandidateWalkthrough name="RetryPolicy" fromRequirement="The worker may make no more than three attempts." question="Is the limit a meaningful validated value?" reasoning="The maximum and canRetry rule belong together, but no mutable lifecycle is needed." decision="Class"><p>Use an immutable record. Delayed scheduling remains an extension.</p></CandidateWalkthrough>
+<CandidateWalkthrough name="NotificationService" fromRequirement="Submit creates IDs, indexes work, schedules it, routes by channel, and exposes status." question="Which object coordinates the complete use case?" reasoning="These operations cross the job index, sender registry, executor, and retry policy." decision="Class"><p>The service orchestrates. It does not implement providers or expose jobs.</p></CandidateWalkthrough>
+<CandidateWalkthrough name="Recipient profile, template, and domain Queue" fromRequirement="The request already supplies identity, destination, and final content." question="Does the confirmed scope give these candidates independent behavior?" reasoning="There is no profile lookup, template rendering, or custom queue rule. ExecutorService already supplies task queueing." decision="Leave out"><p>Keep recipient data as request fields and infrastructure as injected dependencies.</p></CandidateWalkthrough>
+
+<ConceptImage src="/images/notification-system-entity-flow.png" alt="A caller submits to NotificationService, which records a DeliveryJob and uses a thread pool and channel sender" caption="Read left to right: acceptance creates visible job state before background delivery begins; retries update the same job." width={1693} height={929} mobileScrollable={true} />
+
+The caller enters through `NotificationService.submit`. The service creates a `DeliveryJob`, stores it, and schedules one worker task. That worker finds the `NotificationSender`, performs bounded attempts, and asks the job to publish `SENT` or `FAILED`. The executor enables parallel work but does not own any delivery rule.
+
+</section>
+
+<section id="class-design">
+
+## 3. Class design
+
+Use the chain **requirement → responsible object → state → behavior → public API**. Begin at `NotificationService.submit`, then follow its dependencies downward.
+
+<DerivationTable rows={[
+  ["One immutable accepted message", "NotificationRequest", "recipientId, destination, channel, subject, body"],
+  ["Body is mandatory", "NotificationRequest", "constructor validation"]
+]} />
+
+<DerivationTable rows={[
+  ["Expose progress safely", "DeliveryJob", "status, attempts, lastError, snapshot()"],
+  ["Terminal state never restarts", "DeliveryJob", "guarded synchronized transitions"]
+]} />
+
+<DerivationTable rows={[
+  ["Route without channel branches", "NotificationService", "senders map + submit()"],
+  ["Queryable jobs", "NotificationService", "ConcurrentHashMap + getStatus()"],
+  ["Parallel non-blocking delivery", "NotificationService", "ExecutorService + worker task"],
+  ["Bound retry", "NotificationService", "RetryPolicy + deliver()"],
+  ["Graceful lifecycle", "NotificationService", "accepting flag + close()"]
+]} />
+
+### The asynchronous correctness boundary
+
+A method call such as `sender.send()` is synchronous inside one worker: that worker waits for the provider attempt. The **public workflow** is asynchronous because `submit()` schedules the worker and returns first. This distinction prevents a common interview mistake—calling a method “async” merely because a thread pool exists while still waiting for its result.
+
+The service must index the job before scheduling it. Otherwise a fast worker could finish before `jobs.put`, producing a moment where the caller has an ID but status lookup cannot find the completed work. If the executor rejects scheduling, remove the indexed job and fail submission; do not leave unreachable QUEUED work.
+
+Each accepted job has one worker task, so two workers never intentionally deliver the same job in this model. Status readers still run concurrently with that worker. Synchronized job methods make each multi-field transition and snapshot visible as one consistent state.
+
+<PatternDecision name="Strategy" useIt={true}>The confirmed requirement has three versions of one delivery operation. NotificationSender isolates this variation and lets the service registry select it.</PatternDecision>
+<PatternDecision name="Factory" useIt={false}>The application can construct and inject the three senders directly. There is no complex creation rule.</PatternDecision>
+<PatternDecision name="Singleton" useIt={false}>Global access does not improve correctness, durability, or testing. Explicit construction makes executor ownership clear.</PatternDecision>
+<PatternDecision name="Observer or Chain of Responsibility" useIt={false}>There are no delivery subscribers or channel fallback chain in the confirmed requirements.</PatternDecision>
+
+</section>
+
+<section id="implementation">
+
+## 4. Java implementation
+
+<ImplementationGuide
+  what="The complete code validates immutable requests, indexes jobs, runs channel delivery in a fixed executor, retries expected failures, and exposes immutable snapshots."
+  why="Senders own one provider attempt, DeliveryJob owns progress, and NotificationService coordinates the workflow without leaking mutable internals."
+  flow={["Construct a validated NotificationRequest.", "submit creates and indexes N001.", "The executor runs deliver(job) in the background.", "The sender succeeds or throws DeliveryException.", "DeliveryJob publishes SENT or FAILED through a snapshot."]}
+/>
+
+<ConceptDropdown title="Why the executor does not guarantee durability">A fixed thread pool makes delivery non-blocking and parallel while this Java process is alive. Its queue, workers, jobs, and IDs disappear on a crash. A production guarantee requires durable shared authority.</ConceptDropdown>
+<ConceptDropdown title="Why retries can duplicate delivery">A provider may accept a message and then time out before replying. The worker sees failure and retries, although the first attempt may have succeeded. The first version promises bounded attempts, not exactly-once delivery.</ConceptDropdown>
+<ConceptDropdown title="Why synchronized job methods are enough here">One worker owns delivery for each job, while status readers may run on other threads. Synchronizing transitions and snapshot creation gives readers consistent visibility without exposing mutable state.</ConceptDropdown>
+
+<JavaFile name="NotificationChannel.java" code={`public enum NotificationChannel {
+    EMAIL,
+    SMS,
+    PUSH
+}`} />
+
+<JavaFile name="DeliveryStatus.java" code={`public enum DeliveryStatus {
+    QUEUED,
+    SENDING,
+    SENT,
+    FAILED
+}`} />
+
+<JavaFile name="NotificationRequest.java" code={`public record NotificationRequest(
+        String recipientId,
+        String destination,
+        NotificationChannel channel,
+        String subject,
+        String body) {
+    public NotificationRequest {
+        if (recipientId == null || recipientId.isBlank()
+                || destination == null || destination.isBlank()
+                || channel == null || body == null || body.isBlank()) {
+            throw new IllegalArgumentException("Complete notification details are required");
+        }
+        subject = subject == null ? "" : subject;
+    }
+}`} />
+
+<JavaFile name="SubmissionReceipt.java" code={`public record SubmissionReceipt(String jobId) {
+    public SubmissionReceipt {
+        if (jobId == null || jobId.isBlank()) {
+            throw new IllegalArgumentException("Job id is required");
+        }
+    }
+}`} />
+
+<JavaFile name="DeliverySnapshot.java" code={`public record DeliverySnapshot(
+        String jobId,
+        DeliveryStatus status,
+        int attempts,
+        String lastError) {
+}`} />
+
+<JavaFile name="RetryPolicy.java" code={`public record RetryPolicy(int maxAttempts) {
+    public RetryPolicy {
+        if (maxAttempts < 1) {
+            throw new IllegalArgumentException("At least one attempt is required");
+        }
+    }
+
+    public boolean canRetry(int completedAttempts) {
+        return completedAttempts < maxAttempts;
+    }
+}`} />
+
+<JavaFile name="DeliveryException.java" code={`public final class DeliveryException extends Exception {
+    public DeliveryException(String message) {
+        super(message);
+    }
+}`} />
+
+<JavaFile name="NotificationSender.java" code={`public interface NotificationSender {
+    NotificationChannel channel();
+
+    void send(NotificationRequest request) throws DeliveryException;
+}`} />
+
+<JavaFile name="EmailSender.java" code={`public final class EmailSender implements NotificationSender {
+    @Override
+    public NotificationChannel channel() {
+        return NotificationChannel.EMAIL;
+    }
+
+    @Override
+    public void send(NotificationRequest request) throws DeliveryException {
+        System.out.println("EMAIL -> " + request.destination() + ": " + request.body());
+    }
+}`} />
+
+<JavaFile name="SmsSender.java" code={`public final class SmsSender implements NotificationSender {
+    @Override
+    public NotificationChannel channel() {
+        return NotificationChannel.SMS;
+    }
+
+    @Override
+    public void send(NotificationRequest request) throws DeliveryException {
+        System.out.println("SMS -> " + request.destination() + ": " + request.body());
+    }
+}`} />
+
+<JavaFile name="PushSender.java" code={`public final class PushSender implements NotificationSender {
+    @Override
+    public NotificationChannel channel() {
+        return NotificationChannel.PUSH;
+    }
+
+    @Override
+    public void send(NotificationRequest request) throws DeliveryException {
+        System.out.println("PUSH -> " + request.destination() + ": " + request.body());
+    }
+}`} />
+
+<JavaFile name="DeliveryJob.java" code={`import java.util.Objects;
+
+final class DeliveryJob {
+    private final String jobId;
+    private final NotificationRequest request;
+    private DeliveryStatus status = DeliveryStatus.QUEUED;
+    private int attempts;
+    private String lastError;
+
+    DeliveryJob(String jobId, NotificationRequest request) {
+        this.jobId = Objects.requireNonNull(jobId);
+        this.request = Objects.requireNonNull(request);
+    }
+
+    NotificationRequest request() {
+        return request;
+    }
+
+    synchronized void startAttempt() {
+        if (status == DeliveryStatus.SENT || status == DeliveryStatus.FAILED) {
+            throw new IllegalStateException("Terminal job cannot restart");
+        }
+        attempts++;
+        status = DeliveryStatus.SENDING;
+    }
+
+    synchronized void recordAttemptFailure(String message) {
+        if (status != DeliveryStatus.SENDING) {
+            throw new IllegalStateException("No active attempt");
+        }
+        lastError = Objects.requireNonNull(message);
+    }
+
+    synchronized void markSent() {
+        if (status != DeliveryStatus.SENDING) {
+            throw new IllegalStateException("No active attempt");
+        }
+        status = DeliveryStatus.SENT;
+        lastError = null;
+    }
+
+    synchronized void markFailed() {
+        if (status != DeliveryStatus.SENDING) {
+            throw new IllegalStateException("No active attempt");
+        }
+        status = DeliveryStatus.FAILED;
+    }
+
+    synchronized int attempts() {
+        return attempts;
+    }
+
+    synchronized DeliverySnapshot snapshot() {
+        return new DeliverySnapshot(jobId, status, attempts, lastError);
+    }
+}`} />
+
+<JavaFile name="NotificationService.java" code={`import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+public final class NotificationService implements AutoCloseable {
+    private final Map<NotificationChannel, NotificationSender> senders;
+    private final ConcurrentMap<String, DeliveryJob> jobs = new ConcurrentHashMap<>();
+    private final ExecutorService executor;
+    private final RetryPolicy retryPolicy;
+    private final AtomicLong sequence = new AtomicLong(1);
+    private final AtomicBoolean accepting = new AtomicBoolean(true);
+
+    public NotificationService(List<NotificationSender> senders,
+            ExecutorService executor, RetryPolicy retryPolicy) {
+        this.executor = Objects.requireNonNull(executor);
+        this.retryPolicy = Objects.requireNonNull(retryPolicy);
+        EnumMap<NotificationChannel, NotificationSender> registry =
+                new EnumMap<>(NotificationChannel.class);
+        for (NotificationSender sender : List.copyOf(senders)) {
+            if (registry.putIfAbsent(sender.channel(), sender) != null) {
+                throw new IllegalArgumentException("Duplicate sender: " + sender.channel());
+            }
+        }
+        this.senders = Map.copyOf(registry);
+    }
+
+    public SubmissionReceipt submit(NotificationRequest request) {
+        Objects.requireNonNull(request);
+        if (!accepting.get()) {
+            throw new IllegalStateException("Service is closed");
+        }
+        if (!senders.containsKey(request.channel())) {
+            throw new IllegalArgumentException("No sender for " + request.channel());
+        }
+        String jobId = "N" + String.format("%03d", sequence.getAndIncrement());
+        DeliveryJob job = new DeliveryJob(jobId, request);
+        jobs.put(jobId, job);
+        try {
+            executor.submit(() -> deliver(job));
+        } catch (RejectedExecutionException failure) {
+            jobs.remove(jobId);
+            throw failure;
+        }
+        return new SubmissionReceipt(jobId);
+    }
+
+    private void deliver(DeliveryJob job) {
+        NotificationSender sender = senders.get(job.request().channel());
+        while (true) {
+            job.startAttempt();
+            try {
+                sender.send(job.request());
+                job.markSent();
+                return;
+            } catch (DeliveryException failure) {
+                String message = failure.getMessage() == null
+                        ? "Delivery failed"
+                        : failure.getMessage();
+                job.recordAttemptFailure(message);
+                if (!retryPolicy.canRetry(job.attempts())) {
+                    job.markFailed();
+                    return;
+                }
+            }
+        }
+    }
+
+    public Optional<DeliverySnapshot> getStatus(String jobId) {
+        if (jobId == null || jobId.isBlank()) {
+            return Optional.empty();
+        }
+        DeliveryJob job = jobs.get(jobId);
+        return job == null ? Optional.empty() : Optional.of(job.snapshot());
+    }
+
+    @Override
+    public void close() {
+        if (accepting.compareAndSet(true, false)) {
+            executor.shutdown();
+        }
+    }
+}`} />
+
+<JavaFile name="NotificationDemo.java" code={`import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+public final class NotificationDemo {
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService workers = Executors.newFixedThreadPool(2);
+        try (NotificationService service = new NotificationService(
+                List.of(new EmailSender(), new SmsSender(), new PushSender()),
+                workers,
+                new RetryPolicy(3))) {
+            SubmissionReceipt receipt = service.submit(new NotificationRequest(
+                    "U1", "learner@example.com", NotificationChannel.EMAIL,
+                    "Interview update", "Your interview starts at 3 PM."));
+            System.out.println("Accepted " + receipt.jobId());
+            workers.shutdown();
+            workers.awaitTermination(2, TimeUnit.SECONDS);
+            System.out.println(service.getStatus(receipt.jobId()).orElseThrow());
+        }
+    }
+}`} />
+
+### A successful EMAIL submission
+
+<ScenarioTrace steps={[
+  "The record constructor validates U1, learner@example.com, EMAIL, and the body.",
+  "submit confirms the service is accepting and has an EMAIL sender.",
+  "The service creates N001, indexes a QUEUED job, and submits its worker.",
+  "The caller receives SubmissionReceipt(N001) before provider completion is required.",
+  "The worker starts attempt 1, EmailSender succeeds, and the job atomically becomes SENT.",
+  "getStatus(N001) returns a DeliverySnapshot with SENT and attempts=1."
+]} />
+
+### A permanent provider failure
+
+<ScenarioTrace steps={[
+  "The worker records failures after attempts 1 and 2; RetryPolicy still permits another attempt.",
+  "Attempt 3 also throws DeliveryException.",
+  "RetryPolicy denies a fourth attempt, so DeliveryJob becomes FAILED with attempts=3.",
+  "No unrelated job changes, and callers can inspect the final error through a snapshot."
+]} />
+
+<NotificationSystemSimulator />
+
+</section>
+
+<section id="extensions">
+
+## 5. Extensions
+
+### Durable delivery across crashes
+
+The changed requirement is “accepted jobs must survive a process crash.” `NotificationService` currently owns an in-memory executor and job index, so those can no longer be the authority. Persist an outbox record in the same transaction as the caller's business action or publish to a durable broker. Workers acknowledge only after delivery handling, failed jobs move to a dead-letter destination, and stable delivery keys reduce duplicate effects.
+
+### Backoff, jitter, and rate limits
+
+The current `RetryPolicy` decides only whether another immediate attempt is allowed. A delayed retry requirement introduces scheduled time. Replace the immediate loop with a retry scheduler that calculates the next attempt time. Add jitter so many jobs do not retry together, and keep provider-specific rate limits beside the sender or its adapter.
+
+### New channels, templates, and fallback
+
+WhatsApp or Slack adds a channel value and `NotificationSender`; the service workflow remains unchanged. Templates introduce a renderer before submission so the accepted request still contains final immutable content. Channel fallback is different: it turns one request into an ordered multi-channel plan and may justify a Chain of Responsibility only after the fallback requirement is precise.
+
+<Insight title="A strong closing explanation">“I separated acceptance from delivery: submit validates and indexes a QUEUED job before handing one task to a fixed executor. NotificationSender is the Strategy boundary for EMAIL, SMS, and PUSH. DeliveryJob synchronizes its lifecycle and exposes immutable snapshots. NotificationService owns routing and three immediate attempts, but I would move accepted work to durable shared infrastructure before claiming crash recovery or cross-server guarantees.”</Insight>
+
+</section>
+
+</WalkthroughOnly>
