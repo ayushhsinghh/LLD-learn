@@ -13,5 +13,5 @@ const toc = [
 ];
 
 export default function ParkingLotPage() {
-  return <LessonShell title="Parking Lot" eyebrow="Problem 03 · Complete walkthrough" difficulty="Intermediate" duration="40 min" toc={toc} previous={{ href: "/problems/tic-tac-toe/", label: "Tic-Tac-Toe" }} next={{ href: "/problems/movie-ticket-booking/", label: "Movie Ticket Booking" }}><ParkingLotLesson /></LessonShell>;
+  return <LessonShell title="Parking Lot" eyebrow="Problem 03 · Complete walkthrough" difficulty="Intermediate" duration="40 min" toc={toc} focusHref="/problems/parking-lot/learn/" previous={{ href: "/problems/tic-tac-toe/", label: "Tic-Tac-Toe" }} next={{ href: "/problems/movie-ticket-booking/", label: "Movie Ticket Booking" }}><ParkingLotLesson /></LessonShell>;
 }

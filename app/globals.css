@@ -154,6 +154,7 @@ button { cursor: pointer; }
 .focus-step:has([aria-label="Interactive Tic-Tac-Toe simulation"]) { height: 100%; }
 .focus-step > *:first-child { margin-top: 0; }
 .focus-step > *:last-child { margin-bottom: 0; }
+.focus-step > section { margin-block: 0; }
 .focus-step > * + * { margin-top: 0.75rem; }
 .focus-step > p,
 .focus-step > ul,

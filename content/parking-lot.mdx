@@ -1,5 +1,461 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { ParkingLotSimulator } from "@/components/simulations/parking-lot-simulator"
+import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
+import { ChoiceQuestion, ClassificationChallenge, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
+import { ParkingClassBlueprint, ParkingClassPicker, ParkingEntryFlow, ParkingImplementationMap, ParkingOwnershipQuiz, ParkingStateProof } from "@/components/learning/parking-lot-focus"
+
+<LessonStep id="parking-orientation"><FocusOnly>
+<ConceptImage src="/images/parking-lot-overview.png" alt="A car entering a two-floor parking garage and following an assigned route to a highlighted compatible free spot" caption="Entry is a workflow: choose a compatible spot, remember the assignment, then free that exact spot on exit." width={1536} height={1024} />
+</FocusOnly></LessonStep>
+
+<LessonStep id="parking-framework"><FocusOnly><FocusFrameworkRoadmap /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-interview"><FocusOnly><InterviewDynamicsGuide
+  timing={[{ label: "Clarify", minutes: "5 min" }, { label: "Model", minutes: "3 min" }, { label: "Design", minutes: "10–15 min" }, { label: "Code", minutes: "10 min" }, { label: "Extend", minutes: "5 min" }]}
+  speaking={["Define vague words aloud: ‘By nearest, do we compare floor before spot size?’", "State ownership as you decide it: ‘Spot owns availability; the strategy only ranks candidates.’", "Name the invariant before code: ‘A rejected entry must not occupy a spot or create a ticket.’"]}
+  signals={[{ id: "nearest", signal: "“What exactly do you mean by nearest?”", response: "Turn the word into an ordered comparison that both code and tests can repeat." }, { id: "policy", signal: "“Could another lot assign differently?”", response: "Identify selection as the behavior that varies while the parking workflow stays stable." }, { id: "entrances", signal: "“What if two entrances act together?”", response: "Explain the select-to-ticket critical section and separate one-process locking from shared consistency." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-orientation-check"><FocusOnly><PredictionChecklist
+  prompt="Before naming classes, which facts must the interviewer confirm?"
+  items={[{ id: "types", label: "Vehicle and spot types", correct: true, feedback: "Compatibility cannot exist until both sets are known." }, { id: "nearest", label: "Exact nearest ordering", correct: true, feedback: "A vague nearest rule produces unpredictable allocation." }, { id: "exit", label: "How exit finds the session", correct: true, feedback: "The design needs a stable ticket or another exact identifier." }, { id: "invalid", label: "Rejected entry and exit cases", correct: true, feedback: "These cases define guards and unchanged-state invariants." }, { id: "paint", label: "Garage wall color", correct: false, feedback: "It creates no software behavior in this scope." }, { id: "database", label: "Preferred database vendor", correct: false, feedback: "Storage is outside this in-memory LLD unless the interviewer adds it." }]}
+  success="You clarified behavior before inventing objects."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-incomplete"><FocusOnly><PassiveLearningCards
+  intro="‘Design a parking lot’ names a place, not a program. Several reasonable implementations would behave differently."
+  items={[{ title: "Suitable", label: "Compatibility", body: "Can a motorcycle use compact or large spots? Can a car use motorcycle spots?" }, { title: "Nearest", label: "Ordering", body: "Do we compare floor, walking distance, spot size, or ID first?" }, { title: "Successful entry", label: "Result", body: "Who selects, what changes, and what receipt returns to the caller?" }, { title: "Exit", label: "Reverse workflow", body: "Which identifier finds the exact occupied spot, and what happens for an unknown ticket?" }]}
+  conclusion="Clarify actions, rules, errors, and boundaries until one example produces one predictable answer."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-dialogue"><FocusOnly><InterviewDialogueExample turns={[
+  { speaker: "Candidate", text: "When you say nearest, which comparison should win?" },
+  { speaker: "Interviewer", text: "Use the lower floor first. On that floor prefer the smallest suitable spot type, then the lowest spot ID." },
+  { speaker: "Candidate", text: "So a large spot on floor 0 beats a compact spot on floor 1, because floor number is compared first." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-questions"><FocusOnly><PredictionChecklist
+  prompt="Which questions materially change the first design?"
+  items={[{ id: "compat", label: "Which vehicle and spot types exist?", correct: true, feedback: "This defines compatibility." }, { id: "floors", label: "Are there several floors, and how is nearest ordered?", correct: true, feedback: "This defines deterministic selection." }, { id: "assign", label: "Does the driver choose or the system assign?", correct: true, feedback: "This decides whether an allocation policy is required." }, { id: "ticket", label: "What identifies an active session and exit?", correct: true, feedback: "This creates the ticket and exit lookup." }, { id: "errors", label: "Which invalid requests must leave state unchanged?", correct: true, feedback: "This creates guards and result values." }, { id: "vary", label: "Can the assignment policy change?", correct: true, feedback: "This determines whether an interface is justified." }, { id: "brand", label: "Which company manufactured the gate?", correct: false, feedback: "Hardware branding does not affect the confirmed software workflow." }, { id: "music", label: "What music plays in the garage?", correct: false, feedback: "It adds no rule, state, or boundary to this problem." }]}
+  success="These questions expose every design-changing decision."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-answers"><FocusOnly><PassiveLearningCards
+  intro="Convert every answer into observable behavior before thinking about fields or methods."
+  items={[{ title: "Types and fit", label: "Answer", body: "Motorcycles fit any spot. Cars fit compact or large spots." }, { title: "Nearest", label: "Answer", body: "Lower floor, then smallest suitable type, then spot ID." }, { title: "Entry and ticket", label: "Answer", body: "The system assigns one spot and returns a unique ticket with plate, floor, and spot." }, { title: "Rejections", label: "Answer", body: "Duplicate entry, no compatible spot, and unknown ticket change nothing." }, { title: "Variation", label: "Answer", body: "Keep spot selection replaceable; nearest-compatible is the first policy." }, { title: "Boundary", label: "Answer", body: "Sequential in-memory calls; no payment, reservation, charging, storage, or concurrent entrances." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-spec"><FocusOnly><FocusSpec requirements={["Support motorcycles and cars across motorcycle, compact, and large spots on multiple floors.", "A motorcycle fits any spot; a car fits compact or large spots.", "Assign by lower floor, smallest suitable type, then spot ID.", "Successful entry occupies one spot and returns a unique ticket.", "Duplicate entry or no compatible spot changes nothing.", "A valid ticket releases its recorded spot; an unknown ticket changes nothing.", "Keep spot assignment replaceable; nearest-compatible is the first strategy."]} outOfScope={["Payments and pricing", "Advance reservations", "Electric charging", "Concurrent entrances", "Database consistency", "Physical gates and navigation"]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-entity-transition"><FocusOnly><PassiveLearningCards
+  intro="Requirements reveal candidate nouns, but each candidate must earn its model shape through state, rules, or stable value meaning."
+  items={[{ title: "State owners", body: "ParkingLot, ParkingFloor, and ParkingSpot own changing or grouped information." }, { title: "Stable values", body: "Vehicle and ParkingTicket keep facts that travel together without setters." }, { title: "Replaceable behavior", body: "SpotAssignmentStrategy names the one policy the interviewer expects to vary." }, { title: "Closed choices", body: "Vehicle, spot, parking, and exit kinds belong in enums." }, { title: "Simple fields", body: "Floor number, IDs, and plate live inside another object." }, { title: "Physical nouns", body: "Gate, payment, and address stay out until a requirement gives them a job." }]}
+  conclusion="The goal is the smallest model that protects the confirmed workflow."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-modeling-vocabulary"><FocusOnly><PassiveLearningCards
+  intro="Use the smallest modeling choice that preserves meaning and rules."
+  items={[{ title: "Class", label: "State + behavior", body: "Own changing information and enforce rules on it." }, { title: "Interface", label: "Behavior varies", body: "Name a boundary only when multiple policies may replace one another." }, { title: "Enum", label: "Fixed choices", body: "Represent a small closed vocabulary without independent state." }, { title: "Immutable value", label: "Facts together", body: "Use a record when several values form one stable concept with value equality." }, { title: "Field", label: "Simple value", body: "Keep a number or ID inside the class that gives it meaning." }, { title: "Leave out", label: "No current job", body: "Omit physical nouns and future concepts outside the confirmed scope." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-classes"><FocusOnly><ParkingClassPicker /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-values"><FocusOnly><ClassificationChallenge
+  instruction="Choose the smallest representation that preserves each concept's meaning."
+  categories={[{ id: "interface", label: "Interface" }, { id: "enum", label: "Enum" }, { id: "value", label: "Value" }, { id: "field", label: "Field" }, { id: "leave", label: "Leave out" }]}
+  items={[{ id: "ids", label: "Floor number, plate, and IDs", answer: "field", feedback: "These simple values gain meaning inside their owning object." }, { id: "strategy", label: "SpotAssignmentStrategy", answer: "interface", feedback: "The interviewer explicitly expects the ranking policy to be replaceable." }, { id: "payment", label: "Payment and gate hardware", answer: "leave", feedback: "Both are outside the confirmed first version." }, { id: "selection", label: "SpotSelection and ParkingResult", answer: "value", feedback: "Each bundles stable result facts that travel together." }, { id: "kinds", label: "VehicleType, SpotType, statuses", answer: "enum", feedback: "These are small closed sets of valid choices." }]}
+  success="Every remaining concept has the smallest useful shape."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-ownership"><FocusOnly><ParkingOwnershipQuiz /></FocusOnly></LessonStep>
+<LessonStep id="parking-entity-flow"><FocusOnly><ParkingEntryFlow /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-principles"><FocusOnly><ClassificationChallenge
+  instruction="Match each concrete failure to the design principle that prevents it."
+  categories={[{ id: "encapsulation", label: "Encapsulation" }, { id: "srp", label: "Single responsibility" }, { id: "immutable", label: "Immutability" }, { id: "open", label: "Open / closed" }]}
+  items={[{ id: "ticket", label: "A ticket changes after entry", answer: "immutable", feedback: "Immutable records keep accepted-session facts stable." }, { id: "mutation", label: "A caller sets a spot occupant directly", answer: "encapsulation", feedback: "Private state and validated methods prevent bypassing compatibility and availability." }, { id: "ranking", label: "Changing ranking rewrites parking workflow", answer: "open", feedback: "A strategy interface lets a new policy replace selection without editing ticket logic." }, { id: "mixed", label: "One class owns spots, ranking, tickets, and UI", answer: "srp", feedback: "Separate owners change for separate reasons and keep rules understandable." }]}
+  callout="Principles protect concrete invariants; they are not decoration added after the classes."
+  success="You connected every principle to the failure it prevents."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-design-method"><FocusOnly><PassiveLearningCards
+  intro="Design every class using the same chain: requirement → responsibility → state → behavior → public API → relationship → principle."
+  items={[{ title: "1. Responsibility", body: "Name the one job created by a requirement." }, { title: "2. State", body: "Add only information needed to perform that job." }, { title: "3. Behavior", body: "Put checks and changes beside the state they use." }, { title: "4. Public API", body: "Expose use cases without exposing mutable internals." }, { title: "5. Relationships", body: "Use has-a collaboration when objects have different jobs." }, { title: "6. Patterns", body: "Add an abstraction only where a current or confirmed future behavior varies." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-immutable-values"><FocusOnly><PassiveLearningCards
+  intro="These objects carry facts; they do not own the changing availability of the lot. Java records make that boundary explicit."
+  items={[{ title: "Vehicle", label: "Request value", body: "Normalized plate and vehicle type remain stable during a session." }, { title: "ParkingTicket", label: "Receipt", body: "Ticket ID, plate, floor, and spot identify one accepted assignment." }, { title: "SpotSelection", label: "Search result", body: "Floor and spot stay together so ticket creation does not rescan every floor." }, { title: "ParkingResult", label: "Operation result", body: "Status and optional ticket cannot contradict one another." }]}
+  conclusion="Records validate construction and provide value equality; ParkingSpot remains a class because its occupant changes."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-spot-design"><FocusOnly><ClassificationChallenge
+  instruction="Classify what ParkingSpot remembers, does, or should not own."
+  categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not Spot" }]}
+  items={[{ id: "ticket", label: "Create tickets", answer: "other", feedback: "ParkingLot owns the complete session and ticket indexes." }, { id: "id-type", label: "ID and type", answer: "state", feedback: "These stable fields describe the resource." }, { id: "occupy", label: "Occupy and release", answer: "behavior", feedback: "These methods protect the changing occupant." }, { id: "rank", label: "Rank floors", answer: "other", feedback: "The strategy compares candidates across floors." }, { id: "occupant", label: "Current vehicle", answer: "state", feedback: "This field is the source of availability." }, { id: "fit", label: "Check fit and availability", answer: "behavior", feedback: "The spot has the type and occupant needed for both checks." }]}
+  callout="Encapsulation: only ParkingSpot changes its private occupant."
+  success="ParkingSpot owns one resource and its availability rules."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-floor-design"><FocusOnly><PassiveLearningCards
+  intro="ParkingFloor is more than an integer because it owns the group of spots physically belonging together."
+  items={[{ title: "State", body: "number and an immutable List<ParkingSpot>." }, { title: "Construction", body: "Reject a negative floor, empty group, null spot, or duplicate spot ID." }, { title: "Behavior", body: "Find a spot by ID and calculate available count within this floor." }, { title: "Boundary", body: "Expose a safe list, but do not choose the winner across several floors." }]}
+  conclusion="Grouping belongs to ParkingFloor; cross-floor policy belongs to SpotAssignmentStrategy."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-lot-state"><FocusOnly><ClassificationChallenge
+  instruction="Match each candidate to ParkingLot state or another owner."
+  categories={[{ id: "lot", label: "Lot state" }, { id: "other", label: "Other owner" }]}
+  items={[{ id: "occupant", label: "spot occupant", answer: "other", feedback: "ParkingSpot owns availability." }, { id: "floors", label: "floors", answer: "lot", feedback: "ParkingLot coordinates the complete ordered resource collection." }, { id: "ticket-id", label: "activeTicketsById", answer: "lot", feedback: "Exit by ticket requires this index." }, { id: "rank", label: "comparator implementation", answer: "other", feedback: "The concrete strategy owns ranking code." }, { id: "strategy", label: "strategy", answer: "lot", feedback: "The coordinator depends on the replaceable selection boundary." }, { id: "sequence", label: "nextTicketNumber", answer: "lot", feedback: "ParkingLot creates unique session tickets." }, { id: "plate", label: "activeTicketIdByPlate", answer: "lot", feedback: "Duplicate entry requires a fast active-plate lookup." }]}
+  callout="Single responsibility: ParkingLot remembers session workflow, not spot internals or ranking code."
+  success="Every field comes from a workflow requirement."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-lot-api"><FocusOnly><ClassificationChallenge
+  instruction="Decide what callers may ask ParkingLot to do and what must stay internal or elsewhere."
+  categories={[{ id: "public", label: "Public API" }, { id: "internal", label: "Internal" }, { id: "other", label: "Other owner" }]}
+  items={[{ id: "set", label: "setSpotOccupant", answer: "other", feedback: "Direct mutation would bypass ParkingSpot and the parking workflow." }, { id: "park", label: "park(vehicle)", answer: "public", feedback: "Entry is the main caller use case." }, { id: "index", label: "Update ticket indexes", answer: "internal", feedback: "ParkingLot commits these only after occupation succeeds." }, { id: "leave", label: "leave(ticketId)", answer: "public", feedback: "Exit is a confirmed caller use case." }, { id: "select", label: "Compare candidate spots", answer: "other", feedback: "SpotAssignmentStrategy owns the ranking algorithm." }, { id: "reads", label: "Safe ticket and floor reads", answer: "public", feedback: "Copy-based reads expose required state without replacing internal collections." }, { id: "validate", label: "Validate unique IDs", answer: "internal", feedback: "Construction protects the lot model before requests arrive." }]}
+  callout="Public methods expose use cases; internal mutations remain ordered by ParkingLot."
+  success="The API cannot bypass the workflow."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-allocation"><FocusOnly><OrderQuestion
+  prompt="After collecting all spots, which rules narrow and order the candidates?"
+  items={[{ id: "id", label: "Use spot ID as the final tie-breaker" }, { id: "fit", label: "Remove occupied or incompatible spots" }, { id: "type", label: "Prefer the smallest suitable spot type" }, { id: "floor", label: "Prefer the lower floor" }]}
+  correctOrder={["fit", "floor", "type", "id"]}
+  explanation="A floor-0 large spot beats a floor-1 compact spot because floor is compared before fit preference. Sorting S candidates costs O(S log S); maintained ordered free sets trade more update complexity for faster selection."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-patterns"><FocusOnly><PassiveLearningCards
+  intro="A pattern earns its place only when it isolates a behavior that really varies."
+  items={[{ title: "Strategy", label: "Use now", body: "The interviewer explicitly wants replaceable selection. ParkingLot depends on select(floors, vehicle), not one concrete comparator." }, { title: "Composition", label: "Use now", body: "ParkingLot has floors and a strategy; floors have spots. None of these is a specialized form of another." }, { title: "Factory", label: "Not needed", body: "Vehicle and spot construction is direct and has no alternative creation workflow." }, { title: "Singleton", label: "Do not use", body: "Tests and real companies may create several independent lots; global state harms isolation." }]}
+  conclusion="Future pricing or reservation variation may justify new boundaries, but they do not belong in the basic model."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-blueprint"><FocusOnly><ParkingClassBlueprint /></FocusOnly></LessonStep>
+<LessonStep id="parking-code-map"><FocusOnly><ParkingImplementationMap /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-order"><FocusOnly><OrderQuestion
+  prompt="In what order should ParkingLot.park process one request?"
+  items={[{ id: "indexes", label: "Update both active-ticket indexes" }, { id: "duplicate", label: "Reject an already-active plate" }, { id: "return", label: "Return the accepted result" }, { id: "select", label: "Ask the strategy for a selection" }, { id: "ticket", label: "Create a unique ticket" }, { id: "occupy", label: "Ask the selected spot to occupy" }]}
+  correctOrder={["duplicate", "select", "occupy", "ticket", "indexes", "return"]}
+  explanation="Every expected rejection occurs before ticket creation and indexing. The spot changes first; the session is committed only after occupation succeeds."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-code-concepts"><FocusOnly><TabbedConceptView tabs={[
+  { id: "records", label: "Records", title: "Use records for stable values", body: "Vehicle, ticket, selection, and result group facts, validate construction, and provide value equality without setters." },
+  { id: "optional", label: "Optional", title: "Missing selection is expected", body: "A strategy may find no compatible free spot. Optional makes that normal search result explicit without an exception or null contract." },
+  { id: "results", label: "Results", title: "Name expected failures", body: "ParkingStatus and ExitStatus tell callers why an operation failed while exceptions protect broken construction and impossible internal state." },
+  { id: "order", label: "Mutation", title: "Validate before changing state", body: "Duplicate and missing-selection checks happen first. A ticket is created only after the chosen spot accepts the vehicle." },
+  { id: "threads", label: "Concurrency", title: "Sequential is the current boundary", body: "The current code does not make select through ticket creation atomic across concurrent entrances or application servers." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-enums"><FocusOnly><TabbedCodeView label="Vehicle, spot, entry, and exit vocabulary" tabs={[
+  { id: "fit", label: "Vehicle + Spot", code: `enum VehicleType { MOTORCYCLE, CAR }
+
+enum SpotType {
+    MOTORCYCLE, COMPACT, LARGE;
+
+    public boolean canFit(VehicleType vehicleType) {
+        return switch (vehicleType) {
+            case MOTORCYCLE -> true;
+            case CAR -> this == COMPACT || this == LARGE;
+        };
+    }
+
+    public int preferenceFor(VehicleType vehicleType) {
+        if (!canFit(vehicleType)) return Integer.MAX_VALUE;
+        return switch (this) {
+            case MOTORCYCLE -> 0;
+            case COMPACT -> vehicleType == VehicleType.CAR ? 0 : 1;
+            case LARGE -> vehicleType == VehicleType.CAR ? 1 : 2;
+        };
+    }
+}` },
+  { id: "results", label: "Result statuses", code: `enum ParkingStatus {
+    PARKED,
+    ALREADY_PARKED,
+    NO_COMPATIBLE_SPOT
+}
+
+enum ExitStatus {
+    RELEASED,
+    TICKET_NOT_FOUND
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-records"><FocusOnly><TabbedCodeView label="Immutable parking values" tabs={[
+  { id: "vehicle", label: "Vehicle", code: `public record Vehicle(String licensePlate, VehicleType type) {
+    public Vehicle {
+        if (licensePlate == null || licensePlate.isBlank())
+            throw new IllegalArgumentException("license plate is required");
+        licensePlate = licensePlate.trim().toUpperCase(Locale.ROOT);
+        type = Objects.requireNonNull(type);
+    }
+}` },
+  { id: "selection", label: "Selection", code: `public record SpotSelection(ParkingFloor floor, ParkingSpot spot) {
+    public SpotSelection {
+        floor = Objects.requireNonNull(floor);
+        spot = Objects.requireNonNull(spot);
+    }
+}` },
+  { id: "ticket", label: "Ticket", code: `public record ParkingTicket(String id, String licensePlate,
+        int floorNumber, String spotId) {
+    public ParkingTicket {
+        if (id == null || id.isBlank())
+            throw new IllegalArgumentException("ticket id is required");
+        if (licensePlate == null || licensePlate.isBlank())
+            throw new IllegalArgumentException("license plate is required");
+        if (floorNumber < 0)
+            throw new IllegalArgumentException("floor cannot be negative");
+        if (spotId == null || spotId.isBlank())
+            throw new IllegalArgumentException("spot id is required");
+    }
+}` },
+  { id: "result", label: "Result", code: `public record ParkingResult(ParkingStatus status, ParkingTicket ticket) {
+    public ParkingResult {
+        status = Objects.requireNonNull(status);
+        if ((status == ParkingStatus.PARKED) != (ticket != null))
+            throw new IllegalArgumentException("status and ticket disagree");
+    }
+
+    public static ParkingResult parked(ParkingTicket ticket) {
+        return new ParkingResult(ParkingStatus.PARKED,
+                Objects.requireNonNull(ticket));
+    }
+
+    public static ParkingResult rejected(ParkingStatus status) {
+        if (status == ParkingStatus.PARKED)
+            throw new IllegalArgumentException("Use parked() for success");
+        return new ParkingResult(status, null);
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-spot-predict"><FocusOnly><PredictionChecklist
+  prompt="Before reading the code, which responsibilities must Spot and Floor protect?"
+  items={[{ id: "fit", label: "Spot checks compatibility", correct: true, feedback: "Spot owns its type." }, { id: "occupy", label: "Spot rejects a second occupant", correct: true, feedback: "Spot owns the changing vehicle reference." }, { id: "release", label: "Spot releases its occupant", correct: true, feedback: "Availability changes in the same owner." }, { id: "lookup", label: "Floor finds one of its spots", correct: true, feedback: "Floor owns the local group." }, { id: "copy", label: "Floor protects its spot list", correct: true, feedback: "List.copyOf prevents callers from replacing the group." }, { id: "ticket", label: "Floor creates tickets", correct: false, feedback: "ParkingLot owns the complete session." }, { id: "rank", label: "Spot ranks every floor", correct: false, feedback: "The strategy compares cross-floor candidates." }]}
+  success="Spot protects availability; Floor protects its group."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-spot-code"><FocusOnly><TabbedCodeView label="ParkingSpot and ParkingFloor" tabs={[
+  { id: "spot-state", label: "Spot setup", code: `public ParkingSpot(String id, SpotType type) {
+    if (id == null || id.isBlank())
+        throw new IllegalArgumentException("spot id is required");
+    this.id = id;
+    this.type = Objects.requireNonNull(type);
+}
+
+public boolean canFit(Vehicle vehicle) {
+    return vehicle != null && type.canFit(vehicle.type());
+}
+
+public boolean isAvailable() {
+    return occupiedBy == null;
+}` },
+  { id: "spot-change", label: "Spot changes", code: `public boolean occupy(Vehicle vehicle) {
+    if (occupiedBy != null || !canFit(vehicle)) return false;
+    occupiedBy = vehicle;
+    return true;
+}
+
+public boolean release() {
+    if (occupiedBy == null) return false;
+    occupiedBy = null;
+    return true;
+}
+
+public Optional<Vehicle> getVehicle() {
+    return Optional.ofNullable(occupiedBy);
+}` },
+  { id: "floor-setup", label: "Floor setup", code: `public ParkingFloor(int number, List<ParkingSpot> spots) {
+    if (number < 0)
+        throw new IllegalArgumentException("floor cannot be negative");
+    Objects.requireNonNull(spots);
+    if (spots.isEmpty())
+        throw new IllegalArgumentException("floor needs spots");
+    Set<String> ids = new HashSet<>();
+    for (ParkingSpot spot : spots) {
+        Objects.requireNonNull(spot);
+        if (!ids.add(spot.getId()))
+            throw new IllegalArgumentException("duplicate spot id");
+    }
+    this.number = number;
+    this.spots = List.copyOf(spots);
+}` },
+  { id: "floor-read", label: "Floor reads", code: `public Optional<ParkingSpot> findSpot(String spotId) {
+    return spots.stream()
+            .filter(spot -> spot.getId().equals(spotId))
+            .findFirst();
+}
+
+public int availableSpotCount() {
+    return (int) spots.stream()
+            .filter(ParkingSpot::isAvailable).count();
+}
+
+public List<ParkingSpot> getSpots() {
+    return spots;
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-strategy-predict"><FocusOnly><ChoiceQuestion
+  prompt="A car arrives. Floor 0 has a free motorcycle spot and free large spot; floor 1 has a free compact spot. Which spot wins?"
+  choices={[{ id: "large", label: "The large spot on floor 0", correct: true, feedback: "The motorcycle spot is incompatible. Floor is compared before fit preference, so the compatible floor-0 large spot wins." }, { id: "compact", label: "The compact spot on floor 1", correct: false, feedback: "Compact is a tighter fit, but fit preference is compared only after floor number." }, { id: "motorcycle", label: "The motorcycle spot on floor 0", correct: false, feedback: "A car cannot use a motorcycle-only spot, so it is filtered out before ordering." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-strategy-code"><FocusOnly><TabbedCodeView label="Replaceable spot assignment" tabs={[
+  { id: "boundary", label: "Interface", code: `public interface SpotAssignmentStrategy {
+    Optional<SpotSelection> select(
+            List<ParkingFloor> floors,
+            Vehicle vehicle);
+}` },
+  { id: "nearest", label: "Nearest", code: `public Optional<SpotSelection> select(
+        List<ParkingFloor> floors, Vehicle vehicle) {
+    Objects.requireNonNull(floors);
+    Objects.requireNonNull(vehicle);
+
+    Comparator<SpotSelection> nearestFirst = Comparator
+            .comparingInt(s -> s.floor().getNumber())
+            .thenComparingInt(s -> s.spot().getType()
+                    .preferenceFor(vehicle.type()))
+            .thenComparing(s -> s.spot().getId());
+
+    return floors.stream()
+            .flatMap(floor -> floor.getSpots().stream()
+                    .filter(ParkingSpot::isAvailable)
+                    .filter(spot -> spot.canFit(vehicle))
+                    .map(spot -> new SpotSelection(floor, spot)))
+            .min(nearestFirst);
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-lot-predict"><FocusOnly><PredictionChecklist
+  prompt="Which checks and updates belong in one ParkingLot.park workflow?"
+  items={[{ id: "duplicate", label: "Reject an active plate", correct: true, feedback: "ParkingLot owns the plate index." }, { id: "select", label: "Ask Strategy to select", correct: true, feedback: "Ranking is delegated through the interface." }, { id: "occupy", label: "Ask Spot to occupy", correct: true, feedback: "The state owner performs the mutation." }, { id: "ticket", label: "Create and index a ticket", correct: true, feedback: "Only an accepted occupation becomes an active session." }, { id: "array", label: "Set occupiedBy directly", correct: false, feedback: "That bypasses ParkingSpot encapsulation." }, { id: "index-first", label: "Index a ticket before occupation", correct: false, feedback: "A failed occupation would leave a ticket for a session that never started." }]}
+  success="ParkingLot validates, delegates, then commits the session."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-lot-code"><FocusOnly><TabbedCodeView label="ParkingLot grouped by responsibility" tabs={[
+  { id: "setup", label: "Construction", code: `public ParkingLot(List<ParkingFloor> floors,
+        SpotAssignmentStrategy strategy) {
+    Objects.requireNonNull(floors);
+    if (floors.isEmpty())
+        throw new IllegalArgumentException("lot needs a floor");
+    validateUniqueFloorAndSpotIds(floors);
+    this.floors = List.copyOf(floors);
+    this.strategy = Objects.requireNonNull(strategy);
+}
+
+private static void validateUniqueFloorAndSpotIds(
+        List<ParkingFloor> floors) {
+    Set<Integer> floorNumbers = new HashSet<>();
+    Set<String> spotIds = new HashSet<>();
+    for (ParkingFloor floor : floors) {
+        if (!floorNumbers.add(floor.getNumber()))
+            throw new IllegalArgumentException("duplicate floor");
+        for (ParkingSpot spot : floor.getSpots())
+            if (!spotIds.add(spot.getId()))
+                throw new IllegalArgumentException("duplicate spot");
+    }
+}` },
+  { id: "park", label: "Park", code: `public ParkingResult park(Vehicle vehicle) {
+    Objects.requireNonNull(vehicle);
+    if (activeTicketIdByPlate.containsKey(vehicle.licensePlate()))
+        return ParkingResult.rejected(ParkingStatus.ALREADY_PARKED);
+
+    SpotSelection selection = strategy.select(floors, vehicle).orElse(null);
+    if (selection == null)
+        return ParkingResult.rejected(ParkingStatus.NO_COMPATIBLE_SPOT);
+    if (!selection.spot().occupy(vehicle))
+        throw new IllegalStateException("unusable selection");
+
+    String id = String.format("T%03d", nextTicketNumber++);
+    ParkingTicket ticket = new ParkingTicket(id, vehicle.licensePlate(),
+            selection.floor().getNumber(), selection.spot().getId());
+    activeTicketsById.put(id, ticket);
+    activeTicketIdByPlate.put(vehicle.licensePlate(), id);
+    return ParkingResult.parked(ticket);
+}` },
+  { id: "leave", label: "Leave", code: `public ExitStatus leave(String ticketId) {
+    if (ticketId == null || ticketId.isBlank())
+        return ExitStatus.TICKET_NOT_FOUND;
+    ParkingTicket ticket = activeTicketsById.get(ticketId);
+    if (ticket == null) return ExitStatus.TICKET_NOT_FOUND;
+
+    ParkingSpot spot = floors.stream()
+            .filter(f -> f.getNumber() == ticket.floorNumber())
+            .findFirst().flatMap(f -> f.findSpot(ticket.spotId()))
+            .orElseThrow(() -> new IllegalStateException("missing spot"));
+    if (!spot.release())
+        throw new IllegalStateException("ticket points to empty spot");
+
+    activeTicketsById.remove(ticketId);
+    activeTicketIdByPlate.remove(ticket.licensePlate());
+    return ExitStatus.RELEASED;
+}` },
+  { id: "reads", label: "Safe reads", code: `public List<ParkingTicket> getActiveTickets() {
+    return List.copyOf(activeTicketsById.values());
+}
+
+public List<ParkingFloor> getFloors() {
+    return floors;
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-demo"><FocusOnly><FocusCode label="Use the public ParkingLot API" code={`ParkingLot lot = new ParkingLot(
+        List.of(ground, first),
+        new NearestAvailableSpotStrategy());
+
+Vehicle car = new Vehicle("KA-01-AB-1001", VehicleType.CAR);
+ParkingResult entry = lot.park(car);
+System.out.println(entry.status());
+
+ParkingResult duplicate = lot.park(car);
+System.out.println(duplicate.status());
+
+String ticketId = entry.ticket().id();
+System.out.println(lot.leave(ticketId));
+System.out.println(lot.park(car).status());`} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-success"><FocusOnly><PassiveLearningCards
+  intro="Trace one car through the owners. Each step either reads or changes only the state it owns."
+  items={[{ title: "1. ParkingLot checks", body: "KA-01-AB-1001 is absent from the active-plate index." }, { title: "2. Strategy filters", body: "M-01 is incompatible; compatible free candidates remain." }, { title: "3. Strategy orders", body: "Floor 0 compact C-01 wins before all farther candidates." }, { title: "4. ParkingSpot changes", body: "C-01 validates the car and records it as occupiedBy." }, { title: "5. ParkingLot commits", body: "T001 records the plate, floor 0, and C-01 in both indexes." }, { title: "6. Caller receives", body: "ParkingResult.PARKED contains the stable ticket." }]}
+  conclusion="Allocation chooses; ParkingSpot mutates; ParkingLot commits the session."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-rejections"><FocusOnly><ParkingStateProof /></FocusOnly></LessonStep>
+<LessonStep id="parking-simulator"><FocusOnly><ParkingLotSimulator compact={true} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-concurrency"><FocusOnly><PassiveLearningCards
+  intro="Two entrances can interleave selection and mutation. The basic sequential workflow is no longer enough."
+  items={[{ title: "Critical section", body: "Protect select → occupy → create ticket → update indexes as one unit." }, { title: "Spot-only lock", body: "It prevents two occupants, but a losing request may need to select another compatible spot." }, { title: "One Java process", body: "A shared lock can serialize the workflow when every caller reaches the same object." }, { title: "Several servers", body: "Use shared transactions, constraints, or versions; one server's lock cannot protect another." }]}
+  conclusion="State the deployment boundary whenever you claim thread safety."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-capabilities"><FocusOnly><TabbedConceptView tabs={[
+  { id: "charging", label: "Charging", title: "Extend compatibility and ranking", body: "Add vehicle eligibility and spot capability. Keep compatibility near the spot and ranking in the assignment strategy." },
+  { id: "boards", label: "Counts", title: "Read availability from floors", body: "Calculate counts from spots first. Add maintained counters only when read volume justifies another invariant." },
+  { id: "pricing", label: "Pricing", title: "Add time and a pricing boundary", body: "Ticket records entry time; exit receives time. Introduce PricingStrategy only when several pricing rules exist, and inject a clock for deterministic tests." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="parking-reservations"><FocusOnly><PassiveLearningCards
+  intro="Reservations change the state model: occupied versus free can no longer express every valid condition."
+  items={[{ title: "AVAILABLE → RESERVED", body: "A reservation ID and expiry temporarily claim the spot before arrival." }, { title: "RESERVED → OCCUPIED", body: "Only the matching arrival converts the reservation into a parking session." }, { title: "RESERVED → AVAILABLE", body: "Expiry or cancellation releases the claim without creating a ticket." }, { title: "Why now?", body: "Explicit transitions become useful only after the reservation requirement creates several states." }]}
+  conclusion="This is where a state-transition design becomes justified; it is unnecessary in the basic version."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-extension-answer"><FocusOnly><ChoiceQuestion
+  prompt="The interviewer adds two concurrent entrances. Which spoken answer is strongest?"
+  choices={[{ id: "boundary", label: "Protect the complete entry critical section and state the process boundary", correct: true, feedback: "Strong answer: ‘The changed requirement affects select through ticket indexing. In one process I would lock that critical section and test two callers competing. Across servers I need shared transactional consistency; a local lock is not enough.’" }, { id: "singleton", label: "Make ParkingLot a Singleton", correct: false, feedback: "Singleton does not make a multi-step workflow atomic and does not coordinate several application servers." }, { id: "spot", label: "Synchronize only ParkingSpot.occupy and stop there", correct: false, feedback: "This prevents two occupants but does not explain retrying selection, ticket indexes, or the deployment boundary." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="parking-close"><FocusOnly><ChoiceQuestion
+  prompt="Which closing summary best explains the design without overclaiming?"
+  choices={[{ id: "strong", label: "Define ordering, name owners, justify Strategy, state invariants and concurrency scope", correct: true, feedback: "‘Nearest means lower floor, smallest suitable type, then spot ID. ParkingLot coordinates sessions, ParkingSpot owns availability, and Strategy owns replaceable selection. Rejections change nothing; selection is O(S log S), and the first version assumes sequential in-memory calls.’" }, { id: "patterns", label: "List every pattern that could appear in a parking lot", correct: false, feedback: "Pattern names without changed requirements do not explain this model or its correctness." }, { id: "classes", label: "Read every class and method name aloud", correct: false, feedback: "A strong close summarizes decisions, invariants, trade-offs, and boundaries instead of reciting code." }]}
+/></FocusOnly></LessonStep>
+
+<WalkthroughOnly>
 
 <Lead>Design a parking lot that accepts a vehicle, chooses a suitable free spot, issues a ticket, and frees the same spot when the vehicle leaves.</Lead>
 
@@ -847,3 +1303,4 @@ A boolean occupied/free state is no longer enough. Introduce explicit spot state
 <Insight title="What a strong answer sounds like" tone="mint">
   “I defined nearest before choosing classes: lower floor, smallest suitable type, then spot ID. ParkingLot owns the entry and ticket workflow, ParkingSpot owns availability, and the strategy owns only selection. A rejected entry changes nothing. I assumed sequential calls; if the interviewer adds concurrent entrances, I would protect selection through ticket creation as one operation and explain the difference between one-process locking and shared storage.”
 </Insight>
+</WalkthroughOnly>

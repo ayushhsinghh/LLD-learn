@@ -38,7 +38,7 @@ function chooseSpot(spots: Spot[], vehicle: Vehicle) {
     .sort((a, b) => a.floor - b.floor || preference(vehicle, a) - preference(vehicle, b) || a.id.localeCompare(b.id))[0];
 }
 
-export function ParkingLotSimulator() {
+export function ParkingLotSimulator({ compact = false }: { compact?: boolean }) {
   const [spots, setSpots] = useState<Spot[]>(initialSpots);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [plate, setPlate] = useState("KA-01-AB-1234");
@@ -115,6 +115,22 @@ export function ParkingLotSimulator() {
     setNextTicket(1);
     setEvents(["Edge case loaded: two spots are free, but both are motorcycle-only. Try parking a car."]);
   };
+
+  if (compact) {
+    return <section aria-label="Interactive parking lot simulation" className="grid h-full min-h-0 grid-cols-[1.05fr_.95fr] overflow-hidden rounded-xl border border-[var(--line)] bg-white max-[520px]:grid-cols-[1fr_.9fr]">
+      <div className="flex min-h-0 flex-col border-r border-[var(--line)] bg-[var(--paper-2)] p-2 sm:p-3">
+        <div className="flex items-center justify-between gap-2"><p className="text-[10px] font-extrabold">Two-floor lot</p><Badge className="text-[9px]">{freeCount} free</Badge></div>
+        <div className="mt-2 grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-1.5">{spots.map((spot) => <div key={spot.id} className={cn("flex min-h-0 flex-col justify-between rounded-lg border p-1.5", spot.vehicle ? "border-[var(--ink)] bg-white" : "border-[#9db8ad] bg-[var(--mint-soft)]")}><div className="flex items-center justify-between gap-1"><span className="font-mono text-[8px] font-bold">{spot.id}</span><span className="font-mono text-[7px] text-[var(--faint)]">F{spot.floor}</span></div><p className="truncate text-[7px] font-bold text-[var(--muted)]">{spot.type}</p><p className={cn("truncate text-[8px] font-extrabold", spot.vehicle ? "text-[var(--accent-dark)]" : "text-[#28725c]")}>{spot.vehicle?.plate ?? "FREE"}</p></div>)}</div>
+        <p className="mt-2 text-[8px] font-bold leading-3 text-[var(--muted)]">Order: floor → suitable type → spot ID</p>
+      </div>
+      <div className="flex min-h-0 flex-col p-2 sm:p-3">
+        <div className="grid gap-1.5"><label className="text-[8px] font-bold text-[var(--muted)]">Plate<input aria-label="License plate" value={plate} onChange={(event) => setPlate(event.target.value)} className="mt-0.5 h-7 w-full rounded-md border border-[var(--line)] px-2 font-mono text-[9px] uppercase outline-none focus:ring-4 focus:ring-[var(--focus)]" /></label><label className="text-[8px] font-bold text-[var(--muted)]">Type<select aria-label="Vehicle type" value={vehicleType} onChange={(event) => setVehicleType(event.target.value as VehicleType)} className="mt-0.5 h-7 w-full rounded-md border border-[var(--line)] bg-white px-2 text-[9px] outline-none focus:ring-4 focus:ring-[var(--focus)]"><option value="CAR">Car</option><option value="MOTORCYCLE">Motorcycle</option></select></label><Button size="sm" variant="accent" onClick={park}><CarFront /> Park</Button></div>
+        <div className="mt-2 min-h-0 flex-1"><div className="flex items-center justify-between"><p className="text-[9px] font-extrabold">Active tickets</p><span className="text-[8px] text-[var(--faint)]">{tickets.length}</span></div><div className="mt-1.5 grid gap-1">{tickets.slice(-2).map((ticket) => <div key={ticket.id} className="flex items-center justify-between gap-1 rounded-md border border-[var(--line)] px-2 py-1"><p className="min-w-0 truncate font-mono text-[8px] font-bold">{ticket.id} · {ticket.spotId}</p><button type="button" onClick={() => leave(ticket.id)} className="rounded bg-[var(--paper-2)] px-1.5 py-1 text-[8px] font-bold focus-visible:ring-4 focus-visible:ring-[var(--focus)]">Exit</button></div>)}{tickets.length === 0 && <p className="rounded-md bg-[var(--paper-2)] px-2 py-2 text-center text-[8px] text-[var(--faint)]">No active tickets</p>}</div></div>
+        <p aria-live="polite" className="mt-2 rounded-md bg-[var(--mint-soft)] px-2 py-1.5 text-[8px] font-medium leading-3 text-[var(--ink)]">{events[0]}</p>
+        <div className="mt-2 flex gap-1"><Button size="sm" variant="outline" onClick={reset}><RotateCcw /><span className="sr-only sm:not-sr-only">Reset</span></Button><Button size="sm" variant="ghost" onClick={loadCompatibilityEdge}>Edge case</Button></div>
+      </div>
+    </section>;
+  }
 
   return (
     <section aria-label="Interactive parking lot simulation" className="my-10 overflow-hidden rounded-[1.4rem] border border-[var(--line)] bg-white shadow-[5px_6px_0_#dfd9cd]">

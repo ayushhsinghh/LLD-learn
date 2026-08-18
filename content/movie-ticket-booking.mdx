@@ -1,5 +1,490 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { MovieTicketBookingSimulator } from "@/components/simulations/movie-ticket-booking-simulator"
+import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
+import { PassiveLearningCards, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, FocusCode, ChoiceQuestion } from "@/components/learning/learning-interactions"
+import { MovieOwnershipQuiz, MovieHoldFlow, MovieStateMachine, MovieClassBlueprint, MovieImplementationMap } from "@/components/learning/movie-ticket-booking-focus"
+
+<LessonStep id="movie-orientation"><FocusOnly><ConceptImage
+  src="/images/movie-ticket-booking-overview.png"
+  alt="Two moviegoers selecting the same highlighted cinema seats from their phones while one confirmed ticket is shown"
+  caption="Two callers can choose A7 together. The model must decide who wins without ever promising the seat twice."
+  width={1536} height={1024} eager={true}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-framework"><FocusOnly><FocusFrameworkRoadmap /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-interview"><FocusOnly><InterviewDynamicsGuide
+  timing={[{ label: "Requirements", minutes: "5 min" }, { label: "Entities", minutes: "3 min" }, { label: "Class design", minutes: "15 min" }, { label: "Code", minutes: "15 min" }, { label: "Extensions", minutes: "5 min" }]}
+  speaking={["Say the invariant aloud: one show-seat can have only one live owner.", "Define words such as hold, available, and simultaneous before using them.", "State the boundary: the lock protects one Java process, not several servers."]}
+  signals={[{ id: "hold", signal: "What happens during payment?", response: "Clarify whether selection creates a temporary hold and how long it lasts." }, { id: "group", signal: "What if one seat in a group is gone?", response: "Define whether the request is all-or-nothing before designing the mutation." }, { id: "together", signal: "Two users click together.", response: "Describe an interleaving and identify the check-and-change operation that must be protected." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-orientation-check"><FocusOnly><PredictionChecklist
+  prompt="Before naming classes, which facts must the interviewer confirm?"
+  items={[{ id: "hold", label: "Whether selection holds or books", correct: true, feedback: "This creates the seat lifecycle." }, { id: "duration", label: "How long a hold lasts", correct: true, feedback: "Expiry creates time state and cleanup." }, { id: "group", label: "Whether groups are all-or-nothing", correct: true, feedback: "This decides mutation order." }, { id: "owner", label: "Who may confirm a hold", correct: true, feedback: "Ownership becomes a confirmation guard." }, { id: "race", label: "Whether callers may compete", correct: true, feedback: "Concurrency changes the correctness boundary." }, { id: "servers", label: "One process or several servers", correct: true, feedback: "A Java lock works only for shared in-process objects." }, { id: "font", label: "The cinema app font", correct: false, feedback: "Presentation does not affect this domain model." }]}
+  success="You found the rules that determine state, ownership, and concurrency."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-incomplete"><FocusOnly><PassiveLearningCards
+  intro="‘Design a movie-ticket booking system’ names a domain, not observable behavior. These missing decisions produce different models."
+  items={[{ title: "Selection", body: "Does choosing A7 immediately book it or temporarily reserve it?" }, { title: "Group", body: "If A6 fails, may A5 still change?" }, { title: "Time", body: "When does a temporary claim expire?" }, { title: "Competition", body: "What happens when A and B choose A7 together?" }]}
+  conclusion="Clarify actions and failure rules before drawing classes."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-dialogue"><FocusOnly><InterviewDialogueExample turns={[
+  { speaker: "Candidate", text: "When a user chooses seats, do we book immediately or create a temporary hold?" },
+  { speaker: "Interviewer", text: "Create a five-minute hold, then let only its owner confirm it." },
+  { speaker: "Candidate", text: "I’ll model AVAILABLE → HELD → BOOKED, release expired holds, and reject a late or wrong-owner confirmation." }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-questions"><FocusOnly><PredictionChecklist
+  prompt="Select the questions that change the first implementation."
+  items={[{ id: "actions", label: "What can the user do?", correct: true, feedback: "The public workflow is hold then confirm." }, { id: "partial", label: "May a group partially succeed?", correct: true, feedback: "All-or-nothing creates two-pass validation." }, { id: "expiry", label: "How do expired holds behave?", correct: true, feedback: "This creates expiry state and cleanup." }, { id: "owner", label: "Who may confirm?", correct: true, feedback: "The hold must remember its owner." }, { id: "concurrent", label: "Can callers request together?", correct: true, feedback: "This creates the lock requirement." }, { id: "boundary", label: "One process or distributed?", correct: true, feedback: "This defines what the lock can guarantee." }, { id: "snacks", label: "Which snacks are sold?", correct: false, feedback: "Concessions are absent from the requested workflow." }, { id: "logo", label: "Which cinema logo is shown?", correct: false, feedback: "Branding does not change booking correctness." }]}
+  success="These questions make the booking rules testable."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-answers"><FocusOnly><PassiveLearningCards
+  intro="Read the answers as caller-visible rules, not implementation details."
+  items={[{ title: "Hold then confirm", body: "A successful hold owns all requested seats for five minutes." }, { title: "All or nothing", body: "If one ID is invalid or unavailable, no requested seat changes." }, { title: "Owner only", body: "Only the user who created a live hold may confirm it." }, { title: "Named failures", body: "Unknown, expired, unavailable, and wrong-owner requests return explicit results." }, { title: "One winner", body: "Competing threads in one process may produce exactly one successful hold." }, { title: "Scope boundary", body: "Payment, persistence, and several servers remain extensions." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-spec"><FocusOnly><FocusSpec requirements={[
+  "Shows exist before booking and own per-show seat state.",
+  "A user may request one or more unique seat IDs.",
+  "A group hold is all-or-nothing.",
+  "A hold lasts five minutes and expiry releases its seats.",
+  "Only the owner may confirm a live hold.",
+  "Expected failures return named result values.",
+  "A per-show lock lets exactly one competing thread succeed."
+]} outOfScope={["Movie and theatre search", "Real payment", "Cancellation and refunds", "Persistent storage", "Several application servers", "Seat pricing", "Notifications"]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-entity-transition"><FocusOnly><PassiveLearningCards
+  intro="The requirements now reveal candidate nouns. A noun earns a model only when it owns state, enforces a rule, or carries one meaningful value."
+  items={[{ title: "Stable values", body: "Movie, Seat, SeatHold, and Booking describe facts." }, { title: "State owners", body: "ShowSeat and Show protect changing seat state." }, { title: "Coordinator", body: "BookingService locates shows and records accepted results." }, { title: "Restraint", body: "User and Payment are real concepts but have no class responsibility in this scope." }]}
+  conclusion="Next, choose the smallest useful shape for every candidate."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-modeling-vocabulary"><FocusOnly><PassiveLearningCards
+  intro="Use the smallest modeling choice that can protect the confirmed rule."
+  items={[{ title: "Class", body: "Owns meaningful state or behavior, such as Show or ShowSeat." }, { title: "Enum", body: "Names a small closed choice, such as AVAILABLE, HELD, or BOOKED." }, { title: "Immutable value", body: "Groups stable facts with value equality and no setters." }, { title: "Field", body: "A simple value belonging inside another object, such as userId." }, { title: "Leave out", body: "A physical concept with no responsibility in the agreed version." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-classes"><FocusOnly><PredictionChecklist
+  prompt="Which candidates deserve a class or immutable record in this scope?"
+  items={[{ id: "movie", label: "Movie", correct: true, feedback: "ID and title form a stable value." }, { id: "seat", label: "Seat", correct: true, feedback: "It identifies one permanent physical seat." }, { id: "screen", label: "Screen", correct: true, feedback: "It owns the fixed physical seat group." }, { id: "show", label: "Show", correct: true, feedback: "It owns per-screening state and the lock." }, { id: "show-seat", label: "ShowSeat", correct: true, feedback: "It owns one seat lifecycle for one show." }, { id: "hold", label: "SeatHold", correct: true, feedback: "It is the stable accepted temporary claim." }, { id: "booking", label: "Booking", correct: true, feedback: "It is the stable confirmation receipt." }, { id: "service", label: "BookingService", correct: true, feedback: "It coordinates lookup, IDs, and records." }, { id: "user", label: "User", correct: false, feedback: "Only identity comparison is needed, so userId is a field." }, { id: "payment", label: "Payment", correct: false, feedback: "Real payment is explicitly outside scope." }]}
+  success="The model keeps every state owner and stable domain value."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-values"><FocusOnly><ClassificationChallenge
+  instruction="Choose the smallest useful representation for each remaining concept."
+  categories={[{ id: "enum", label: "Enum" }, { id: "value", label: "Immutable value" }, { id: "field", label: "Field" }, { id: "omit", label: "Leave out" }]}
+  items={[{ id: "states", label: "Seat and result states", answer: "enum", feedback: "They are fixed named choices with no independent lifecycle." }, { id: "results", label: "HoldResult and ConfirmationResult", answer: "value", feedback: "Each groups a status with an optional accepted record." }, { id: "identity", label: "userId and showId", answer: "field", feedback: "The scope only stores and compares these identifiers." }, { id: "time", label: "startsAt and expiresAt", answer: "field", feedback: "Instants belong to Show and SeatHold." }, { id: "payment", label: "Payment and Refund", answer: "omit", feedback: "They are absent from the confirmed workflow." }]}
+  success="Every concept now has the smallest shape that satisfies its rule."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-ownership"><FocusOnly><MovieOwnershipQuiz /></FocusOnly></LessonStep>
+<LessonStep id="movie-entity-flow"><FocusOnly><MovieHoldFlow /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-principles"><FocusOnly><ClassificationChallenge
+  instruction="Match each concrete failure to the design principle that prevents it."
+  categories={[{ id: "encapsulation", label: "Encapsulation" }, { id: "srp", label: "Single responsibility" }, { id: "immutable", label: "Immutability" }, { id: "composition", label: "Composition" }, { id: "thread", label: "Thread safety" }]}
+  items={[{ id: "raw", label: "A caller sets HELD directly", answer: "encapsulation", feedback: "Guarded methods prevent bypassing legal transitions." }, { id: "mixed", label: "One service owns every seat transition", answer: "srp", feedback: "ShowSeat, Show, and BookingService change for different reasons." }, { id: "receipt", label: "A confirmed booking is edited later", answer: "immutable", feedback: "Immutable records preserve accepted facts." }, { id: "inherit", label: "Show inherits from Screen", answer: "composition", feedback: "A screening has a screen; it is not a screen." }, { id: "race", label: "Two callers both hold A7", answer: "thread", feedback: "The check-and-change group must execute as one protected unit." }]}
+  callout="Principles protect concrete invariants; they are not labels added after the model."
+  success="You connected each principle to the failure it prevents."
+/></FocusOnly></LessonStep>
+
+<LessonStep id="movie-design-method"><FocusOnly><PassiveLearningCards intro="Design every class using the same chain: requirement → responsibility → state → behavior → public API → relationship → principle → pattern." items={[{ title: "Responsibility", body: "Name the rule this object owns." }, { title: "State", body: "Store only information needed for that rule." }, { title: "Behavior", body: "Keep checks and changes beside the state." }, { title: "API", body: "Expose use cases without mutable internals." }, { title: "Relationship", body: "Prefer has-a composition between different jobs." }, { title: "Pattern", body: "Add an abstraction only when behavior really varies." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-immutable-values"><FocusOnly><PassiveLearningCards intro="Immutable values are created once and never edited. They safely cross object boundaries and make accepted results easy to trust." items={[{ title: "Movie and Seat", body: "Stable physical facts with value equality." }, { title: "SeatHold", body: "Accepted owner, group, and expiry; changes happen in ShowSeat, not inside the record." }, { title: "Booking", body: "Permanent receipt created only after Show reports BOOKED." }, { title: "Result records", body: "Pair a named status with the accepted value when one exists." }]} conclusion="Mutable domain state remains inside ShowSeat; records carry stable facts about it." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-physical-state"><FocusOnly><ChoiceQuestion prompt="A7 is booked for the 7:00 PM show but free for the 10:00 PM show. Where should BOOKED live?" choices={[{ id: "show-seat", label: "In a ShowSeat created for each Show", correct: true, feedback: "One physical Seat can have different state in different screenings." }, { id: "seat", label: "Inside the physical Seat", correct: false, feedback: "That would incorrectly book A7 for every show in the Screen." }, { id: "screen", label: "On the Screen", correct: false, feedback: "Screen owns the layout, not time-specific availability." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-show-seat-design"><FocusOnly><ClassificationChallenge instruction="Classify each ShowSeat candidate." categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "outside", label: "Does not belong" }]} items={[{ id: "seat", label: "Seat, state, holdId, heldBy, expiresAt", answer: "state", feedback: "Together they describe one show-seat without impossible external combinations." }, { id: "place", label: "Place a valid hold", answer: "behavior", feedback: "The transition belongs beside the current state." }, { id: "confirm", label: "Confirm the matching hold", answer: "behavior", feedback: "It checks identity before HELD becomes BOOKED." }, { id: "release", label: "Release when expired", answer: "behavior", feedback: "It owns the expiry transition back to AVAILABLE." }, { id: "group", label: "Validate several seats", answer: "outside", feedback: "Only Show sees the complete group." }, { id: "ticket", label: "Create booking IDs", answer: "outside", feedback: "BookingService owns cross-show IDs." }]} callout="Encapsulation keeps one lifecycle valid; ShowSeat never coordinates the group." success="ShowSeat owns one seat's state and legal transitions." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-show-design"><FocusOnly><ClassificationChallenge instruction="Classify each Show candidate." categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "outside", label: "Does not belong" }]} items={[{ id: "identity", label: "Movie, Screen, start time", answer: "state", feedback: "These identify one screening." }, { id: "seats", label: "ShowSeat map and lock", answer: "state", feedback: "They are the state and protection boundary for one show." }, { id: "hold", label: "Validate and hold a group", answer: "behavior", feedback: "Show sees every requested ShowSeat under one lock." }, { id: "expiry", label: "Release expired holds", answer: "behavior", feedback: "Cleanup must use the same lock as hold and confirmation." }, { id: "snapshot", label: "Return a state snapshot", answer: "behavior", feedback: "A copy exposes status without leaking ShowSeat objects." }, { id: "global", label: "Generate global booking IDs", answer: "outside", feedback: "BookingService coordinates IDs across shows." }]} callout="Thread safety belongs at the smallest understandable shared-state boundary: one Show." success="Show protects one screening's group operations." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-service-state"><FocusOnly><ClassificationChallenge instruction="Which state belongs in BookingService?" categories={[{ id: "service", label: "Service state" }, { id: "show", label: "Show state" }, { id: "omit", label: "Do not store" }]} items={[{ id: "shows", label: "showsById", answer: "service", feedback: "The public workflow begins with a show ID." }, { id: "holds", label: "holdsById and bookingsById", answer: "service", feedback: "The service must find accepted results later." }, { id: "sequence", label: "ID sequences", answer: "service", feedback: "They coordinate unique in-process IDs." }, { id: "clock", label: "Clock and hold duration", answer: "service", feedback: "Injected time makes expiry deterministic and configurable." }, { id: "seat-map", label: "ShowSeat map and lock", answer: "show", feedback: "They protect one screening, not the global workflow." }, { id: "selected", label: "Current UI selection", answer: "omit", feedback: "The domain service receives a request; it does not own browser state." }]} callout="Single responsibility keeps global coordination out of Show and seat mutation out of BookingService." success="BookingService remembers only workflow-wide state." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-service-api"><FocusOnly><ClassificationChallenge instruction="Classify the BookingService API candidates." categories={[{ id: "public", label: "Public API" }, { id: "internal", label: "Internal" }, { id: "other", label: "Other class" }]} items={[{ id: "hold", label: "holdSeats(showId, userId, seatIds)", answer: "public", feedback: "This is the main caller use case." }, { id: "confirm", label: "confirmHold(holdId, userId)", answer: "public", feedback: "This completes a live hold." }, { id: "states", label: "seatStates(showId)", answer: "public", feedback: "It returns an immutable snapshot." }, { id: "booking", label: "booking(bookingId)", answer: "public", feedback: "It safely reads a completed receipt." }, { id: "ids", label: "Create IDs and update indexes", answer: "internal", feedback: "These steps support public workflows." }, { id: "transition", label: "Set ShowSeat.state", answer: "other", feedback: "ShowSeat owns guarded state transitions." }]} callout="A narrow API exposes use cases without exposing mutable state or locks." success="The public boundary preserves every invariant." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-state-machine"><FocusOnly><MovieStateMachine /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-atomic-group"><FocusOnly><OrderQuestion prompt="A5 is free but A6 is booked. Order the safe group-hold algorithm." items={[{ id: "change", label: "Change every requested seat to HELD" }, { id: "collect", label: "Build one unique requested-ID set" }, { id: "validate", label: "Check every requested seat without changing any" }, { id: "reject", label: "Return a named rejection if any check fails" }]} correctOrder={["collect", "validate", "reject", "change"]} explanation="Validation is a read-only first pass. Mutation begins only when the complete group is known to be valid, so A5 cannot change when A6 fails." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-race"><FocusOnly><PassiveLearningCards intro="Without a lock, two callers can mix their steps. This mixed execution is an interleaving; the outcome-dependent bug is a race condition." items={[{ title: "1. A checks", body: "A reads A7 as AVAILABLE." }, { title: "2. B checks", body: "Before A writes, B also reads AVAILABLE." }, { title: "3. A writes", body: "A changes A7 to HELD and receives success." }, { title: "4. B trusts stale state", body: "B also writes HELD and receives success." }]} conclusion="Two success replies for one seat prove that check then change was not one atomic operation." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-critical-section"><FocusOnly><PassiveLearningCards intro="The critical section is the smallest sequence that competing callers must not interleave." items={[{ title: "Release expiry", body: "Bring existing seat state up to date." }, { title: "Check the group", body: "Verify every ID and availability without mutation." }, { title: "Change the group", body: "Move every accepted ShowSeat to HELD." }, { title: "Return one result", body: "The next caller observes either before or after, never a half-held group." }]} conclusion="Show acquires its lock before this sequence and releases it in finally." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-lock-boundary"><FocusOnly><TabbedConceptView tabs={[{ id: "service", label: "Service lock", title: "Correct but unnecessarily broad", body: "One service-wide lock would make unrelated 7:00 PM and 10:00 PM shows wait for each other." }, { id: "show", label: "Show lock", title: "Chosen boundary", body: "One lock protects one ShowSeat map. Different shows still proceed concurrently, and a group needs only one lock." }, { id: "seat", label: "Seat locks", title: "More parallel, much harder", body: "A group would acquire several locks in a stable order. Inconsistent ordering can deadlock when callers wait on each other." }, { id: "servers", label: "Several servers", title: "The lock stops at the process boundary", body: "Two service instances have different Show objects and locks. Shared transactional storage must become the authority." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-blueprint"><FocusOnly><MovieClassBlueprint /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-code-map"><FocusOnly><MovieImplementationMap /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-hold-order"><FocusOnly><OrderQuestion prompt="Order one accepted hold from public request to recorded result." items={[{ id: "record", label: "Record and return SeatHold" }, { id: "unlock", label: "Release the Show lock" }, { id: "lookup", label: "Find the Show" }, { id: "validate", label: "Validate the whole seat group" }, { id: "lock", label: "Acquire the Show lock and release expiry" }, { id: "change", label: "Move every requested ShowSeat to HELD" }]} correctOrder={["lookup", "lock", "validate", "change", "unlock", "record"]} explanation="Every rejection happens before the mutation it protects. The accepted record is created only after Show completes the protected state change." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-code-concepts"><FocusOnly><TabbedConceptView tabs={[{ id: "lock", label: "Lock", title: "ReentrantLock protects one Show", body: "lock() starts the critical section and unlock() belongs in finally. No second lock is acquired, so this design cannot form a lock cycle." }, { id: "maps", label: "Maps", title: "ConcurrentHashMap protects index operations", body: "It makes individual hold and booking map updates thread-safe. It does not make a multi-seat check-and-change atomic; Show's lock does that." }, { id: "ids", label: "IDs", title: "AtomicInteger creates unique in-process IDs", body: "getAndIncrement returns and advances one sequence atomically, but does not coordinate several service processes." }, { id: "time", label: "Clock", title: "Injected time makes expiry testable", body: "Production uses the system clock; the demo advances a MutableClock without waiting five real minutes." }, { id: "boundary", label: "Boundary", title: "These primitives share one memory space", body: "A second application server has different maps, sequences, Show objects, and locks. Production needs shared storage authority." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-enums"><FocusOnly><TabbedCodeView label="Seat lifecycle and named outcomes" tabs={[
+  { id: "seat", label: "Seat state", code: `public enum SeatState {
+    AVAILABLE,
+    HELD,
+    BOOKED
+}` },
+  { id: "hold", label: "Hold status", code: `public enum HoldStatus {
+    HELD,
+    SHOW_NOT_FOUND,
+    SEAT_NOT_FOUND,
+    SEAT_UNAVAILABLE,
+    INVALID_REQUEST
+}` },
+  { id: "confirm", label: "Confirm status", code: `public enum ConfirmationStatus {
+    BOOKED,
+    HOLD_NOT_FOUND,
+    HOLD_EXPIRED,
+    NOT_HOLD_OWNER
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-records"><FocusOnly><TabbedCodeView label="Immutable booking values" tabs={[
+  { id: "movie", label: "Movie", code: `public record Movie(String id, String title) {
+    public Movie {
+        if (id == null || id.isBlank() || title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Movie details are required");
+        }
+    }
+}` },
+  { id: "hold", label: "SeatHold", code: `public record SeatHold(String id, String showId, String userId,
+        List<String> seatIds, Instant expiresAt) {
+    public SeatHold {
+        if (id == null || id.isBlank() || showId == null || showId.isBlank()
+                || userId == null || userId.isBlank() || seatIds == null
+                || seatIds.isEmpty() || expiresAt == null) {
+            throw new IllegalArgumentException("Complete hold details are required");
+        }
+        seatIds = List.copyOf(seatIds);
+    }
+}` },
+  { id: "booking", label: "Booking", code: `public record Booking(String id, String showId, String userId,
+        List<String> seatIds, Instant confirmedAt) {
+    public Booking {
+        if (id == null || id.isBlank() || showId == null || showId.isBlank()
+                || userId == null || userId.isBlank() || seatIds == null
+                || seatIds.isEmpty() || confirmedAt == null) {
+            throw new IllegalArgumentException("Complete booking details are required");
+        }
+        seatIds = List.copyOf(seatIds);
+    }
+}` },
+  { id: "results", label: "Results", code: `public record HoldResult(HoldStatus status, SeatHold hold) {
+    public static HoldResult accepted(SeatHold hold) {
+        return new HoldResult(HoldStatus.HELD, Objects.requireNonNull(hold));
+    }
+
+    public static HoldResult rejected(HoldStatus status) {
+        if (status == HoldStatus.HELD) throw new IllegalArgumentException();
+        return new HoldResult(status, null);
+    }
+}
+
+public record ConfirmationResult(ConfirmationStatus status, Booking booking) {
+    public static ConfirmationResult accepted(Booking booking) {
+        return new ConfirmationResult(ConfirmationStatus.BOOKED,
+                Objects.requireNonNull(booking));
+    }
+
+    public static ConfirmationResult rejected(ConfirmationStatus status) {
+        if (status == ConfirmationStatus.BOOKED) throw new IllegalArgumentException();
+        return new ConfirmationResult(status, null);
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-physical-code"><FocusOnly><TabbedCodeView label="Permanent physical model" tabs={[
+  { id: "seat", label: "Seat", code: `public record Seat(String id) {
+    public Seat {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("Seat id is required");
+        }
+    }
+}` },
+  { id: "screen", label: "Screen", code: `public final class Screen {
+    private final String id;
+    private final List<Seat> seats;
+
+    public Screen(String id, List<Seat> seats) {
+        if (id == null || id.isBlank() || seats == null || seats.isEmpty()) {
+            throw new IllegalArgumentException("Screen details are required");
+        }
+        Set<String> ids = new HashSet<>();
+        for (Seat seat : seats) {
+            if (seat == null || !ids.add(seat.id())) {
+                throw new IllegalArgumentException("Seats must be unique");
+            }
+        }
+        this.id = id;
+        this.seats = List.copyOf(seats);
+    }
+
+    public String id() { return id; }
+    public List<Seat> seats() { return seats; }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-show-seat-predict"><FocusOnly><PredictionChecklist prompt="Before reading ShowSeat, which rules must it protect?" items={[{ id: "initial", label: "Start AVAILABLE", correct: true, feedback: "Every per-show seat begins free." }, { id: "hold", label: "Hold only when AVAILABLE", correct: true, feedback: "A second owner cannot overwrite a live hold." }, { id: "identity", label: "Confirm only the matching hold and user", correct: true, feedback: "HELD alone does not prove ownership." }, { id: "expiry", label: "Release an expired HELD seat", correct: true, feedback: "Expiry restores availability and clears hold details." }, { id: "group", label: "Validate neighboring seats", correct: false, feedback: "Only Show sees the complete requested group." }, { id: "id", label: "Generate booking IDs", correct: false, feedback: "BookingService owns cross-show identifiers." }]} success="ShowSeat owns one lifecycle; Show owns the group." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-show-seat-code"><FocusOnly><TabbedCodeView label="ShowSeat state and transitions" tabs={[
+  { id: "setup", label: "Setup & reads", code: `public ShowSeat(Seat seat) {
+    this.seat = Objects.requireNonNull(seat);
+}
+
+public String id() { return seat.id(); }
+public SeatState state() { return state; }
+public boolean isAvailable() { return state == SeatState.AVAILABLE; }
+
+public boolean isHeldBy(String expectedHoldId, String expectedUserId) {
+    return state == SeatState.HELD
+            && Objects.equals(holdId, expectedHoldId)
+            && Objects.equals(heldBy, expectedUserId);
+}` },
+  { id: "hold", label: "Place hold", code: `public boolean placeHold(String newHoldId, String userId, Instant expiry) {
+    if (!isAvailable() || newHoldId == null || newHoldId.isBlank()
+            || userId == null || userId.isBlank() || expiry == null) {
+        return false;
+    }
+    state = SeatState.HELD;
+    holdId = newHoldId;
+    heldBy = userId;
+    expiresAt = expiry;
+    return true;
+}` },
+  { id: "confirm", label: "Confirm", code: `public boolean confirmHold(String expectedHoldId, String expectedUserId) {
+    if (!isHeldBy(expectedHoldId, expectedUserId)) return false;
+    state = SeatState.BOOKED;
+    clearHoldDetails();
+    return true;
+}` },
+  { id: "expiry", label: "Expiry", code: `public boolean releaseIfExpired(Instant now) {
+    if (state != SeatState.HELD || expiresAt == null
+            || now.isBefore(expiresAt)) return false;
+    state = SeatState.AVAILABLE;
+    clearHoldDetails();
+    return true;
+}
+
+private void clearHoldDetails() {
+    holdId = null;
+    heldBy = null;
+    expiresAt = null;
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-try-hold-predict"><FocusOnly><PredictionChecklist prompt="What must Show.tryHold do before returning HELD?" items={[{ id: "shape", label: "Reject blank IDs, empty groups, and invalid expiry", correct: true, feedback: "Malformed input returns before locking or mutation." }, { id: "unique", label: "Reject duplicate seat IDs", correct: true, feedback: "The group must name unique seats." }, { id: "lock", label: "Acquire the Show lock", correct: true, feedback: "Cleanup, checks, and changes must not interleave." }, { id: "release", label: "Release expired holds first", correct: true, feedback: "Availability must be current before validation." }, { id: "pass", label: "Validate every seat before changing any", correct: true, feedback: "This preserves all-or-nothing behavior." }, { id: "record", label: "Insert the SeatHold into the service map", correct: false, feedback: "Show returns a status; BookingService records accepted holds." }]} success="You identified every guard and the protected mutation boundary." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-try-hold-code"><FocusOnly><TabbedCodeView label="Show construction and group hold" tabs={[
+  { id: "setup", label: "Construction", code: `public Show(String id, Movie movie, Screen screen, Instant startsAt) {
+    if (id == null || id.isBlank() || movie == null
+            || screen == null || startsAt == null) {
+        throw new IllegalArgumentException("Complete show details are required");
+    }
+    this.id = id;
+    this.movie = movie;
+    this.screen = screen;
+    this.startsAt = startsAt;
+    for (Seat seat : screen.seats()) {
+        seatsById.put(seat.id(), new ShowSeat(seat));
+    }
+}` },
+  { id: "guards", label: "Request guards", code: `private Set<String> validUniqueIds(List<String> requestedSeatIds) {
+    if (requestedSeatIds == null || requestedSeatIds.isEmpty()) return Set.of();
+    Set<String> unique = new LinkedHashSet<>(requestedSeatIds);
+    if (unique.size() != requestedSeatIds.size()
+            || unique.stream().anyMatch(id -> id == null || id.isBlank())) {
+        return Set.of();
+    }
+    return unique;
+}` },
+  { id: "hold", label: "Complete tryHold", code: `public HoldStatus tryHold(String holdId, String userId,
+        List<String> requestedSeatIds, Instant now, Instant expiresAt) {
+    if (holdId == null || holdId.isBlank() || userId == null || userId.isBlank()
+            || now == null || expiresAt == null || !expiresAt.isAfter(now)) {
+        return HoldStatus.INVALID_REQUEST;
+    }
+    Set<String> ids = validUniqueIds(requestedSeatIds);
+    if (ids.isEmpty()) return HoldStatus.INVALID_REQUEST;
+
+    lock.lock();
+    try {
+        releaseExpired(now);
+        for (String id : ids) {
+            ShowSeat seat = seatsById.get(id);
+            if (seat == null) return HoldStatus.SEAT_NOT_FOUND;
+            if (!seat.isAvailable()) return HoldStatus.SEAT_UNAVAILABLE;
+        }
+        for (String id : ids) {
+            seatsById.get(id).placeHold(holdId, userId, expiresAt);
+        }
+        return HoldStatus.HELD;
+    } finally {
+        lock.unlock();
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-confirm-predict"><FocusOnly><ChoiceQuestion prompt="A hold expires at 7:05. Its owner calls confirm at exactly 7:05. What must happen?" choices={[{ id: "expired", label: "Return HOLD_EXPIRED and release the seats", correct: true, feedback: "A hold is live only while now is before expiresAt. The boundary instant is expired." }, { id: "book", label: "Book because the times are equal", correct: false, feedback: "That silently extends the five-minute promise." }, { id: "owner", label: "Book because the caller is the owner", correct: false, feedback: "Ownership is necessary but cannot override expiry." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-confirm-code"><FocusOnly><TabbedCodeView label="Show confirmation, snapshots, and cleanup" tabs={[
+  { id: "confirm", label: "Confirm", code: `public ConfirmationStatus confirmHold(SeatHold hold, Instant now) {
+    lock.lock();
+    try {
+        if (!now.isBefore(hold.expiresAt())) {
+            releaseExpired(now);
+            return ConfirmationStatus.HOLD_EXPIRED;
+        }
+        for (String id : hold.seatIds()) {
+            ShowSeat seat = seatsById.get(id);
+            if (seat == null || !seat.isHeldBy(hold.id(), hold.userId())) {
+                return ConfirmationStatus.HOLD_NOT_FOUND;
+            }
+        }
+        for (String id : hold.seatIds()) {
+            seatsById.get(id).confirmHold(hold.id(), hold.userId());
+        }
+        return ConfirmationStatus.BOOKED;
+    } finally {
+        lock.unlock();
+    }
+}` },
+  { id: "snapshot", label: "Snapshot", code: `public Map<String, SeatState> seatStates(Instant now) {
+    lock.lock();
+    try {
+        releaseExpired(now);
+        Map<String, SeatState> snapshot = new LinkedHashMap<>();
+        for (ShowSeat seat : seatsById.values()) {
+            snapshot.put(seat.id(), seat.state());
+        }
+        return Map.copyOf(snapshot);
+    } finally {
+        lock.unlock();
+    }
+}` },
+  { id: "cleanup", label: "Cleanup", code: `private void releaseExpired(Instant now) {
+    for (ShowSeat seat : seatsById.values()) {
+        seat.releaseIfExpired(now);
+    }
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-service-predict"><FocusOnly><PredictionChecklist prompt="Which steps belong in BookingService rather than Show?" items={[{ id: "lookup", label: "Find Show and SeatHold by ID", correct: true, feedback: "The service owns workflow indexes." }, { id: "clock", label: "Read Clock and calculate expiry", correct: true, feedback: "Time configuration belongs to the public workflow." }, { id: "delegate", label: "Delegate protected changes to Show", correct: true, feedback: "The service never edits ShowSeat directly." }, { id: "record", label: "Record accepted holds and bookings", correct: true, feedback: "Only successful domain transitions produce records." }, { id: "owner", label: "Reject a wrong confirmation owner", correct: true, feedback: "The service owns the SeatHold record used for this check." }, { id: "lock", label: "Set ShowSeat fields while holding a service lock", correct: false, feedback: "Show owns the lock and seat group operation." }]} success="BookingService coordinates; Show protects seat correctness." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-service-code"><FocusOnly><TabbedCodeView label="BookingService grouped by responsibility" tabs={[
+  { id: "setup", label: "Construction", code: `public BookingService(List<Show> shows, Clock clock, Duration holdDuration) {
+    if (shows == null || shows.isEmpty() || clock == null
+            || holdDuration == null || holdDuration.isNegative()
+            || holdDuration.isZero()) {
+        throw new IllegalArgumentException("Shows, clock, and duration are required");
+    }
+    this.clock = clock;
+    this.holdDuration = holdDuration;
+    this.showsById = new LinkedHashMap<>();
+    for (Show show : shows) {
+        if (showsById.putIfAbsent(show.id(), show) != null) {
+            throw new IllegalArgumentException("Duplicate show: " + show.id());
+        }
+    }
+}` },
+  { id: "hold", label: "holdSeats", code: `public HoldResult holdSeats(String showId, String userId, List<String> seatIds) {
+    Show show = showsById.get(showId);
+    if (show == null) return HoldResult.rejected(HoldStatus.SHOW_NOT_FOUND);
+
+    Instant now = clock.instant();
+    String holdId = "H" + holdSequence.getAndIncrement();
+    Instant expiresAt = now.plus(holdDuration);
+    HoldStatus status = show.tryHold(holdId, userId, seatIds, now, expiresAt);
+    if (status != HoldStatus.HELD) return HoldResult.rejected(status);
+
+    SeatHold hold = new SeatHold(holdId, showId, userId, seatIds, expiresAt);
+    holdsById.put(holdId, hold);
+    return HoldResult.accepted(hold);
+}` },
+  { id: "confirm", label: "confirmHold", code: `public ConfirmationResult confirmHold(String holdId, String userId) {
+    SeatHold hold = holdsById.get(holdId);
+    if (hold == null) return ConfirmationResult.rejected(
+            ConfirmationStatus.HOLD_NOT_FOUND);
+    if (!hold.userId().equals(userId)) return ConfirmationResult.rejected(
+            ConfirmationStatus.NOT_HOLD_OWNER);
+
+    Instant now = clock.instant();
+    ConfirmationStatus status = showsById.get(hold.showId()).confirmHold(hold, now);
+    if (status != ConfirmationStatus.BOOKED) {
+        if (status == ConfirmationStatus.HOLD_EXPIRED) holdsById.remove(holdId, hold);
+        return ConfirmationResult.rejected(status);
+    }
+    Booking booking = new Booking("B" + bookingSequence.getAndIncrement(),
+            hold.showId(), hold.userId(), hold.seatIds(), now);
+    bookingsById.put(booking.id(), booking);
+    holdsById.remove(holdId, hold);
+    return ConfirmationResult.accepted(booking);
+}` },
+  { id: "reads", label: "Safe reads", code: `public Map<String, SeatState> seatStates(String showId) {
+    Show show = showsById.get(showId);
+    return show == null ? Map.of() : show.seatStates(clock.instant());
+}
+
+public Optional<Booking> booking(String bookingId) {
+    return Optional.ofNullable(bookingsById.get(bookingId));
+}` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-concurrency-demo"><FocusOnly><TabbedCodeView label="Normal use and deterministic concurrency proof" tabs={[
+  { id: "normal", label: "Public API", code: `HoldResult hold = service.holdSeats(
+        "SHOW-1", "USER-A", List.of("A5", "A6"));
+System.out.println(hold.status());
+
+ConfirmationResult booking = service.confirmHold(
+        hold.hold().id(), "USER-A");
+System.out.println(booking.status());` },
+  { id: "race", label: "Race proof", code: `private static int raceForA7(BookingService service) throws Exception {
+    CountDownLatch ready = new CountDownLatch(2);
+    CountDownLatch start = new CountDownLatch(1);
+    AtomicInteger successes = new AtomicInteger();
+
+    Runnable request = () -> {
+        ready.countDown();
+        try {
+            start.await();
+            HoldResult result = service.holdSeats(
+                    "SHOW-1", Thread.currentThread().getName(), List.of("A7"));
+            if (result.status() == HoldStatus.HELD) successes.incrementAndGet();
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+        }
+    };
+    Thread a = new Thread(request, "USER-A");
+    Thread b = new Thread(request, "USER-B");
+    a.start(); b.start(); ready.await(); start.countDown(); a.join(); b.join();
+    return successes.get();
+}` },
+  { id: "assert", label: "What is stable", code: `int successCount = raceForA7(service);
+if (successCount != 1) {
+    throw new AssertionError("Exactly one competing hold must succeed");
+}
+System.out.println("concurrent success count = " + successCount);` }
+]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-simulator"><FocusOnly><MovieTicketBookingSimulator compact={true} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-payment"><FocusOnly><PassiveLearningCards intro="A network payment call must never run while Show holds its lock. The existing hold is the safe boundary." items={[{ title: "1. Hold", body: "Protect and claim the seats briefly under the Show lock." }, { title: "2. Unlock", body: "Release the lock before leaving the process." }, { title: "3. Pay", body: "Call the provider using the hold ID as the order reference." }, { title: "4. Confirm", body: "If payment succeeds before expiry, confirm under the Show lock." }]} conclusion="Add PaymentStrategy only when several provider behaviors are actually required." /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-distributed"><FocusOnly><TabbedConceptView tabs={[{ id: "problem", label: "Why lock fails", title: "Two servers own two locks", body: "Each process can believe it exclusively owns A7 because their Show objects do not share memory." }, { id: "transaction", label: "Transaction", title: "Make shared storage the authority", body: "Verify the live hold, claim seats, and create the booking in one transaction." }, { id: "optimistic", label: "Version check", title: "Reject a stale conditional write", body: "Only update A7 when its version still matches the value read by the caller." }, { id: "constraint", label: "Constraint", title: "Prevent duplicate ownership", body: "A database uniqueness rule supplies a final safety net across service instances." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-expiry-scale"><FocusOnly><ChoiceQuestion prompt="A large service has millions of holds. What is the smallest justified improvement to repeated full-seat scans?" choices={[{ id: "queue", label: "Order live holds by expiresAt", correct: true, feedback: "A priority queue or shared expiry index lets cleanup inspect the earliest expiry first." }, { id: "thread", label: "Start one timer thread per seat", correct: false, feedback: "Millions of timers create unnecessary scheduling and lifecycle complexity." }, { id: "ignore", label: "Never release until restart", correct: false, feedback: "Expired holds would permanently hide available seats." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-extension-answer"><FocusOnly><ChoiceQuestion prompt="The interviewer asks how this design changes across several application servers. Which answer is strongest?" choices={[{ id: "shared", label: "Keep the domain model, move the atomic claim to shared transactional storage", correct: true, feedback: "This states what remains stable, what boundary changes, and why the Java lock is insufficient." }, { id: "singleton", label: "Make BookingService a Singleton", correct: false, feedback: "Each process would still have its own singleton and its own memory." }, { id: "distributed", label: "Add a distributed lock everywhere", correct: false, feedback: "It names a tool without defining shared seat authority, transaction boundaries, or failure behavior." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="movie-close"><FocusOnly><ChoiceQuestion prompt="Pricing is added next. Which change is smallest and best justified?" choices={[{ id: "pricing", label: "Add SeatType and a PricingStrategy beside quote calculation", correct: true, feedback: "A new replaceable calculation creates a real Strategy boundary without changing seat ownership. Close with: BookingService coordinates, Show protects the group, and ShowSeat owns one lifecycle. The per-show lock gives one winner inside one process; shared storage is required across servers." }, { id: "rewrite", label: "Rewrite ShowSeat as a pricing hierarchy", correct: false, feedback: "Seat lifecycle remains stable and should not inherit pricing behavior." }, { id: "singleton", label: "Make the service global", correct: false, feedback: "Global state does not model pricing and makes tests harder." }]} /></FocusOnly></LessonStep>
+
+<WalkthroughOnly>
 
 <Lead>Design a movie-ticket booking service that lets a user hold seats for a short time and confirm them without ever selling one seat to two people.</Lead>
 
@@ -1090,3 +1575,4 @@ Add `SeatType` and a pricing rule only when prices enter the requirements. If pr
 <Insight title="The reusable interview answer" tone="mint">
   First make the workflow precise. Then separate physical seats from per-show state, protect the smallest understandable critical section, and state exactly where that protection stops. That reasoning is more valuable than naming many patterns.
 </Insight>
+</WalkthroughOnly>
