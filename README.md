@@ -30,7 +30,7 @@ The guide is live at **[learn.ayush.ltd](https://learn.ayush.ltd/)**.
 | 05 | [Notification System](https://learn.ayush.ltd/problems/notification-system/) | Asynchronous channels, retries, and thread-safe job state | Intermediate |
 | 06 | [Meeting Room Scheduler](https://learn.ayush.ltd/problems/meeting-room-scheduler/) | Time intervals and deterministic room selection | Intermediate |
 | 07 | [Splitwise](https://learn.ayush.ltd/problems/splitwise/) | Exact expense splitting and debt simplification | Intermediate |
-| 08 | [Ride Sharing](https://learn.ayush.ltd/problems/ride-sharing/) | Driver matching, Dijkstra routing, and ride lifecycle | Intermediate |
+| 08 | [Ride Sharing](https://learn.ayush.ltd/problems/ride-sharing/) ([Focus Mode](https://learn.ayush.ltd/problems/ride-sharing/learn/)) | Driver matching, Dijkstra routing, and ride lifecycle | Intermediate |
 
 ## The lesson pattern
 

@@ -85,6 +85,7 @@ export const lessons: Lesson[] = [
     duration: "60 min",
     summary: "Separate driver matching from road routing, trace Dijkstra step by step, and complete a ride lifecycle with Java and an interactive dispatch lab.",
     accent: "#6ab6a1",
+    focusHref: "/problems/ride-sharing/learn/",
   },
 ];
 

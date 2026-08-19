@@ -4,6 +4,7 @@ import { CarFront, MapPin, Navigation, RotateCcw, Sparkles, StepForward, UserRou
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 type NodeId = "A" | "B" | "C" | "D" | "E" | "F" | "G";
@@ -120,7 +121,7 @@ function edgeIsOnPath(edge: Edge, path: NodeId[]) {
   return path.some((node, index) => index < path.length - 1 && ((node === edge.from && path[index + 1] === edge.to) || (edge.twoWay && node === edge.to && path[index + 1] === edge.from)));
 }
 
-export function RideSharingSimulator() {
+export function RideSharingSimulator({ compact = false }: { compact?: boolean }) {
   const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
   const [pickup, setPickup] = useState<NodeId>("D");
   const [destination, setDestination] = useState<NodeId>("F");
@@ -211,6 +212,34 @@ export function RideSharingSimulator() {
   const restartTrace = () => setTraceIndex(0);
 
   const distanceRows = nodeIds.map((id) => ({ id, distance: trace.distances[id], state: trace.current === id ? "current" : trace.settled.includes(id) ? "settled" : trace.frontier.includes(id) ? "frontier" : "unseen" }));
+
+  if (compact) return (
+    <section aria-label="Compact ride sharing routing simulation" className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+      <Tabs defaultValue="dispatch" className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 border-b border-[var(--line)] bg-[var(--paper-2)] p-2"><TabsList className="grid w-full grid-cols-2"><TabsTrigger value="dispatch" className="py-1.5 text-xs">Dispatch</TabsTrigger><TabsTrigger value="routing" className="py-1.5 text-xs">Dijkstra</TabsTrigger></TabsList></div>
+        <TabsContent value="dispatch" className="min-h-0 flex-1 p-3">
+          <div className="grid h-full min-h-0 gap-2 sm:grid-cols-[.8fr_1.2fr]">
+            <div className="flex min-h-0 flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">{[["Pickup", pickup, setPickup], ["Destination", destination, setDestination]].map(([label, value, setter]) => <label key={String(label)} className="text-[9px] font-extrabold text-[var(--muted)]">{String(label)}<select value={String(value)} onChange={(event) => (setter as typeof setPickup)(event.target.value as NodeId)} className="mt-1 h-8 w-full rounded-lg border border-[var(--line)] bg-white px-2 text-[10px] text-[var(--ink)]">{nodeIds.map((id) => <option key={id} value={id}>{id} · {nodes[id].name}</option>)}</select></label>)}</div>
+              <Button size="sm" onClick={requestRide}><MapPin /> Request ride</Button>
+              <div className="grid gap-1">{drivers.map((driver) => { const comparison = comparisons.find((item) => item.driver.id === driver.id); const chosen = ride?.driverId === driver.id; return <div key={driver.id} className={cn("flex items-center gap-2 rounded-lg border px-2 py-1.5 text-[9px]", chosen ? "border-[#8bcab3] bg-[var(--mint-soft)]" : "border-[var(--line)]")}><CarFront className="size-3.5" /><strong>{driver.name}</strong><span>at {driver.node}</span><span className="ml-auto font-mono">{comparison ? comparison.route ? `${comparison.route.minutes}m${chosen ? " ✓" : ""}` : "unreachable" : driver.status}</span></div>; })}</div>
+              <div className="mt-auto flex flex-wrap gap-1.5"><Button size="sm" variant="outline" onClick={reset}><RotateCcw /> Reset</Button><Button size="sm" variant="ghost" onClick={loadUnreachable}>Unreachable pickup</Button></div>
+            </div>
+            <div className="flex min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3">
+              {ride ? <><div className="flex items-center justify-between"><div><p className="text-[9px] font-extrabold uppercase tracking-wider text-[var(--accent-dark)]">Ride {ride.id}</p><p className="text-sm font-extrabold">{selectedDriver?.name} · {ride.status.replace("_", " ")}</p></div><UserRound className="size-5" /></div><div className="mt-3 grid grid-cols-2 gap-2 text-[9px] leading-4"><p className="rounded-lg bg-white p-2"><strong>Pickup route</strong><br />{ride.pickupRoute?.path.join(" → ")} · {ride.pickupRoute?.minutes}m</p><p className="rounded-lg bg-white p-2"><strong>Trip route</strong><br />{ride.tripRoute?.path.join(" → ")} · {ride.tripRoute?.minutes}m</p></div>{ride.status !== "COMPLETED" && <Button size="sm" className="mt-auto" onClick={advanceRide}>{ride.status === "MATCHED" ? "Start ride" : "Complete ride"}</Button>}</> : <div className="grid h-full place-items-center text-center"><div><Navigation className="mx-auto size-7 text-[var(--accent)]"/><p className="mt-2 text-sm font-extrabold">Compare road time</p><p className="mt-1 max-w-xs text-[10px] leading-4 text-[var(--muted)]">Request the default trip. The winner is chosen by travel minutes, not visual distance.</p></div></div>}
+              <p aria-live="polite" className="mt-2 rounded-lg bg-white px-2 py-1.5 text-[9px] leading-4 text-[var(--muted)]">{events[0]}</p>
+            </div>
+          </div>
+        </TabsContent>
+        <TabsContent value="routing" className="min-h-0 flex-1 p-3">
+          <div className="grid h-full min-h-0 gap-2 sm:grid-cols-[1.15fr_.85fr]">
+            <div className="min-h-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#fbf7ef]"><svg aria-label="Weighted road graph and Dijkstra state" viewBox="0 0 650 320" className="h-full w-full">{edges.map((edge) => { const from = nodes[edge.from]; const to = nodes[edge.to]; return <g key={`${edge.from}-${edge.to}`}><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#cfc9bf" strokeWidth="4"/><text x={(from.x+to.x)/2} y={(from.y+to.y)/2} textAnchor="middle" fontSize="11" fontWeight="700">{edge.minutes}</text></g>; })}{nodeIds.map((id) => { const node = nodes[id]; const state = trace.current === id ? "current" : trace.settled.includes(id) ? "settled" : trace.frontier.includes(id) ? "frontier" : "unseen"; return <g key={id}><circle cx={node.x} cy={node.y} r="22" fill={state === "current" ? "#ee9360" : state === "settled" ? "#91cfba" : state === "frontier" ? "#f7d66f" : "white"} stroke="#17202a" strokeWidth="3"/><text x={node.x} y={node.y+5} textAnchor="middle" fontSize="14" fontWeight="800">{id}</text></g>; })}</svg></div>
+            <div className="flex min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3"><p className="text-[9px] font-extrabold uppercase tracking-wider text-[var(--accent-dark)]">Step {traceIndex + 1} of {traceSteps.length}</p><p className="mt-1 text-xs font-extrabold">{trace.current ? `Settle ${trace.current}` : "Initialize the frontier"}</p><div className="mt-2 grid grid-cols-4 gap-1">{distanceRows.map((row) => <div key={row.id} className="rounded-md bg-white px-1.5 py-1 text-center text-[8px]"><strong>{row.id}</strong><span className="ml-1 font-mono">{Number.isFinite(row.distance) ? row.distance : "∞"}</span></div>)}</div><p className="mt-2 rounded-lg bg-white px-2 py-1.5 text-[9px] leading-4 text-[var(--muted)]">{trace.updates[0]}</p>{trace.route && <p className="mt-2 rounded-lg bg-[var(--mint-soft)] px-2 py-1.5 text-[10px] font-extrabold">{trace.route.path.join(" → ")} · {trace.route.minutes} min</p>}<div className="mt-auto flex gap-2"><Button size="sm" variant="outline" onClick={restartTrace}><RotateCcw /> Restart</Button><Button size="sm" onClick={nextTrace} disabled={traceIndex === traceSteps.length - 1}><StepForward /> Next</Button></div></div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </section>
+  );
 
   return (
     <section aria-label="Interactive ride sharing routing simulation" className="my-10 overflow-hidden rounded-[1.4rem] border border-[var(--line)] bg-white shadow-[5px_6px_0_#dfd9cd]">

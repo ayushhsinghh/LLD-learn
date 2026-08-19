@@ -1,5 +1,346 @@
 import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
 import { RideSharingSimulator } from "@/components/simulations/ride-sharing-simulator"
+import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
+import { ChoiceQuestion, ClassificationChallenge, EntityModelSummary, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
+import { DijkstraLearningTrace, RideClassBlueprint, RideClassPicker, RideImplementationMap, RideOwnershipQuiz, RideRequestFlow, RideScenarioProof } from "@/components/learning/ride-sharing-focus"
+
+<LessonStep id="ride-orientation"><FocusOnly>
+<div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--line)] bg-white"><img src="/images/ride-sharing-overview.png" alt="Three drivers take different weighted road routes to a rider before the selected ride continues to its destination" className="h-full w-full object-contain" /></div><p className="mt-3 shrink-0 text-xs leading-5 text-[var(--muted)]">A driver who looks close may be slow by road. Dispatch first compares routes to the pickup; the accepted ride then keeps a separate route to the destination.</p></div>
+</FocusOnly></LessonStep>
+
+<LessonStep id="ride-framework"><FocusOnly><FocusFrameworkRoadmap /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-interview"><FocusOnly><InterviewDynamicsGuide
+  timing={[{ label: "Requirements", minutes: "5 min" }, { label: "Entities", minutes: "3 min" }, { label: "Class design", minutes: "12 min" }, { label: "Routing", minutes: "12 min" }, { label: "Code + proof", minutes: "18 min" }]}
+  speaking={["Say what nearest means before choosing an algorithm.", "Separate read-only route decisions from state-changing assignment.", "State the graph assumptions that make Dijkstra correct."]}
+  signals={[{ id: "nearest", signal: "What do you mean by nearest?", response: "Define road travel minutes and the driver-ID tie-breaker." }, { id: "scale", signal: "Would you route every driver?", response: "Acknowledge the interview-sized scan, then discuss geographic candidate reduction." }, { id: "failure", signal: "What if no route exists?", response: "Name the result and prove no driver, ride, or ID changes." }]}
+/></FocusOnly></LessonStep>
+
+<LessonStep id="ride-orientation-check"><FocusOnly><PredictionChecklist prompt="Before naming classes, which facts must the interview define?" items={[{ id: "inputs", label: "Request inputs and actions", correct: true, feedback: "The workflow cannot be modeled until pickup, destination, and lifecycle actions are known." }, { id: "metric", label: "Meaning of nearest", correct: true, feedback: "Straight-line distance and road travel time produce different winners." }, { id: "roads", label: "Road direction and weights", correct: true, feedback: "These facts determine the graph and shortest-path algorithm." }, { id: "failure", label: "Failure and unchanged state", correct: true, feedback: "Rejected requests must have an observable state contract." }, { id: "colors", label: "Map marker colors", correct: false, feedback: "Display styling does not change the domain behavior." }, { id: "patterns", label: "Required design-pattern names", correct: false, feedback: "Patterns follow confirmed variation; they are not requirements." }]} success="You clarified behavior before choosing objects or algorithms." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-incomplete"><FocusOnly><PassiveLearningCards intro="Design a ride-sharing system is too broad to implement. Choose one complete dispatch workflow first." items={[{ title: "Actions", body: "Request, start, and complete one ride." }, { title: "Matching", body: "Define eligible drivers and the deterministic winner." }, { title: "Routing", body: "Define locations, roads, weights, and unreachable paths." }, { title: "Failures", body: "Name rejections and require unchanged state." }, { title: "Lifecycle", body: "Define how Ride and Driver move together." }, { title: "Boundary", body: "Exclude GPS, traffic, pricing, persistence, and concurrency." }]} conclusion="Do not begin with Rider, Driver, and Ride until every box has an observable answer." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-dialogue"><FocusOnly><InterviewDialogueExample turns={[{ speaker: "Candidate", text: "When you say nearest driver, should I compare straight-line distance or road travel time?" }, { speaker: "Interviewer", text: "Use travel minutes through a directed road graph. Ignore drivers who cannot reach pickup." }, { speaker: "Candidate", text: "I will choose the AVAILABLE reachable driver with the lowest pickup-route minutes, breaking ties by driver ID." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-questions"><FocusOnly><PredictionChecklist prompt="Which questions make this dispatch workflow implementable?" items={[{ id: "actions", label: "Which ride actions are required?", correct: true, feedback: "This creates request, start, and complete use cases." }, { id: "locations", label: "How are locations and roads represented?", correct: true, feedback: "The answer defines graph nodes, directed edges, and weights." }, { id: "matching", label: "How does a driver win?", correct: true, feedback: "Eligibility, route cost, and a tie-breaker create deterministic matching." }, { id: "trip", label: "Must the trip route exist before assignment?", correct: true, feedback: "This prevents consuming a driver for an impossible trip." }, { id: "reject", label: "What remains unchanged after rejection?", correct: true, feedback: "This defines the safe mutation boundary." }, { id: "scope", label: "Which production features are excluded?", correct: true, feedback: "The answer keeps the interview focused and honest." }, { id: "class", label: "Should RideService be a Singleton?", correct: false, feedback: "That is a later design decision, not a clarification question." }, { id: "screen", label: "Which map colors should the UI use?", correct: false, feedback: "Presentation styling is outside this LLD workflow." }]} success="These questions define behavior without jumping into design." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-answers"><FocusOnly><PassiveLearningCards intro="These answers become the contract used by every later class and guard." items={[{ title: "Actions", body: "A registered rider requests, starts, and completes one ride." }, { title: "Locations", body: "Requests use known graph IDs; pickup and destination differ." }, { title: "Roads", body: "Directed edges carry positive integer travel minutes." }, { title: "Matching", body: "Lowest reachable pickup time wins; driver ID breaks ties." }, { title: "Successful state", body: "Ride stores both routes and Driver becomes BUSY." }, { title: "Rejected state", body: "No Ride, driver change, or consumed accepted ID." }]} conclusion="Routing chooses a path. Matching uses path costs to choose a driver." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-spec"><FocusOnly><FocusSpec compact requirements={["Pre-create riders, drivers, locations, and roads in memory.", "Request uses a registered rider and two different known locations.", "Roads are directed and have positive travel-minute weights.", "Prove pickup can reach destination before matching.", "Consider only AVAILABLE drivers that can reach pickup.", "Choose lowest pickup minutes, then lowest driver ID.", "Success stores both routes and makes the Driver BUSY.", "Ride follows MATCHED → IN_PROGRESS → COMPLETED.", "Completion moves Driver to destination and restores AVAILABLE.", "Every rejection leaves rides, IDs, and drivers unchanged."]} outOfScope={["Driver acceptance and cancellation", "Fare, surge, payment, and refunds", "Live GPS and map matching", "Live traffic and road closures", "Turn and toll preferences", "Geographic indexes", "Persistence and APIs", "Concurrent multi-server dispatch", "Notifications and ratings", "Safety and support"]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-entity-transition"><FocusOnly><PassiveLearningCards intro="With requirements fixed, extract nouns—but keep only candidates that own state, enforce a rule, carry one meaningful value, or define replaceable behavior." items={[{ title: "Graph candidates", body: "Location, Road, RoadGraph, and Route." }, { title: "People and intent", body: "Rider, Driver, and RideRequest." }, { title: "Algorithms", body: "RoutingStrategy and DriverMatchingStrategy." }, { title: "Workflow", body: "DriverMatch, Ride, results, and RideService." }, { title: "Supporting values", body: "Driver, ride, match, and action statuses." }, { title: "Rejected nouns", body: "Vehicle, payment, map display, and GPS tracking." }]} conclusion="Next, choose the smallest useful model for each candidate." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-modeling-vocabulary"><FocusOnly><PassiveLearningCards intro="Use the smallest modeling choice that can satisfy the confirmed requirements." items={[{ title: "Class", body: "Owns changing state and protects rules on that state." }, { title: "Interface", body: "Defines behavior with more than one plausible implementation." }, { title: "Enum", body: "Represents a small fixed set of valid states or outcomes." }, { title: "Immutable value", body: "Several stable values travel together and need value equality." }, { title: "Field", body: "A simple value belonging inside another object." }, { title: "Leave out", body: "No confirmed rule needs the concept yet." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-classes"><FocusOnly><RideClassPicker /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-values"><FocusOnly><ClassificationChallenge instruction="Give every remaining concept its smallest useful representation." categories={[{ id: "value", label: "Value" }, { id: "interface", label: "Interface" }, { id: "enum", label: "Enum" }, { id: "leave", label: "Leave out" }]} items={[{ id: "route", label: "Location, Road, Route", answer: "value", feedback: "Each bundles stable facts used throughout graph calculations." }, { id: "request", label: "Rider, RideRequest, DriverMatch, results", answer: "value", feedback: "These values carry identity, intent, or one completed decision." }, { id: "strategies", label: "RoutingStrategy and DriverMatchingStrategy", answer: "interface", feedback: "Both algorithms can vary while their callers remain stable." }, { id: "statuses", label: "Driver, Ride, Match, action statuses", answer: "enum", feedback: "They are closed sets that reject invalid strings." }, { id: "extras", label: "Vehicle, Payment, GPS tracker", answer: "leave", feedback: "No confirmed rule uses these production concepts." }]} success="Every candidate now has the smallest useful shape." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-ownership"><FocusOnly><RideOwnershipQuiz /></FocusOnly></LessonStep>
+<LessonStep id="ride-entity-flow"><FocusOnly><RideRequestFlow /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-entity-summary"><FocusOnly><EntityModelSummary items={[{ name: "RoadGraph", kind: "Class", purpose: "Owns locations and directed adjacency lists." }, { name: "Driver", kind: "Class", purpose: "Owns availability and current location." }, { name: "Ride", kind: "Class", purpose: "Owns accepted routes and lifecycle." }, { name: "RideService", kind: "Class", purpose: "Coordinates validation, matching, IDs, and state changes." }, { name: "Location · Road · Route", kind: "Immutable value", purpose: "Carry stable graph and path facts." }, { name: "Rider · RideRequest", kind: "Immutable value", purpose: "Carry identity and request intent." }, { name: "DriverMatch · Results", kind: "Immutable value", purpose: "Return completed decisions safely." }, { name: "RoutingStrategy", kind: "Interface", purpose: "Keeps path calculation replaceable." }, { name: "DriverMatchingStrategy", kind: "Interface", purpose: "Keeps driver selection replaceable." }]} enums={["DriverStatus", "RideStatus", "MatchStatus", "RideActionStatus"]} fields={["location ID", "travel minutes", "pickup", "destination", "next ride number"]} omitted={["Vehicle", "Payment", "GPS tracker", "Map display"]} relationship="Routing finds paths; Matching compares drivers using those paths; RideService changes Driver and Ride only after both route decisions succeed." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-principles"><FocusOnly><ClassificationChallenge instruction="Match each failure to the principle that prevents it." categories={[{ id: "encapsulation", label: "Encapsulation" }, { id: "srp", label: "Single responsibility" }, { id: "immutable", label: "Immutability" }, { id: "dip", label: "Dependency inversion" }, { id: "separation", label: "Algorithm separation" }]} items={[{ id: "request", label: "Accepted endpoints change later", answer: "immutable", feedback: "Immutable request and route values preserve accepted facts." }, { id: "status", label: "Caller writes driver status directly", answer: "encapsulation", feedback: "Private state and guarded methods prevent double assignment." }, { id: "traversal", label: "RideService traverses graph edges", answer: "srp", feedback: "The coordinator should not own shortest-path mechanics." }, { id: "concrete", label: "Service constructs Dijkstra directly", answer: "dip", feedback: "Depending on RoutingStrategy keeps the high-level workflow independent." }, { id: "mixed", label: "Dijkstra filters BUSY drivers", answer: "separation", feedback: "Routing calculates a path; matching applies driver business rules." }]} callout="These principles protect the exact failures above; they are not decoration." success="Every principle now solves a concrete design failure." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-design-method"><FocusOnly><PassiveLearningCards intro="Design each class with one repeatable chain." items={[{ title: "1. Responsibility", body: "Name the job created by a requirement." }, { title: "2. State", body: "Store only information needed for that job." }, { title: "3. Behavior", body: "Keep checks beside the state they use." }, { title: "4. Public API", body: "Expose use cases without exposing internals." }, { title: "5. Relationships", body: "Compose objects with different jobs." }, { title: "6. Patterns", body: "Abstract only behavior that genuinely varies." }]} conclusion="We will move from graph values to algorithms, state owners, and finally RideService." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-graph-values-design"><FocusOnly><PassiveLearningCards intro="These immutable values make graph operations precise." items={[{ title: "Location", body: "Stable ID and display name identify one graph node." }, { title: "Road", body: "From, to, and positive minutes describe one directed edge." }, { title: "Route", body: "Ordered location IDs and total minutes form one answer." }, { title: "Two-way road", body: "Store two directed Road values instead of adding a Dijkstra special case." }]} conclusion="Value equality and List.copyOf keep route facts safe after construction." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-graph-design"><FocusOnly><ClassificationChallenge instruction="Classify what RoadGraph owns and what belongs elsewhere." categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not graph" }]} items={[{ id: "winner", label: "Choose a driver", answer: "other", feedback: "DriverMatchingStrategy owns that business decision." }, { id: "locations", label: "Locations and outgoing roads", answer: "state", feedback: "These maps are the graph's adjacency representation." }, { id: "add", label: "Validate and add roads", answer: "behavior", feedback: "RoadGraph has the locations needed to reject invalid edges." }, { id: "route", label: "Run Dijkstra", answer: "other", feedback: "RoutingStrategy owns the replaceable algorithm." }, { id: "read", label: "Return immutable roads from a node", answer: "behavior", feedback: "Routing needs safe adjacency reads without graph mutation." }]} callout="Encapsulation keeps the adjacency lists private and read-only to routing." success="RoadGraph owns map structure, not route or dispatch decisions." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-routing-design"><FocusOnly><PassiveLearningCards intro="RoutingStrategy is a narrow algorithm boundary: it knows how to find a path, not why a driver is being considered." items={[{ title: "Input", body: "RoadGraph, start location ID, and target location ID." }, { title: "Output", body: "Optional<Route>; empty means no directed path exists." }, { title: "Current implementation", body: "Dijkstra for non-negative weighted roads." }, { title: "Future implementation", body: "A* or an external map adapter can keep the same contract." }]} conclusion="RoadGraph stores the map; RoutingStrategy calculates through it." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-people-design"><FocusOnly><ClassificationChallenge instruction="Classify the state and behavior belonging to Rider, Driver, or RideRequest." categories={[{ id: "stable", label: "Stable value" }, { id: "driver", label: "Driver" }, { id: "other", label: "Other owner" }]} items={[{ id: "intent", label: "riderId, pickupId, destinationId", answer: "stable", feedback: "RideRequest carries immutable intent." }, { id: "identity", label: "Rider ID and name", answer: "stable", feedback: "Rider identity does not change in this scope." }, { id: "availability", label: "status and current location", answer: "driver", feedback: "Driver owns both mutable matching facts." }, { id: "assign", label: "assign and completeAt", answer: "driver", feedback: "These guarded methods protect availability and movement." }, { id: "shortest", label: "calculate shortest path", answer: "other", feedback: "RoutingStrategy owns graph traversal." }, { id: "create", label: "create a Ride", answer: "other", feedback: "RideService coordinates accepted creation." }]} callout="Immutability protects intent; cohesion keeps Driver's changing state and rules together." success="Identity, intent, and mutable driver state are separated." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-state-machine"><FocusOnly><ChoiceQuestion prompt="Which lifecycle model matches the confirmed first version?" choices={[{ id: "enum", label: "Enum with guarded MATCHED → IN_PROGRESS → COMPLETED methods", correct: true, feedback: "Three states and two short transitions are clear without separate state classes." }, { id: "set", label: "Public setStatus lets RideService choose any state", correct: false, feedback: "A setter permits skipped and reversed transitions." }, { id: "pattern", label: "One class per state using the State pattern", correct: false, feedback: "The states do not yet have enough distinct behavior to justify that indirection." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-matching-design"><FocusOnly><OrderQuestion prompt="How should the matcher choose one driver?" items={[{ id: "route", label: "Ask routing for each pickup path" }, { id: "filter", label: "Keep AVAILABLE drivers" }, { id: "reachable", label: "Ignore unreachable pickup paths" }, { id: "compare", label: "Compare minutes, then driver ID" }, { id: "return", label: "Return Driver plus pickup Route" }]} correctOrder={["filter", "route", "reachable", "compare", "return"]} explanation="Matching owns eligibility and comparison. Routing is reused only to calculate each candidate's path." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-service-state"><FocusOnly><ClassificationChallenge instruction="Decide which fields RideService needs to coordinate the workflow." categories={[{ id: "service", label: "Service state" }, { id: "other", label: "Other owner" }]} items={[{ id: "edges", label: "adjacency lists", answer: "other", feedback: "RoadGraph owns graph structure." }, { id: "riders", label: "ridersById", answer: "service", feedback: "Request validation needs registered-rider lookup." }, { id: "drivers", label: "immutable driver list", answer: "service", feedback: "Matching needs the known candidates." }, { id: "rides", label: "ridesById", answer: "service", feedback: "Lifecycle actions find accepted rides by ID." }, { id: "strategies", label: "routing and matching strategies", answer: "service", feedback: "The coordinator delegates both decisions." }, { id: "ride-status", label: "ride status", answer: "other", feedback: "Each Ride owns its lifecycle." }, { id: "sequence", label: "nextRideNumber", answer: "service", feedback: "The service creates accepted ride IDs." }]} callout="Single responsibility: RideService remembers workflow indexes, not graph or lifecycle internals." success="Every service field supports a public use case." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-service-api"><FocusOnly><ClassificationChallenge instruction="Classify each method as public API, internal work, or another object's responsibility." categories={[{ id: "public", label: "Public API" }, { id: "internal", label: "Internal" }, { id: "other", label: "Other class" }]} items={[{ id: "request", label: "requestRide", answer: "public", feedback: "This is the main caller use case." }, { id: "actions", label: "startRide and completeRide", answer: "public", feedback: "These expose guarded lifecycle actions by ID." }, { id: "lookup", label: "safe ride and driver reads", answer: "public", feedback: "Callers may inspect without mutating collections." }, { id: "route", label: "trip-route validation", answer: "internal", feedback: "The service orders this delegated decision." }, { id: "id", label: "ID allocation and indexing", answer: "internal", feedback: "These steps commit only accepted rides." }, { id: "edges", label: "relax graph edges", answer: "other", feedback: "DijkstraRoutingStrategy owns relaxation." }, { id: "setter", label: "setDriverStatus", answer: "other", feedback: "No public setter should bypass Driver rules." }]} callout="Encapsulation exposes use cases, not shortcuts around state owners." success="The public boundary supports callers without leaking internals." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-separation"><FocusOnly><PassiveLearningCards intro="Routing and matching answer different questions even though matching calls routing." items={[{ title: "Routing asks", body: "How can one graph location reach another, and at what cost?" }, { title: "Matching asks", body: "Which AVAILABLE driver has the best reachable pickup route?" }, { title: "Routing reads", body: "RoadGraph nodes, edges, and weights." }, { title: "Matching reads", body: "Driver status, current location, and returned Route costs." }]} conclusion="DriverMatchingStrategy → RoutingStrategy → RoadGraph. Dijkstra never checks Driver status." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-mutation-boundary"><FocusOnly><OrderQuestion prompt="Where should the first state change occur?" items={[{ id: "validate", label: "Validate rider and endpoints" }, { id: "trip", label: "Prove the trip route" }, { id: "match", label: "Find a reachable driver" }, { id: "construct", label: "Construct tentative Ride" }, { id: "assign", label: "Assign the Driver" }, { id: "advance", label: "Advance accepted ID" }, { id: "index", label: "Index the Ride" }]} correctOrder={["validate", "trip", "match", "construct", "assign", "advance", "index"]} explanation="All expected rejection happens before Driver.assign. The ID advances and ride index changes only after assignment succeeds." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-patterns"><FocusOnly><TabbedConceptView tabs={[{ id: "routing", label: "Routing Strategy", title: "Use it now", body: "Path calculation can change from Dijkstra to A* or a map adapter without changing dispatch workflow." }, { id: "matching", label: "Matching Strategy", title: "Use it now", body: "Driver ranking is a separate varying business rule that reuses routing." }, { id: "state", label: "State", title: "Do not use yet", body: "Three short Ride states need only an enum and guarded methods." }, { id: "observer", label: "Observer", title: "Do not use yet", body: "No confirmed notifications or analytics listeners react to ride events." }, { id: "singleton", label: "Singleton", title: "Do not use", body: "Global mutable state harms tests and cannot coordinate multiple servers." }]} /></FocusOnly></LessonStep>
+<LessonStep id="ride-blueprint"><FocusOnly><RideClassBlueprint /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-code-map"><FocusOnly><RideImplementationMap /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-request-order"><FocusOnly><OrderQuestion prompt="Order requestRide so rejection cannot consume state." items={[{ id: "assign", label: "Assign selected Driver" }, { id: "match", label: "Match reachable drivers" }, { id: "validate", label: "Validate rider and locations" }, { id: "index", label: "Advance ID and index Ride" }, { id: "trip", label: "Find trip Route" }, { id: "construct", label: "Construct Ride" }]} correctOrder={["validate", "trip", "match", "construct", "assign", "index"]} explanation="Validation, trip routing, and matching are read-only. Assignment is the first protected mutation; accepted indexing follows it." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-code-concepts"><FocusOnly><TabbedConceptView tabs={[{ id: "graph", label: "Adjacency", title: "Directed adjacency lists", body: "For every location, RoadGraph stores only roads that may be followed outward. This uses O(V + E) space." }, { id: "optional", label: "Optional", title: "A route may not exist", body: "Optional<Route> makes unreachable paths explicit without null or an exception." }, { id: "queue", label: "Priority queue", title: "Take the cheapest frontier first", body: "Dijkstra removes the smallest known distance, with location ID as a deterministic tie-breaker." }, { id: "values", label: "Values", title: "Immutable records and lists", body: "Graph and result values cannot change while algorithms or callers inspect them." }, { id: "results", label: "Results", title: "Expected failure is data", body: "MatchStatus and RideActionStatus describe normal rejection without exceptions." }, { id: "mutation", label: "Mutation", title: "Validate before changing state", body: "Only a fully routable and matched request assigns a driver or consumes an ID." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-results-code"><FocusOnly><TabbedCodeView label="Ride sharing states and named results" tabs={[{ id: "driver", label: "DriverStatus", code: `public enum DriverStatus {
+    AVAILABLE,
+    BUSY
+}` }, { id: "ride", label: "RideStatus", code: `public enum RideStatus {
+    MATCHED,
+    IN_PROGRESS,
+    COMPLETED
+}` }, { id: "match", label: "Match result", code: `public enum MatchStatus {
+    MATCHED, INVALID_REQUEST, UNKNOWN_RIDER,
+    UNKNOWN_LOCATION, UNREACHABLE_TRIP,
+    NO_DRIVER_AVAILABLE
+}
+
+public record MatchResult(
+        MatchStatus status,
+        Optional<Ride> ride
+) {
+    public MatchResult {
+        ride = ride == null ? Optional.empty() : ride;
+    }
+}` }, { id: "action", label: "Ride action", code: `public enum RideActionStatus {
+    STARTED,
+    COMPLETED,
+    RIDE_NOT_FOUND,
+    INVALID_STATE
+}` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-graph-values-code"><FocusOnly><TabbedCodeView label="Immutable graph values" tabs={[{ id: "location", label: "Location", code: `public record Location(String id, String name) {
+    public Location {
+        if (id == null || id.isBlank() || name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Location fields are required");
+        }
+    }
+}` }, { id: "road", label: "Road", code: `public record Road(String fromId, String toId, int minutes) {
+    public Road {
+        if (fromId == null || toId == null || fromId.equals(toId)
+                || minutes <= 0) {
+            throw new IllegalArgumentException("Valid directed road is required");
+        }
+    }
+}` }, { id: "route", label: "Route", code: `public record Route(List<String> locationIds, int totalMinutes) {
+    public Route {
+        if (locationIds == null || locationIds.isEmpty() || totalMinutes < 0) {
+            throw new IllegalArgumentException("Valid route fields are required");
+        }
+        locationIds = List.copyOf(locationIds);
+    }
+}` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-graph-code"><FocusOnly><TabbedCodeView label="RoadGraph implementation" tabs={[{ id: "add-location", label: "Locations", code: `public void addLocation(Location location) {
+    Objects.requireNonNull(location, "location");
+    if (locations.putIfAbsent(location.id(), location) != null) {
+        throw new IllegalArgumentException("Duplicate location: " + location.id());
+    }
+    outgoing.put(location.id(), new ArrayList<>());
+}` }, { id: "add-road", label: "Roads", code: `public void addDirectedRoad(String fromId, String toId, int minutes) {
+    requireLocation(fromId);
+    requireLocation(toId);
+    outgoing.get(fromId).add(new Road(fromId, toId, minutes));
+}
+
+public void addTwoWayRoad(String firstId, String secondId, int minutes) {
+    addDirectedRoad(firstId, secondId, minutes);
+    addDirectedRoad(secondId, firstId, minutes);
+}` }, { id: "read", label: "Safe reads", code: `public boolean containsLocation(String locationId) {
+    return locations.containsKey(locationId);
+}
+
+public List<Road> roadsFrom(String locationId) {
+    requireLocation(locationId);
+    return List.copyOf(outgoing.get(locationId));
+}
+
+private void requireLocation(String locationId) {
+    if (!containsLocation(locationId)) {
+        throw new IllegalArgumentException("Unknown location: " + locationId);
+    }
+}` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-routing-predict"><FocusOnly><ChoiceQuestion prompt="Which algorithm finds the fastest route when roads have different positive travel times?" choices={[{ id: "bfs", label: "BFS, because it uses the fewest road segments", correct: false, feedback: "BFS minimizes edge count. One eight-minute edge can be slower than two edges costing one and five." }, { id: "dijkstra", label: "Dijkstra, because it minimizes total non-negative weight", correct: true, feedback: "A priority queue expands the cheapest known travel time first." }, { id: "dfs", label: "DFS, because it reaches a destination quickly", correct: false, feedback: "Reaching any path first does not prove it has the smallest total cost." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-dijkstra-trace"><FocusOnly><DijkstraLearningTrace /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-dijkstra-code"><FocusOnly><TabbedCodeView label="DijkstraRoutingStrategy" tabs={[{ id: "route", label: "Complete route", code: `public Optional<Route> route(RoadGraph graph, String startId, String targetId) {
+    if (graph == null || !graph.containsLocation(startId)
+            || !graph.containsLocation(targetId)) return Optional.empty();
+    if (startId.equals(targetId)) return Optional.of(new Route(List.of(startId), 0));
+    Map<String, Integer> distance = new HashMap<>();
+    Map<String, String> previous = new HashMap<>();
+    Set<String> settled = new HashSet<>();
+    PriorityQueue<QueueEntry> frontier = new PriorityQueue<>(
+            Comparator.comparingInt(QueueEntry::minutes)
+                    .thenComparing(QueueEntry::locationId));
+    distance.put(startId, 0);
+    frontier.add(new QueueEntry(startId, 0));
+    while (!frontier.isEmpty()) {
+        QueueEntry current = frontier.remove();
+        if (current.minutes() != distance.getOrDefault(current.locationId(), Integer.MAX_VALUE)) continue;
+        if (!settled.add(current.locationId())) continue;
+        if (current.locationId().equals(targetId)) {
+            return Optional.of(new Route(rebuildPath(previous, startId, targetId), current.minutes()));
+        }
+        for (Road road : graph.roadsFrom(current.locationId())) {
+            if (settled.contains(road.toId())) continue;
+            int candidate = Math.addExact(current.minutes(), road.minutes());
+            if (candidate < distance.getOrDefault(road.toId(), Integer.MAX_VALUE)) {
+                distance.put(road.toId(), candidate);
+                previous.put(road.toId(), current.locationId());
+                frontier.add(new QueueEntry(road.toId(), candidate));
+            }
+        }
+    }
+    return Optional.empty();
+}` }, { id: "rebuild", label: "Complete rebuild", code: `private List<String> rebuildPath(
+        Map<String, String> previous,
+        String startId,
+        String targetId
+) {
+    List<String> reversed = new ArrayList<>();
+    String current = targetId;
+    reversed.add(current);
+    while (!current.equals(startId)) {
+        current = previous.get(current);
+        if (current == null) {
+            throw new IllegalStateException("Predecessor chain is incomplete");
+        }
+        reversed.add(current);
+    }
+    Collections.reverse(reversed);
+    return List.copyOf(reversed);
+}` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-people-code"><FocusOnly><TabbedCodeView label="Rider, Driver, and RideRequest" tabs={[{ id: "rider", label: "Rider", code: `public record Rider(String id, String name) {
+    public Rider {
+        if (id == null || id.isBlank() || name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Rider fields are required");
+        }
+    }
+}` }, { id: "request", label: "RideRequest", code: `public record RideRequest(
+        String riderId,
+        String pickupId,
+        String destinationId
+) {
+    public RideRequest {
+        if (riderId == null || pickupId == null || destinationId == null) {
+            throw new IllegalArgumentException("Request fields are required");
+        }
+    }
+}` }, { id: "driver", label: "Driver", code: `public boolean assign() {
+    if (status != DriverStatus.AVAILABLE) return false;
+    status = DriverStatus.BUSY;
+    return true;
+}
+
+public boolean completeAt(String destinationId) {
+    if (status != DriverStatus.BUSY || destinationId == null) return false;
+    currentLocationId = destinationId;
+    status = DriverStatus.AVAILABLE;
+    return true;
+}` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-lifecycle-predict"><FocusOnly><ClassificationChallenge instruction="Predict whether each Ride action is accepted or rejected." categories={[{ id: "accept", label: "Accepted" }, { id: "reject", label: "Rejected" }]} items={[{ id: "start", label: "Start while MATCHED", answer: "accept", feedback: "The first valid transition moves to IN_PROGRESS." }, { id: "repeat", label: "Start while IN_PROGRESS", answer: "reject", feedback: "A ride cannot start twice." }, { id: "early", label: "Complete while MATCHED", answer: "reject", feedback: "Completion cannot skip IN_PROGRESS." }, { id: "complete", label: "Complete while IN_PROGRESS", answer: "accept", feedback: "This is the only valid completion transition." }, { id: "terminal", label: "Start or complete after COMPLETED", answer: "reject", feedback: "COMPLETED is terminal." }]} success="Every transition follows the lifecycle." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-lifecycle-code"><FocusOnly><TabbedCodeView label="Ride lifecycle" tabs={[{ id: "start", label: "Start", code: `public boolean start() {
+    if (status != RideStatus.MATCHED) return false;
+    status = RideStatus.IN_PROGRESS;
+    return true;
+}` }, { id: "complete", label: "Complete", code: `public boolean complete() {
+    if (status != RideStatus.IN_PROGRESS) return false;
+    status = RideStatus.COMPLETED;
+    return true;
+}` }, { id: "reads", label: "Safe reads", code: `public String id() { return id; }
+public String riderId() { return riderId; }
+public Driver driver() { return driver; }
+public String pickupId() { return pickupId; }
+public String destinationId() { return destinationId; }
+public Route pickupRoute() { return pickupRoute; }
+public Route tripRoute() { return tripRoute; }
+public RideStatus status() { return status; }` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-matching-predict"><FocusOnly><ChoiceQuestion prompt="Maya is 5 minutes away, Leo is 2, Noor is unreachable, and another 2-minute driver has ID D4. Who wins?" choices={[{ id: "maya", label: "Maya, because she looks closest on the map", correct: false, feedback: "Visual distance is not the confirmed metric." }, { id: "leo", label: "Leo (D2), by minutes and then driver ID", correct: true, feedback: "Two minutes is cheapest, and D2 wins the equal-time tie against D4." }, { id: "noor", label: "Noor, because unreachable routes have no cost", correct: false, feedback: "An unreachable driver is excluded, not treated as zero." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-matching-code"><FocusOnly><TabbedCodeView label="Driver matching Strategy" tabs={[{ id: "interface", label: "Interface", code: `public interface DriverMatchingStrategy {
+    Optional<DriverMatch> match(
+            List<Driver> drivers,
+            String pickupId,
+            RoadGraph graph,
+            RoutingStrategy routing
+    );
+}` }, { id: "implementation", label: "Complete match", code: `public Optional<DriverMatch> match(
+        List<Driver> drivers,
+        String pickupId,
+        RoadGraph graph,
+        RoutingStrategy routing
+) {
+    return drivers.stream()
+            .filter(driver -> driver.status() == DriverStatus.AVAILABLE)
+            .map(driver -> routing.route(graph, driver.currentLocationId(), pickupId)
+                    .map(route -> new DriverMatch(driver, route)))
+            .flatMap(Optional::stream)
+            .min(Comparator
+                    .comparingInt((DriverMatch match) -> match.pickupRoute().totalMinutes())
+                    .thenComparing(match -> match.driver().id()));
+}` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-service-predict"><FocusOnly><PredictionChecklist prompt="Which rules must requestRide enforce before accepting a ride?" items={[{ id: "rider", label: "Registered rider", correct: true, feedback: "Unknown riders return UNKNOWN_RIDER." }, { id: "locations", label: "Known, different endpoints", correct: true, feedback: "Invalid endpoints are rejected before routing." }, { id: "trip", label: "Reachable trip Route", correct: true, feedback: "An impossible trip must not consume a driver." }, { id: "driver", label: "Reachable AVAILABLE driver", correct: true, feedback: "The matcher must return a candidate and pickup route." }, { id: "id", label: "Advance ID before validation", correct: false, feedback: "Rejected requests must not consume the next accepted ID." }, { id: "busy", label: "Mark every candidate BUSY", correct: false, feedback: "Only the selected driver changes." }]} success="The service validates every dependency before committing state." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-service-code"><FocusOnly><TabbedCodeView label="RideService by responsibility" tabs={[{ id: "request", label: "Complete requestRide", code: `public MatchResult requestRide(RideRequest request) {
+    if (request == null) return MatchResult.rejected(MatchStatus.INVALID_REQUEST);
+    if (!ridersById.containsKey(request.riderId())) return MatchResult.rejected(MatchStatus.UNKNOWN_RIDER);
+    if (!graph.containsLocation(request.pickupId())
+            || !graph.containsLocation(request.destinationId())) {
+        return MatchResult.rejected(MatchStatus.UNKNOWN_LOCATION);
+    }
+    if (request.pickupId().equals(request.destinationId())) {
+        return MatchResult.rejected(MatchStatus.INVALID_REQUEST);
+    }
+    Optional<Route> tripRoute = routing.route(graph, request.pickupId(), request.destinationId());
+    if (tripRoute.isEmpty()) return MatchResult.rejected(MatchStatus.UNREACHABLE_TRIP);
+    Optional<DriverMatch> match = matching.match(drivers, request.pickupId(), graph, routing);
+    if (match.isEmpty()) return MatchResult.rejected(MatchStatus.NO_DRIVER_AVAILABLE);
+    DriverMatch selected = match.get();
+    String rideId = "R" + nextRideNumber;
+    Ride ride = new Ride(rideId, request.riderId(), selected.driver(),
+            request.pickupId(), request.destinationId(), selected.pickupRoute(), tripRoute.get());
+    if (!selected.driver().assign()) return MatchResult.rejected(MatchStatus.NO_DRIVER_AVAILABLE);
+    nextRideNumber++;
+    ridesById.put(ride.id(), ride);
+    return MatchResult.accepted(ride);
+}` }, { id: "actions", label: "Lifecycle actions", code: `public RideActionStatus startRide(String rideId) {
+    Ride ride = ridesById.get(rideId);
+    if (ride == null) return RideActionStatus.RIDE_NOT_FOUND;
+    return ride.start() ? RideActionStatus.STARTED : RideActionStatus.INVALID_STATE;
+}
+
+public RideActionStatus completeRide(String rideId) {
+    Ride ride = ridesById.get(rideId);
+    if (ride == null || ride.status() != RideStatus.IN_PROGRESS) {
+        return ride == null ? RideActionStatus.RIDE_NOT_FOUND : RideActionStatus.INVALID_STATE;
+    }
+    if (!ride.complete()) return RideActionStatus.INVALID_STATE;
+    if (!ride.driver().completeAt(ride.destinationId())) {
+        throw new IllegalStateException("Ride and driver state disagree");
+    }
+    return RideActionStatus.COMPLETED;
+}` }, { id: "reads", label: "Safe reads", code: `public Optional<Ride> ride(String rideId) {
+    return Optional.ofNullable(ridesById.get(rideId));
+}
+
+public List<Driver> drivers() {
+    return drivers;
+}` }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-scenarios"><FocusOnly><RideScenarioProof /></FocusOnly></LessonStep>
+<LessonStep id="ride-simulator"><FocusOnly><RideSharingSimulator compact /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-live-traffic"><FocusOnly><TabbedConceptView tabs={[{ id: "weights", label: "Changing weights", title: "Travel time is no longer static", body: "Traffic updates the effective edge cost, so routes may become stale even when the road graph shape is unchanged." }, { id: "cache", label: "Invalidation", title: "Cached routes need a version or expiry", body: "A cached path must record which traffic snapshot justified it or be recalculated when weights change." }, { id: "boundary", label: "Boundary", title: "Keep traffic outside the first graph", body: "A traffic provider may supply costs to routing without putting feeds, polling, or map APIs inside RideService." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-scale"><FocusOnly><PassiveLearningCards intro="The interview matcher runs Dijkstra for every available driver. Keep it honest, then explain how scale changes the search." items={[{ title: "A* routing", body: "With coordinates and a non-overestimating heuristic, A* may settle fewer nodes while keeping the shortest-path guarantee." }, { title: "Geographic candidates", body: "Use a spatial index to find nearby drivers before expensive road routing." }, { title: "Reverse search", body: "Search outward from pickup or use multi-source techniques instead of repeating identical graph work." }, { title: "Current complexity", body: "D drivers cost O(D × (V + E) log V) in the simple version." }]} conclusion="Optimize candidate discovery before hiding graph traversal inside Driver or RideService." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-concurrency"><FocusOnly><PassiveLearningCards intro="Driver acceptance and concurrent requests change the assignment boundary." items={[{ title: "Acceptance", body: "Add a pending offer or REQUESTED state before a Driver becomes committed." }, { title: "Race", body: "Two requests may both observe the same Driver as AVAILABLE and both select it." }, { title: "One process", body: "Protect check-and-assign with a lock around the chosen Driver or dispatch operation." }, { title: "Several servers", body: "Use shared transactional storage or a conditional status update; a Java lock is not enough." }]} conclusion="Selection plus assignment must become one protected decision, while route calculation remains read-only." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-pricing"><FocusOnly><PassiveLearningCards intro="Pricing and payment are new workflows, not extra fields pasted onto routing." items={[{ title: "Pricing", body: "Introduce a PricingStrategy only when base, surge, or vehicle policies genuinely vary." }, { title: "Stable inputs", body: "Route distance or minutes can feed pricing without changing RoutingStrategy's responsibility." }, { title: "Payment", body: "Call an external payment boundary without holding an assignment lock." }, { title: "Failure", body: "Define whether payment happens before the ride, after completion, or through an authorization and capture flow." }]} conclusion="Keep dispatch correct even when payment is slow or fails." /></FocusOnly></LessonStep>
+
+<LessonStep id="ride-close"><FocusOnly><ChoiceQuestion prompt="Which closing explanation is strongest?" choices={[{ id: "patterns", label: "I used Strategy, State, Observer, Factory, and Singleton to make it scalable.", correct: false, feedback: "Listing patterns without requirements hides the actual routing and state decisions." }, { id: "strong", label: "I separated weighted routing from driver matching, use Dijkstra for positive road times, and mutate Driver and Ride only after both routes exist. The first version is sequential; at scale I would reduce candidates and make assignment transactional.", correct: true, feedback: "This explains scope, ownership, algorithm assumptions, mutation safety, and the production boundary." }, { id: "distributed", label: "I would begin with microservices, Kafka, GPS streams, and distributed locks.", correct: false, feedback: "That skips the requested object design and introduces systems without confirmed requirements." }]} /></FocusOnly></LessonStep>
+
+<WalkthroughOnly>
 
 <Lead>Design a ride-sharing service that finds the fastest available driver by road travel time, creates a ride only when both routes exist, and moves the ride safely from matched to completed.</Lead>
 
@@ -1081,3 +1422,5 @@ Fare calculation depends on distance, time, vehicle, and pricing policy; payment
 ### A strong spoken summary
 
 > “I separated matching from routing. RoadGraph owns directed weighted edges. DijkstraRoutingStrategy returns the cheapest path using distance estimates, predecessors, a settled set, and a priority queue. NearestDriverMatchingStrategy calls routing for AVAILABLE drivers and compares pickup minutes, then ID. RideService validates the trip and match before creating a Ride or making a Driver busy. The first version uses static graph minutes and sequential in-memory calls; live traffic, A*, geographic indexing, and concurrent driver reservation are extensions.”
+
+</WalkthroughOnly>
