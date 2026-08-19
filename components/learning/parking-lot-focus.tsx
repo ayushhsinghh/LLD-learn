@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { parkingLotClassDiagrams } from "@/lib/class-diagrams";
 
 const classCandidates = [
   { id: "gate", label: "EntranceGate", correct: false, feedback: "The confirmed scope gives a gate no identity, state, or rule. ParkingLot.park already represents entry." },
@@ -89,16 +90,8 @@ export function ParkingEntryFlow() {
   </section>;
 }
 
-const blueprintTabs = [
-  { id: "values", label: "Values", image: "/images/parking-lot-values-class.png", alt: "Sketch UML diagram of Parking Lot immutable value records", diagram: "Vehicle, Ticket, Selection, and Result carry stable facts between state-owning objects.", principle: "Immutability gives these values safe construction and value equality." },
-  { id: "spot", label: "Spot", image: "/images/parking-lot-spot-class.png", alt: "Sketch UML diagram of ParkingSpot", diagram: "ParkingSpot keeps type and occupant together with every availability-changing operation.", principle: "Encapsulation prevents callers from occupying or releasing a spot without its checks." },
-  { id: "floor", label: "Floor", image: "/images/parking-lot-floor-class.png", alt: "Sketch UML diagram of ParkingFloor", diagram: "ParkingFloor owns one numbered, read-only group and local lookup.", principle: "Cohesion keeps grouping rules here without taking over cross-floor selection." },
-  { id: "lot", label: "Lot", image: "/images/parking-lot-system-class.png", alt: "Sketch UML diagram of ParkingLot", diagram: "ParkingLot composes floors and a strategy, then owns ticket indexes and workflow order.", principle: "Single responsibility separates session coordination from availability and ranking." },
-  { id: "strategy", label: "Strategy", image: "/images/parking-lot-strategy-class.png", alt: "Sketch UML diagram of SpotAssignmentStrategy and its nearest implementation", diagram: "The interface selects one candidate; it never occupies a spot or creates a ticket.", principle: "Loose coupling and open-closed design localize a replaceable ranking policy." },
-] as const;
-
 export function ParkingClassBlueprint() {
-  return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3"><Tabs defaultValue="values" className="flex min-h-0 flex-1 flex-col"><div className="overflow-x-auto"><TabsList className="grid min-w-max grid-flow-col">{blueprintTabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="px-3 py-1.5 text-[10px]">{tab.label}</TabsTrigger>)}</TabsList></div>{blueprintTabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={tab.image} alt={tab.alt} width={1536} height={1024} className="h-full w-full object-contain" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong>Read it: </strong>{tab.diagram}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{tab.principle}</p></div></article></TabsContent>)}</Tabs></section>;
+  return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3"><Tabs defaultValue="values" className="flex min-h-0 flex-1 flex-col"><div className="overflow-x-auto"><TabsList className="grid min-w-max grid-flow-col">{parkingLotClassDiagrams.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="px-3 py-1.5 text-[10px]">{tab.label}</TabsTrigger>)}</TabsList></div>{parkingLotClassDiagrams.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={tab.image} alt={tab.alt} width={tab.width ?? 1536} height={tab.height ?? 1024} className="h-full w-full object-contain" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong>Read it: </strong>{tab.reading}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{tab.principle}</p></div></article></TabsContent>)}</Tabs></section>;
 }
 
 export function ParkingImplementationMap() {

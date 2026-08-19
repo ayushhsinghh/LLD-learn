@@ -3,6 +3,8 @@ import { ParkingLotSimulator } from "@/components/simulations/parking-lot-simula
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { ChoiceQuestion, ClassificationChallenge, EntityModelSummary, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 import { ParkingClassBlueprint, ParkingClassPicker, ParkingEntryFlow, ParkingImplementationMap, ParkingOwnershipQuiz, ParkingStateProof } from "@/components/learning/parking-lot-focus"
+import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
+import { parkingLotClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="parking-orientation"><FocusOnly>
 <ConceptImage src="/images/parking-lot-overview.png" alt="A car entering a two-floor parking garage and following an assigned route to a highlighted compatible free spot" caption="Entry is a workflow: choose a compatible spot, remember the assignment, then free that exact spot on exit." width={1536} height={1024} />
@@ -672,6 +674,19 @@ Bridge from the requirements using the same chain each time:
 
 Start with `ParkingLot.park` because that is the main action visible to the caller. Then follow its needs downward into the strategy, floor, and spot.
 
+### Design the immutable values first
+
+Some types carry facts but do not own a changing lifecycle. `Vehicle` keeps a plate and vehicle type together. `SpotSelection` records the floor and spot chosen by the policy. `ParkingTicket` is the accepted parking receipt, while `ParkingResult` makes success and expected rejection explicit.
+
+<DerivationTable rows={[
+  ["Identify one vehicle throughout a session", "Vehicle value", "plate and VehicleType"],
+  ["Return the policy's completed choice", "SpotSelection value", "floorNumber and spotId"],
+  ["Remember the accepted assignment", "ParkingTicket value", "ticketId, plate, floorNumber, spotId"],
+  ["Return success or a normal rejection", "ParkingResult value", "ParkingStatus and Optional<ParkingTicket>"]
+]} />
+
+These Java records are immutable: their values are fixed after construction. That is different from `ParkingSpot`, whose occupant must change. Keeping the distinction clear prevents callers from treating a result object as another route into live parking state.
+
 ### Derive the coordinating class
 
 “Reject a vehicle already parked” creates an index by plate. “Exit by ticket ID” creates another index by ticket ID. “Issue a unique ticket” creates a sequence. These fields are not generic manager data; each one exists because of an observable rule.
@@ -697,6 +712,14 @@ Start with `ParkingLot.park` because that is the main action visible to the call
   ["Make the spot reusable after exit", "ParkingSpot", "release()"],
   ["Do not expose mutable ownership", "ParkingSpot", "getVehicle() returns Optional"]
 ]} />
+
+`ParkingSpot` protects the invariant that it has at most one compatible occupant. Its occupant stays private, and `occupy` and `release` are the only mutation paths. `ParkingFloor` exposes an immutable spot list and local lookup; it does not compare spots on other floors.
+
+### Derive the selection boundary and public API
+
+`SpotAssignmentStrategy.select` is a read-only decision. It may inspect floors and spots and return a `SpotSelection`, but only `ParkingLot` may turn that choice into an accepted parking session. This prevents a policy object from creating tickets or changing occupation as a side effect.
+
+The caller-facing API remains narrow: `park(vehicle)`, `leave(ticketId)`, and safe reads. Ticket-index updates and sequence changes are internal workflow steps. Direct spot mutation, mutable floor replacement, and public ticket setters would bypass the invariants established above.
 
 ### Understand the allocation algorithm
 
@@ -736,6 +759,17 @@ If there are `S` spots, filtering costs `O(S)` and sorting costs `O(S log S)`. T
 <PatternDecision name="Singleton for ParkingLot" useIt={false}>
   Tests may create several independent lots, and a company may operate several locations. A normal object models that naturally. Global singleton state would make isolation harder and is not required by “one parking lot” in the prompt.
 </PatternDecision>
+
+### Connect the classes and review the final blueprint
+
+ParkingLot **has** floors and one assignment Strategy. A ParkingFloor **has** ParkingSpots. None of these is a specialized form of another, so composition expresses the relationships better than inheritance.
+
+- **Single responsibility:** ParkingLot coordinates sessions, Strategy ranks candidates, Floor groups spots, and Spot owns occupation.
+- **Encapsulation:** callers cannot replace the spot lists or edit an occupant directly.
+- **Immutability:** vehicles, selections, tickets, and results cross boundaries as stable values.
+- **Validation before mutation:** duplicate and no-spot failures return before occupation, ticket creation, or index changes.
+
+<ClassDiagramGallery diagrams={parkingLotClassDiagrams} label="Parking Lot final class diagrams" />
 
 <h2 id="implementation">4. Implementation (~10 minutes)</h2>
 

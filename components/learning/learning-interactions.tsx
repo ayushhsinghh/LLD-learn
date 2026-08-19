@@ -6,6 +6,7 @@ import { RadioGroup } from "radix-ui";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ticTacToeClassDiagrams } from "@/lib/class-diagrams";
 import { cn } from "@/lib/utils";
 
 export type LearningChoice = {
@@ -694,17 +695,11 @@ export function ClassRelationshipChallenge() {
   </section>;
 }
 
-const classBlueprints = {
-  player: { image: "/images/tic-tac-toe-player-class.png", alt: "Sketch UML diagram of the Player class", diagram: "Two private fields form one stable identity. Construction sets them once, and getters provide safe reads.", principle: "Immutability and cohesion prevent a player's mark changing mid-game." },
-  board: { image: "/images/tic-tac-toe-board-class.png", alt: "Sketch UML diagram of the Board class", diagram: "Board hides the cell grid and owns every operation decided by inspecting those cells.", principle: "Encapsulation keeps validation beside mutable grid state, so callers cannot bypass placement rules." },
-  game: { image: "/images/tic-tac-toe-game-class.png", alt: "Sketch UML diagram of the Game class", diagram: "Game composes one Board and two Players, then coordinates a move from validation to result.", principle: "Single responsibility and composition separate match flow from grid algorithms." },
-} as const;
-
 export function FinalClassBlueprint() {
   return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-4">
     <Tabs defaultValue="player" className="flex min-h-0 flex-1 flex-col">
       <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="player" className="py-1.5 text-xs">Player</TabsTrigger><TabsTrigger value="board" className="py-1.5 text-xs">Board</TabsTrigger><TabsTrigger value="game" className="py-1.5 text-xs">Game</TabsTrigger></TabsList>
-      {Object.entries(classBlueprints).map(([id, model]) => <TabsContent key={id} value={id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={model.image} alt={model.alt} width={1536} height={1024} className="h-full w-full object-contain" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--ink)]">Read the diagram: </strong>{model.diagram}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{model.principle}</p></div></article></TabsContent>)}
+      {ticTacToeClassDiagrams.map((model) => <TabsContent key={model.id} value={model.id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={model.image} alt={model.alt} width={model.width ?? 1536} height={model.height ?? 1024} className="h-full w-full object-contain" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--ink)]">Read the diagram: </strong>{model.reading}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{model.principle}</p></div></article></TabsContent>)}
     </Tabs>
   </section>;
 }

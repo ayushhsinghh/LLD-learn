@@ -179,6 +179,20 @@ For every field and method, the reader should be able to point to the requiremen
 
 Keep state private. Keep a rule in the object owning the state required by that rule. A coordinating class may order operations, but it should not reach into another object's fields and perform that object's rules.
 
+### Complete walkthrough class-design standard
+
+When a topic also has Focus Mode, its complete walkthrough must remain the detailed source of truth rather than leaving class reasoning only inside Focus interactions.
+
+- Discuss every finalized class, interface, and important immutable value from the Entities checkpoint.
+- For each state-owning class, derive representative fields and methods from confirmed requirements before showing final code.
+- Distinguish private state, public API, internal behavior, and responsibilities that belong to another class.
+- State the invariant the class protects and whether mutable state or collections may escape.
+- Explain composition and other relationships, then connect the concrete design to relevant principles before discussing patterns.
+- Keep advanced algorithms or concurrency concepts attached to the class that owns the affected state or behavior.
+- Reuse the same generated UML assets and diagram metadata in Focus Mode and the complete walkthrough so labels and explanations cannot drift.
+- End Class Design with a walkthrough-safe tabbed diagram gallery. Every tab must include descriptive alternative text, a short explanation of how to read the diagram, and the principle it demonstrates.
+- Let walkthrough pages scroll naturally, but keep each diagram responsive, aspect-ratio safe, and free of horizontal page overflow. Do not reuse the fixed-height Focus card layout in the walkthrough.
+
 ### Design patterns
 
 - Treat patterns as optional tools, not checklist items.

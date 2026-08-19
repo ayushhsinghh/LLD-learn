@@ -3,6 +3,8 @@ import { NotificationSystemSimulator } from "@/components/simulations/notificati
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { PassiveLearningCards, EntityModelSummary, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, ChoiceQuestion } from "@/components/learning/learning-interactions"
 import { NotificationOwnershipQuiz, NotificationDeliveryFlow, NotificationJobStateMachine, NotificationClassBlueprint, NotificationImplementationMap } from "@/components/learning/notification-system-focus"
+import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
+import { notificationClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="notification-orientation"><FocusOnly><ConceptImage src="/images/notification-system-overview.png" alt="A caller submits email, SMS, and push notifications while a temporary SMS failure is retried" caption="Submission and delivery are different events. One failed channel attempt can retry without blocking the caller or unrelated notifications." width={1693} height={929} eager={true} /></FocusOnly></LessonStep>
 
@@ -586,24 +588,55 @@ The caller enters through `NotificationService.submit`. The service creates a `D
 
 ## 3. Class design
 
-Use the chain **requirement → responsible object → state → behavior → public API**. Begin at `NotificationService.submit`, then follow its dependencies downward.
+Use the chain **requirement → responsible object → state → behavior → public API → relationships → principles → patterns**. Begin at `NotificationService.submit`, then follow its dependencies downward.
+
+### Design the immutable request and result values
+
+Once a request is queued, a worker must see the same recipient, channel, and content that the caller submitted. `NotificationRequest` therefore validates its required values during construction and exposes no setters. `SubmissionReceipt` returns the new job ID, while `DeliverySnapshot` publishes a consistent read of mutable progress.
 
 <DerivationTable rows={[
-  ["One immutable accepted message", "NotificationRequest", "recipientId, destination, channel, subject, body"],
-  ["Body is mandatory", "NotificationRequest", "constructor validation"]
+  ["Keep one accepted message stable", "NotificationRequest value", "recipientId, destination, channel, subject, body"],
+  ["Reject incomplete content before queueing", "NotificationRequest behavior", "constructor validation"],
+  ["Return immediately after acceptance", "SubmissionReceipt value", "jobId"],
+  ["Expose progress without exposing the job", "DeliverySnapshot value", "status, attempts, lastError"]
 ]} />
 
-<DerivationTable rows={[
-  ["Expose progress safely", "DeliveryJob", "status, attempts, lastError, snapshot()"],
-  ["Terminal state never restarts", "DeliveryJob", "guarded synchronized transitions"]
-]} />
+### Design channel senders and RetryPolicy
+
+EMAIL, SMS, and PUSH are three implementations of the same operation. `NotificationSender` is a small Strategy interface with `channel()` and `send(request)`. The service uses a channel-to-sender registry, so adding a sender does not add another branch to the delivery workflow.
+
+`RetryPolicy` is an immutable value with one rule: after a completed attempt, decide whether another is permitted. A maximum of three means one initial attempt and two retries; it does not mean three retries after the first failure.
 
 <DerivationTable rows={[
-  ["Route without channel branches", "NotificationService", "senders map + submit()"],
-  ["Queryable jobs", "NotificationService", "ConcurrentHashMap + getStatus()"],
-  ["Parallel non-blocking delivery", "NotificationService", "ExecutorService + worker task"],
-  ["Bound retry", "NotificationService", "RetryPolicy + deliver()"],
-  ["Graceful lifecycle", "NotificationService", "accepting flag + close()"]
+  ["Keep provider code outside the workflow", "NotificationSender API", "channel() and send(request)"],
+  ["Support one implementation per channel", "Sender strategies", "EmailSender, SmsSender, PushSender"],
+  ["Stop after three total attempts", "RetryPolicy", "maxAttempts and canRetry(completedAttempts)"],
+  ["Keep delay rules out of the first version", "RetryPolicy boundary", "no sleep, backoff, or scheduling state"]
+]} />
+
+### Design DeliveryJob
+
+`DeliveryJob` is the private mutable state owner. Its job ID and request never change; status, attempt count, and last error move together. Synchronized transition and snapshot methods prevent a querying caller from observing a new status with an old attempt count.
+
+<DerivationTable rows={[
+  ["Remember immutable work identity", "DeliveryJob state", "jobId and NotificationRequest"],
+  ["Expose current progress", "DeliveryJob state", "status, attempts, lastError"],
+  ["Begin and complete one attempt", "DeliveryJob internal behavior", "markSending, markSent, recordFailure"],
+  ["Never restart terminal work", "DeliveryJob invariant", "SENT and FAILED reject further transitions"],
+  ["Publish a safe read", "DeliveryJob API", "snapshot() returns DeliverySnapshot"]
+]} />
+
+### Derive NotificationService state and API
+
+The service coordinates submission and execution. Its public API is deliberately small: `submit`, `getStatus`, and `close`. Sender lookup, worker creation, the retry loop, and job transitions stay internal. Callers never receive a mutable DeliveryJob, sender registry, executor queue, or public status setter.
+
+<DerivationTable rows={[
+  ["Route without channel branches", "NotificationService state", "Map<NotificationChannel, NotificationSender> senders"],
+  ["Find accepted jobs by ID", "NotificationService state", "ConcurrentHashMap jobs"],
+  ["Run several jobs without blocking submit", "NotificationService state", "ExecutorService executor"],
+  ["Create unique job IDs safely", "NotificationService state", "AtomicLong sequence"],
+  ["Accept and inspect work", "NotificationService API", "submit(request) and getStatus(jobId)"],
+  ["Stop new work and drain accepted tasks", "NotificationService API", "close()"]
 ]} />
 
 ### The asynchronous correctness boundary
@@ -618,6 +651,18 @@ Each accepted job has one worker task, so two workers never intentionally delive
 <PatternDecision name="Factory" useIt={false}>The application can construct and inject the three senders directly. There is no complex creation rule.</PatternDecision>
 <PatternDecision name="Singleton" useIt={false}>Global access does not improve correctness, durability, or testing. Explicit construction makes executor ownership clear.</PatternDecision>
 <PatternDecision name="Observer or Chain of Responsibility" useIt={false}>There are no delivery subscribers or channel fallback chain in the confirmed requirements.</PatternDecision>
+
+### Connect the classes and review the final blueprint
+
+NotificationService composes the sender registry, RetryPolicy, ExecutorService, and private DeliveryJobs. A worker delegates one attempt to a NotificationSender and reports the outcome back through DeliveryJob transitions. No inheritance is needed between the service, job, policy, or infrastructure.
+
+- **Immutability:** queued content and returned snapshots remain stable.
+- **Encapsulation and thread safety:** only DeliveryJob transition methods may change live status.
+- **Single responsibility:** the service coordinates while each sender owns provider-specific delivery.
+- **Open/closed and dependency inversion:** the workflow depends on NotificationSender rather than channel implementations.
+- **Composition:** executor and retry policy are explicit collaborators with visible ownership and lifecycle boundaries.
+
+<ClassDiagramGallery diagrams={notificationClassDiagrams} label="Notification System final class diagrams" />
 
 </section>
 

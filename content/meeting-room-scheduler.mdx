@@ -3,6 +3,8 @@ import { MeetingRoomSchedulerSimulator } from "@/components/simulations/meeting-
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { EntityModelSummary } from "@/components/learning/learning-interactions"
 import { MeetingRoomFocusSlide } from "@/components/learning/meeting-room-scheduler-focus"
+import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
+import { meetingRoomClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="meeting-orientation"><FocusOnly><MeetingRoomFocusSlide id="meeting-orientation" /></FocusOnly></LessonStep>
 <LessonStep id="meeting-framework"><FocusOnly><MeetingRoomFocusSlide id="meeting-framework" /></FocusOnly></LessonStep>
@@ -280,6 +282,20 @@ Move from the entities into methods using the same chain:
 
 Start at `MeetingScheduler.schedule` because that is the caller-visible action. Then follow its questions downward: which rooms qualify, and how does one Room know that its time is free?
 
+### Design the immutable request and accepted values
+
+`TimeSlot` owns interval validity and overlap because every room uses the same definition. `MeetingRequest` represents intent before a room is chosen. `Meeting` adds the accepted meeting and room IDs, while `ScheduleResult` makes acceptance or normal rejection explicit.
+
+<DerivationTable rows={[
+  ["Require start before end", "TimeSlot value", "constructor validation"],
+  ["Use one overlap rule everywhere", "TimeSlot behavior", "overlaps(other)"],
+  ["Carry scheduling intent", "MeetingRequest value", "title, organizer, slot, attendees, equipment"],
+  ["Remember an accepted reservation", "Meeting value", "meetingId and roomId plus request facts"],
+  ["Return a named normal outcome", "ScheduleResult value", "ScheduleStatus and optional Meeting"]
+]} />
+
+The records defensively copy equipment sets. Without `Set.copyOf`, a caller could change required equipment after scheduling and make the stored Meeting disagree with the Room that accepted it.
+
 ### Derive the coordinating workflow
 
 “Choose among all rooms” creates a room list and Strategy. “Cancel by meeting ID” creates the global meeting index. “Do not create an ID on rejection” determines when the sequence advances: only after a room is selected.
@@ -292,6 +308,8 @@ Start at `MeetingScheduler.schedule` because that is the caller-visible action. 
   ["Cancel by meeting ID", "MeetingScheduler", "meetingsById and cancel(...)"],
   ["Reject a different organizer", "MeetingScheduler", "compare Meeting.organizerId before removal"]
 ]} />
+
+The scheduler's public API is `schedule`, `cancel`, and `meetingsForRoom`. Room selection, tentative ID construction, index updates, and organizer checks are internal workflow steps. It never exposes the room map or mutable schedules.
 
 ### Derive the room's state and methods
 
@@ -374,6 +392,8 @@ The strategy filters in this order:
 
 For four people needing a projector, a free 4-seat room beats a free 10-seat room. This preserves the large room for a later request that may actually need it. The ID comparison is not a business optimization; it makes equal cases predictable.
 
+`RoomSelectionStrategy` owns this comparison and nothing else. It may call `Room.canHost`, but it cannot reserve the winner, allocate an ID, or update scheduler indexes. That read-only boundary lets a future policy change without moving the Room invariant or cancellation workflow.
+
 ### Decide whether patterns help
 
 <PatternDecision name="Strategy for room selection" useIt={true}>
@@ -397,6 +417,18 @@ For four people needing a projector, a free 4-seat room beats a free 10-seat roo
 The default request starts exactly when Focus becomes free. Schedule it to prove the half-open boundary. Then load the overlap edge to see every room's rejection reason, or the capacity edge to see why Atlas is the only candidate.
 
 <MeetingRoomSchedulerSimulator />
+
+### Connect the classes and review the final blueprint
+
+MeetingScheduler has Rooms and one RoomSelectionStrategy. Each Room owns its ordered Meetings, and every Meeting contains one TimeSlot. These composition relationships match the responsibilities; none of the classes is a specialized form of another.
+
+- **Immutability:** requests, time slots, and accepted meetings cannot change behind the schedule.
+- **Encapsulation:** Room never exposes its mutable TreeMap and validates every insertion.
+- **Single responsibility:** TimeSlot owns overlap, Room owns one schedule, Strategy selects, and Scheduler coordinates.
+- **Open/closed design:** a new room policy implements the Strategy boundary without changing interval correctness.
+- **Validation before mutation:** failed scheduling and cancellation leave schedules, indexes, and the next accepted ID unchanged.
+
+<ClassDiagramGallery diagrams={meetingRoomClassDiagrams} label="Meeting Room Scheduler final class diagrams" />
 
 <h2 id="implementation">4. Java implementation (~10 minutes)</h2>
 

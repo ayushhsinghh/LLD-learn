@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { rideSharingClassDiagrams } from "@/lib/class-diagrams";
 
 const classCandidates = [
   { id: "map", label: "MapDisplay", correct: false, feedback: "Drawing a map is outside the confirmed workflow." },
@@ -104,16 +105,8 @@ export function DijkstraLearningTrace() {
   </section>;
 }
 
-const blueprintTabs = [
-  { id: "graph", label: "Graph", image: "/images/ride-sharing-graph-class.png", alt: "Sketch UML of Location, Road, Route, and RoadGraph", read: "Immutable graph values feed RoadGraph adjacency lists.", principle: "Encapsulation keeps map structure read-only to algorithms." },
-  { id: "people", label: "People", image: "/images/ride-sharing-people-class.png", alt: "Sketch UML of Rider, Driver, and RideRequest", read: "Rider and request are immutable; Driver alone owns availability and location.", principle: "Immutability protects intent while cohesion keeps driver state together." },
-  { id: "routing", label: "Routing", image: "/images/ride-sharing-routing-class.png", alt: "Sketch UML of Route and RoutingStrategy", read: "RoutingStrategy turns two graph locations into an optional Route.", principle: "Dependency inversion keeps Dijkstra replaceable." },
-  { id: "matching", label: "Ride", image: "/images/ride-sharing-ride-class.png", alt: "Sketch UML of Ride and DriverMatchingStrategy", read: "Matching returns a Driver and pickup Route; Ride guards accepted lifecycle facts.", principle: "Algorithmic separation keeps selection out of Ride." },
-  { id: "service", label: "Service", image: "/images/ride-sharing-service-class.png", alt: "Sketch UML of RideService and all collaborators", read: "RideService composes graph, strategies, people, and accepted rides.", principle: "Single responsibility makes the service coordinate without traversing roads." },
-] as const;
-
 export function RideClassBlueprint() {
-  return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3"><Tabs defaultValue="graph" className="flex min-h-0 flex-1 flex-col"><div className="overflow-x-auto"><TabsList className="grid min-w-max grid-flow-col">{blueprintTabs.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="px-3 py-1.5 text-[10px]">{tab.label}</TabsTrigger>)}</TabsList></div>{blueprintTabs.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={tab.image} alt={tab.alt} width={1536} height={1024} className="h-full w-full object-contain" loading="eager" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong>Read it: </strong>{tab.read}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{tab.principle}</p></div></article></TabsContent>)}</Tabs></section>;
+  return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3"><Tabs defaultValue="graph" className="flex min-h-0 flex-1 flex-col"><div className="overflow-x-auto"><TabsList className="grid min-w-max grid-flow-col">{rideSharingClassDiagrams.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="px-3 py-1.5 text-[10px]">{tab.label}</TabsTrigger>)}</TabsList></div>{rideSharingClassDiagrams.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={tab.image} alt={tab.alt} width={tab.width ?? 1536} height={tab.height ?? 1024} className="h-full w-full object-contain" loading="eager" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong>Read it: </strong>{tab.reading}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{tab.principle}</p></div></article></TabsContent>)}</Tabs></section>;
 }
 
 export function RideImplementationMap() {

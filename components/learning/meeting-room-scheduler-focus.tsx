@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChoiceQuestion, ClassificationChallenge, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions";
 import { MeetingRoomSchedulerSimulator } from "@/components/simulations/meeting-room-scheduler-simulator";
+import { meetingRoomClassDiagrams } from "@/lib/class-diagrams";
 
 const passive: Record<string, { intro: string; items: { title: string; body: string }[]; conclusion?: string }> = {
   "meeting-incomplete": { intro: "‘Schedule a meeting room’ leaves the decisions that determine correctness unstated.", items: [{title:"Suitability",body:"Capacity and equipment must both pass."},{title:"Conflict",body:"The interval boundary decides whether touching meetings are legal."},{title:"Selection",body:"Several valid rooms need one deterministic winner."},{title:"Cancellation",body:"Ownership and unchanged-state behavior must be explicit."}], conclusion:"Clarify observable behavior before naming classes." },
@@ -73,14 +74,6 @@ export function MeetingRoomFocusSlide({ id }: { id: string }) {
   return passive[id] ? <PassiveLearningCards {...passive[id]} /> : <PassiveLearningCards intro="Connect this step to the confirmed invariant before moving into code." items={[{title:"Owner",body:"Put each rule beside the state it needs."},{title:"Boundary",body:"Validate before changing accepted state."},{title:"Result",body:"Keep success and rejection observable and deterministic."}]} />;
 }
 
-const blueprintTabs = [
-  ["values","Values","/images/meeting-room-scheduler-values-class.png","Stable request and accepted-meeting facts use immutable values.","Immutability prevents accepted reservations changing later."],
-  ["room","Room","/images/meeting-room-scheduler-room-class.png","Room owns fixed properties and one non-overlapping TreeMap schedule.","Encapsulation protects the schedule invariant."],
-  ["strategy","Strategy","/images/meeting-room-scheduler-strategy-class.png","Strategy filters candidates and chooses by capacity then ID.","Open/closed design localizes a replaceable policy."],
-  ["scheduler","Scheduler","/images/meeting-room-scheduler-service-class.png","Scheduler composes rooms and a strategy, then owns IDs and indexes.","Single responsibility separates workflow from interval rules."],
-  ["all","Relationships","/images/meeting-room-scheduler-blueprint.png","The full model uses composition; no inheritance hierarchy is needed.","Rules remain beside their information owners."],
-] as const;
-
 function MeetingBlueprint() {
-  return <Tabs defaultValue="values" className="flex h-full min-h-0 flex-col"><TabsList className="grid w-full grid-cols-5">{blueprintTabs.map(([id,label]) => <TabsTrigger key={id} value={id} className="text-[9px]">{label}</TabsTrigger>)}</TabsList>{blueprintTabs.map(([id,,src,reading,principle]) => <TabsContent key={id} value={id} className="mt-2 min-h-0 flex-1"><div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-xl border border-[var(--line)] bg-white"><div className="min-h-0 overflow-hidden bg-[#fbf7ef]"><Image src={src} alt={`${id} class diagram`} width={1536} height={1024} className="h-full w-full object-contain" unoptimized /></div><div className="grid gap-1 border-t p-2 text-[9px] leading-4 sm:grid-cols-2"><p><strong>Read it: </strong>{reading}</p><p><strong>Principle: </strong>{principle}</p></div></div></TabsContent>)}</Tabs>;
+  return <Tabs defaultValue="values" className="flex h-full min-h-0 flex-col"><TabsList className="grid w-full grid-cols-5">{meetingRoomClassDiagrams.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="text-[9px]">{tab.label}</TabsTrigger>)}</TabsList>{meetingRoomClassDiagrams.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-2 min-h-0 flex-1"><div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-xl border border-[var(--line)] bg-white"><div className="min-h-0 overflow-hidden bg-[#fbf7ef]"><Image src={tab.image} alt={tab.alt} width={tab.width ?? 1536} height={tab.height ?? 1024} className="h-full w-full object-contain" loading="eager" unoptimized /></div><div className="grid gap-1 border-t p-2 text-[9px] leading-4 sm:grid-cols-2"><p><strong>Read it: </strong>{tab.reading}</p><p><strong>Principle: </strong>{tab.principle}</p></div></div></TabsContent>)}</Tabs>;
 }

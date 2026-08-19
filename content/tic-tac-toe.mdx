@@ -2,6 +2,8 @@ import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, Requir
 import { TicTacToeSimulator } from "@/components/simulations/tic-tac-toe-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { ClarificationAnswerDeck, ClarificationQuestionPicker, ClassificationChallenge, ClassDesignIntroduction, EntityClassPicker, EntityFlowChallenge, EntityModelClassifier, EntityModelSummary, EntityResponsibilityQuiz, FinalClassBlueprint, FocusEntityIntroduction, FocusSpec, ImplementationCodeMap, InterviewDialogueExample, InterviewDynamicsGuide, PassiveLearningCards, PredictionChecklist, PredictReveal, ChoiceQuestion, FocusCode, FocusFrameworkRoadmap, OrderQuestion, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
+import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
+import { ticTacToeClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="orientation">
 <Lead>Design a two-player game that accepts legal moves, alternates turns, and stops with a win or draw.</Lead>
@@ -596,6 +598,10 @@ The final model is deliberately small. Every field pays for a requirement, every
   ["Match state and workflow", "Game", "players, board, turn, result; makeMove, reset, reads"],
   ["Closed domain choices", "Enums", "Mark, GameStatus, MoveResult"]
 ]} />
+
+Use the tabs to inspect each class on its own. The arrows and field types show how the three small responsibilities combine without exposing Board's mutable grid.
+
+<ClassDiagramGallery diagrams={ticTacToeClassDiagrams} label="Tic-Tac-Toe final class diagrams" />
 </WalkthroughOnly>
 
 <FocusOnly><FinalClassBlueprint /></FocusOnly>

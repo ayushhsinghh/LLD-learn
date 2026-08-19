@@ -3,6 +3,8 @@ import { MovieTicketBookingSimulator } from "@/components/simulations/movie-tick
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { PassiveLearningCards, EntityModelSummary, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, FocusCode, ChoiceQuestion } from "@/components/learning/learning-interactions"
 import { MovieOwnershipQuiz, MovieHoldFlow, MovieStateMachine, MovieClassBlueprint, MovieImplementationMap } from "@/components/learning/movie-ticket-booking-focus"
+import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
+import { movieBookingClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="movie-orientation"><FocusOnly><ConceptImage
   src="/images/movie-ticket-booking-overview.png"
@@ -714,6 +716,20 @@ Use the same bridge as every other lesson:
 
 Start with `BookingService.holdSeats`, the action visible to the caller. Then follow its needs into `Show.tryHold` and finally into `ShowSeat` transitions.
 
+### Design immutable values and the physical layout
+
+`Movie` and `Seat` describe stable catalog facts. `SeatHold` records an accepted temporary claim, and `Booking` records a completed confirmation. `HoldResult` and `ConfirmationResult` return expected outcomes without exposing mutable objects.
+
+<DerivationTable rows={[
+  ["Describe one film", "Movie value", "id and title"],
+  ["Identify one physical seat", "Seat value", "id, row, and number"],
+  ["Return an accepted temporary claim", "SeatHold value", "holdId, showId, userId, seatIds, expiresAt"],
+  ["Return an accepted purchase", "Booking value", "bookingId, holdId, showId, userId, seatIds"],
+  ["Make expected failure explicit", "Result values", "status plus optional accepted value"]
+]} />
+
+`Screen` owns the permanent list of physical Seats. It does not own availability, because A7 can be BOOKED for the 7:00 PM Show and AVAILABLE for the 10:00 PM Show. That requirement creates a separate `ShowSeat` for every screening.
+
 ### Derive the public workflow
 
 “Find one show” creates the show map. “Return an accepted hold” creates the hold map and ID sequence. These are not generic manager fields: each exists because a caller-visible requirement needs it.
@@ -725,6 +741,19 @@ Start with `BookingService.holdSeats`, the action visible to the caller. Then fo
   ["Create deterministic unique IDs", "BookingService", "AtomicInteger holdSequence and bookingSequence"],
   ["Use testable time", "BookingService", "Clock clock and Duration holdDuration"],
   ["Read seat state without exposing objects", "BookingService", "seatStates(showId)"]
+]} />
+
+### Derive BookingService state and public API
+
+The service owns lookup and accepted records, not seat transitions. `holdSeats`, `confirmHold`, `seatStates`, and safe booking lookup are public use cases. ID allocation, index updates, and delegation into Show are internal steps. Returning the Show map, its lock, or mutable ShowSeat objects would let a caller bypass the protected workflow.
+
+<DerivationTable rows={[
+  ["Find a screening by ID", "BookingService state", "showsById"],
+  ["Remember accepted holds and bookings", "BookingService state", "holdsById and bookingsById"],
+  ["Make expiry deterministic", "BookingService state", "Clock and holdDuration"],
+  ["Submit the two caller workflows", "BookingService API", "holdSeats(...) and confirmHold(...)"],
+  ["Inspect without exposing mutation", "BookingService API", "seatStates(...) and booking(...)"],
+  ["Protect a complete seat group", "Show internal behavior", "lock, validation pass, mutation pass"]
 ]} />
 
 ### Derive the show and seat state
@@ -740,6 +769,8 @@ Start with `BookingService.holdSeats`, the action visible to the caller. Then fo
   ["Know who owns a temporary claim", "ShowSeat", "holdId, heldBy, expiresAt"],
   ["Permit only valid transitions", "ShowSeat", "placeHold, confirmHold, releaseIfExpired"]
 ]} />
+
+`ShowSeat` keeps its fields private and exposes guarded transitions instead of `setState`. Its invariant is that HELD has an owner, hold ID, and expiry, while AVAILABLE and BOOKED do not pretend to belong to another live hold. `Show` owns the collection because only it can validate a requested group before changing every member.
 
 ### Understand the seat state machine
 
@@ -842,6 +873,18 @@ For `k` requested seats, checking and updating the group costs `O(k)`. This less
 Use **Booking flow** to hold two seats, advance time, confirm, or load an all-or-nothing rejection. Then use **Concurrency race** to compare the same A-versus-B ordering with and without the show lock.
 
 <MovieTicketBookingSimulator />
+
+### Connect the classes and review the final blueprint
+
+BookingService composes Shows; each Show references one Movie and Screen and owns its own ShowSeat collection. These are **has-a** relationships. Inheritance would not express the model: a Show is not a Screen, and a BookingService is not a Show.
+
+- **Immutability:** requests and accepted receipts cannot change after creation.
+- **Encapsulation:** ShowSeat guards one lifecycle; Show guards the whole requested group.
+- **Single responsibility:** Screen owns layout, Show owns per-screening state, and BookingService owns lookup and accepted records.
+- **Thread safety:** one Show lock protects check-all, change-all, and confirmation inside one process.
+- **Composition:** the coordinator delegates into state owners instead of reaching into their fields.
+
+<ClassDiagramGallery diagrams={movieBookingClassDiagrams} label="Movie Ticket Booking final class diagrams" />
 
 <h2 id="implementation">4. Java implementation (~10 minutes)</h2>
 

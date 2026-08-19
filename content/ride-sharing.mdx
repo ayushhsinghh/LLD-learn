@@ -3,6 +3,8 @@ import { RideSharingSimulator } from "@/components/simulations/ride-sharing-simu
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { ChoiceQuestion, ClassificationChallenge, EntityModelSummary, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 import { DijkstraLearningTrace, RideClassBlueprint, RideClassPicker, RideImplementationMap, RideOwnershipQuiz, RideRequestFlow, RideScenarioProof } from "@/components/learning/ride-sharing-focus"
+import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
+import { rideSharingClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="ride-orientation"><FocusOnly>
 <div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--line)] bg-white"><img src="/images/ride-sharing-overview.png" alt="Three drivers take different weighted road routes to a rider before the selected ride continues to its destination" className="h-full w-full object-contain" /></div><p className="mt-3 shrink-0 text-xs leading-5 text-[var(--muted)]">A driver who looks close may be slow by road. Dispatch first compares routes to the pickup; the accepted ride then keeps a separate route to the destination.</p></div>
@@ -581,6 +583,33 @@ Bridge the entities into code with the usual chain:
 
 Start at `RideService.requestRide` because it receives the main user action. Then follow the questions it delegates: can the trip be routed, which driver wins, and which objects change after success?
 
+### Design immutable graph values and RoadGraph
+
+`Location` gives a node stable identity. `Road` records one directed edge and its positive travel time. `Route` freezes the ordered location IDs and total minutes returned by an algorithm. None owns changing dispatch state.
+
+<DerivationTable rows={[
+  ["Identify a graph node", "Location value", "id and name"],
+  ["Represent one directed weighted edge", "Road value", "fromId, toId, travelMinutes"],
+  ["Return one completed path", "Route value", "locationIds and totalMinutes"],
+  ["Own all known nodes and outgoing edges", "RoadGraph state", "locationsById and adjacency map"],
+  ["Protect graph structure from callers", "RoadGraph API", "containsLocation and immutable outgoingRoads"]
+]} />
+
+RoadGraph validates and stores map facts; it does not calculate routes or inspect Drivers. `RoutingStrategy.route(graph, start, target)` is the algorithm boundary. Dijkstra is one implementation that reads the graph and returns an optional immutable Route.
+
+### Design Rider, Driver, and RideRequest
+
+`Rider` and `RideRequest` are immutable identity and intent. `Driver` is deliberately mutable because availability and current location change across accepted rides. Its guarded `assign` and `completeAt` methods replace public setters.
+
+<DerivationTable rows={[
+  ["Identify the caller", "Rider value", "id and name"],
+  ["Carry pickup and destination intent", "RideRequest value", "riderId, pickupId, destinationId"],
+  ["Filter only reusable drivers", "Driver state", "DriverStatus status"],
+  ["Route from the live position", "Driver state", "currentLocationId"],
+  ["Prevent double assignment", "Driver behavior", "assign()"],
+  ["Release at the destination", "Driver behavior", "completeAt(destinationId)"]
+]} />
+
 ### Derive the request workflow
 
 “Reject without changing state” decides the order. Trip routing and driver comparison happen before ID creation and `Driver.assign`. The service coordinates those calls, but it does not traverse graph edges or edit Driver fields.
@@ -608,6 +637,14 @@ Start at `RideService.requestRide` because it receives the main user action. The
   ["Allow only ordered transitions", "Ride", "start() and complete()"],
   ["Expose expected failures", "RideService", "MatchResult and RideActionStatus"]
 ]} />
+
+`Ride` owns accepted endpoints, both routes, the chosen driver, and the lifecycle `MATCHED → IN_PROGRESS → COMPLETED`. It exposes guarded `start` and `complete` behavior rather than a public status setter. A rejected or repeated transition returns a named result and leaves both Ride and Driver unchanged.
+
+### Derive matching and the RideService API
+
+`DriverMatchingStrategy` filters AVAILABLE drivers, asks RoutingStrategy for each pickup route, ignores unreachable candidates, and compares travel minutes followed by driver ID. It does not traverse graph edges itself and cannot assign the winner.
+
+RideService exposes `requestRide`, `startRide`, `completeRide`, and safe reads. Rider lookup, trip-route validation, matching, ID allocation, indexing, and coordinated Driver/Ride changes stay internal. The graph, strategy objects, and mutable collections never escape.
 
 ### Routing concept: turn roads into a graph
 
@@ -703,6 +740,18 @@ BFS is simpler for equal weights. A* can explore less of a large map by adding a
 Request the default ride. The comparison should choose Leo at node `E` even though Maya at `B` appears visually closer to pickup `D`. Then advance Dijkstra one step at a time. Load the unreachable pickup to see a valid `G → F` trip rejected because no driver can enter one-way node `G`.
 
 <RideSharingSimulator />
+
+### Connect the classes and review the final blueprint
+
+RideService composes RoadGraph, both Strategy interfaces, Riders, Drivers, and accepted Rides. Routing reads graph values; Matching reads Drivers and calls Routing; only RideService coordinates accepted mutation. This one-way call direction prevents graph algorithms from acquiring business-state responsibilities.
+
+- **Immutability:** graph values, requests, routes, matches, and results remain stable.
+- **Encapsulation:** Driver and Ride expose guarded transitions rather than setters.
+- **Algorithmic separation:** RoadGraph stores roads, Routing finds paths, and Matching compares candidates.
+- **Dependency inversion:** RideService and Matching depend on Strategy interfaces instead of Dijkstra details.
+- **Validation before mutation:** trip and pickup routes must exist before the driver, ID sequence, or ride index changes.
+
+<ClassDiagramGallery diagrams={rideSharingClassDiagrams} label="Ride Sharing final class diagrams" />
 
 <h2 id="implementation">4. Java implementation (~10 minutes)</h2>
 
