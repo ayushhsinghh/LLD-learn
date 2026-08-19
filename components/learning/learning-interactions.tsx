@@ -79,13 +79,16 @@ export function EntityModelSummary({ items, enums = [], fields = [], infrastruct
   ].filter((group) => group.values.length > 0);
 
   return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-2.5 sm:p-4">
-    <p className="shrink-0 text-[10px] leading-4 text-[var(--muted)] sm:text-xs sm:leading-5">This is the complete model produced by the entity decisions. Each type remains only because it protects a rule or carries meaningful facts.</p>
-    <div role="table" aria-label="Final entity model" className="mt-2 min-h-0 overflow-hidden rounded-lg border border-[var(--line)] bg-white">
-      <div role="row" className="grid grid-cols-[minmax(5.5rem,.8fr)_4.6rem_minmax(0,1.7fr)] gap-1 border-b border-[var(--line)] bg-[var(--ink)] px-2 py-1 text-[8px] font-extrabold uppercase tracking-[0.08em] text-white sm:grid-cols-[minmax(7rem,.8fr)_6.5rem_minmax(0,1.7fr)] sm:px-3 sm:text-[9px]"><span role="columnheader">Type</span><span role="columnheader">Kind</span><span role="columnheader">How it helps</span></div>
-      <div role="rowgroup" className="grid sm:grid-cols-2">{items.map((item) => <div role="row" key={item.name} className="grid min-w-0 grid-cols-[minmax(5.5rem,.8fr)_4.6rem_minmax(0,1.7fr)] items-center gap-1 border-b border-[var(--line)] px-2 py-1 last:border-b-0 sm:grid-cols-[minmax(7rem,.8fr)_6.5rem_minmax(0,1.7fr)] sm:px-3 sm:py-1.5 sm:[&:nth-last-child(-n+2)]:border-b-0 sm:[&:nth-child(odd)]:border-r"><code role="cell" className="truncate text-[8px] font-extrabold text-[var(--ink)] sm:text-[9px]">{item.name}</code><span role="cell" className="text-[7px] font-bold text-[var(--accent-dark)] sm:text-[8px]">{item.kind}</span><span role="cell" className="text-[8px] leading-3 text-[var(--muted)] sm:text-[9px] sm:leading-4">{item.purpose}</span></div>)}</div>
+    <p className="shrink-0 text-[10px] font-medium leading-4 text-[var(--muted)] sm:text-xs sm:leading-5">This is the model we will design. Every type has one clear job.</p>
+    <div aria-label="Final entity model" className="mt-2 grid min-h-0 grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
+      {items.map((item) => <article key={item.name} className="min-w-0 rounded-lg border border-[var(--line)] bg-white px-2 py-1.5 sm:px-2.5 sm:py-2">
+        <p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[var(--accent-dark)] sm:text-[8px]">{item.kind === "Immutable value" ? "Value" : item.kind}</p>
+        <span className="mt-0.5 block min-w-0 break-words font-mono text-[9px] font-extrabold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{item.name}</span>
+        <p className="mt-1 break-words text-[8px] leading-3 text-[var(--muted)] sm:text-[9px] sm:leading-4">{item.purpose}</p>
+      </article>)}
     </div>
-    <div className="mt-2 grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-4">{supporting.map((group) => <div key={group.label} className="rounded-lg border border-[var(--line)] bg-white px-2 py-1.5"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[var(--accent-dark)] sm:text-[8px]">{group.label}</p><p className="mt-0.5 text-[8px] leading-3 text-[var(--muted)] sm:text-[9px] sm:leading-4">{group.values.join(", ")}</p></div>)}</div>
-    <p className="mt-2 shrink-0 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-2.5 py-1.5 text-[9px] font-bold leading-4 text-[var(--ink)] sm:px-3 sm:py-2 sm:text-[10px]"><span className="mr-1 text-[#24785f]" aria-hidden="true">✓</span><span className="sr-only">Relationship summary: </span>{relationship}</p>
+    <div aria-label="Supporting model choices" className="mt-2 grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-4">{supporting.map((group) => <article key={group.label} className="min-w-0 rounded-lg border border-[var(--line)] bg-white px-2 py-1.5"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[var(--accent-dark)] sm:text-[8px]">{group.label}</p><p className="mt-0.5 break-words text-[8px] leading-3 text-[var(--muted)] sm:text-[9px] sm:leading-4">{group.values.join(", ")}</p></article>)}</div>
+    <div className="mt-2 shrink-0 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-2.5 py-1.5 sm:px-3 sm:py-2"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[#24785f] sm:text-[8px]">How it fits together</p><p className="mt-0.5 break-words text-[9px] font-bold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{relationship}</p></div>
   </section>;
 }
 
