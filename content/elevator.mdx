@@ -1,5 +1,8 @@
-import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, EntityModelOverview, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ClassDesignExplorer } from "@/components/class-design-explorer"
 import { ElevatorSimulator } from "@/components/simulations/elevator-simulator"
+import { elevatorEntityModel } from "@/lib/entity-models"
+import { elevatorClassDesign } from "@/lib/class-design-models"
 
 <Lead>Design a system that receives elevator requests, chooses a car, and moves each car one floor at a time until every request is served.</Lead>
 
@@ -19,48 +22,36 @@ Think of the requirements as a promise: **what must our finished code be able to
 
 <QuestionGuide />
 
-### Ask questions and turn each answer into a requirement
+### Ask these questions
 
 <QuestionAnswer
   ask="How many floors and elevators should we support? Should these values be fixed?"
-  why="This sets the size of the simulation and tells us whether configuration is part of the problem."
   answer="Use three elevators and floors 0 through 9. They can be fixed for now."
-  derived="The controller manages 3 elevators. Every accepted floor must be between 0 and 9."
 />
 
 <QuestionAnswer
   ask="What can a passenger do outside and inside an elevator?"
-  why="This reveals the system's main actions. Outside and inside requests contain different information."
   answer="Outside, a passenger requests UP or DOWN. Inside, a passenger selects a destination floor."
-  derived="Support hall calls with a direction and destination requests without a direction."
 />
 
 <QuestionAnswer
   ask="When should a moving elevator stop for a hall call?"
-  why="A floor number alone is not enough. A passenger waiting to go DOWN should not enter a car that is moving UP."
   answer="Serve a hall call only when the car is moving in the requested direction. Destinations are always served."
-  derived="A request stores both floor and type: PICKUP_UP, PICKUP_DOWN, or DESTINATION."
 />
 
 <QuestionAnswer
   ask="How does time move in this design? Are we controlling real hardware?"
-  why="Real hardware sends sensor events. An interview simulation needs a simple, testable way to advance time."
   answer="Build a simulation. One tick moves each active elevator by at most one floor."
-  derived="ElevatorController.tick() advances the whole system; Elevator.tick() advances one car."
 />
 
 <QuestionAnswer
   ask="What should happen for an invalid floor, a duplicate request, or the current floor?"
-  why="These cases define the public method results and protect object state."
   answer="Reject invalid floors, ignore duplicates, and treat the current floor as already served."
-  derived="Request methods return boolean and do not change state when input is invalid or already handled."
 />
 
 <QuestionAnswer
   ask="Should we include doors, weight limits, emergencies, or real concurrency?"
-  why="These are large features. Excluding them keeps the interview focused on movement and assignment."
   answer="No. Discuss them only as later extensions."
-  derived="Door mechanics, capacity, emergency operation, hardware, storage, and threads are out of scope."
 />
 
 ### Confirm the specification
@@ -92,65 +83,7 @@ For each candidate, ask two simple questions:
 
 If the answer to both is no, it is probably a field, an enum, or something we can leave out.
 
-<CandidateWalkthrough
-  name="Elevator"
-  fromRequirement="We must manage three elevators, remember their positions, and move each active car one floor per tick."
-  question="What must one elevator remember and decide for itself?"
-  reasoning="One car has a current floor, a direction, and its own pending stops. All three values change as time advances. The car must also decide whether to stop, continue, reverse, or become idle. That is both changing state and real behavior."
-  decision="Class"
->
-  Create an `Elevator` class. It owns one car's movement state and rules. It should not know about the other cars.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="ElevatorController"
-  fromRequirement="A hall call must be received, one elevator must be chosen, and all cars must advance when the simulation ticks."
-  question="Who performs work that involves more than one elevator?"
-  reasoning="No individual elevator can choose itself fairly because it would need to inspect the other cars. We need one object that can see the fleet, receive building-level commands, and coordinate the simulation."
-  decision="Class"
->
-  Create an `ElevatorController` class. It owns the collection of elevators and coordinates them, but it does not change a car's floor directly.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Floor"
-  fromRequirement="The system serves floors 0 through 9 and rejects a floor outside that range."
-  question="What would a Floor object remember or do in the agreed scope?"
-  reasoning="A floor identifies a position. We did not agree to model floor displays, queues of waiting passengers, or floor-specific buttons. With no state or rule of its own, a Floor class would only wrap an integer."
-  decision="Field"
->
-  Keep a floor as `int`. The controller and elevator validate whether that number is inside the allowed range.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Request"
-  fromRequirement="A hall call has a floor and direction, while an inside request has a destination floor. Duplicate requests must be ignored."
-  question="Is a floor number by itself enough to describe why the elevator should stop?"
-  reasoning="No. A request for floor 5 while travelling UP is different from a request for floor 5 while travelling DOWN. We must keep the floor and its meaning together. We also need to compare two requests to detect duplicates."
-  decision="Class"
->
-  Create an immutable `Request` value object containing `floor` and `type`. Value equality lets the request set reject an exact duplicate.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Direction and RequestType"
-  fromRequirement="A car is moving UP, moving DOWN, or IDLE; a stop is an UP pickup, DOWN pickup, or destination."
-  question="Can these values be any text, or do they come from small fixed sets?"
-  reasoning="Both concepts have a closed list of valid values. Strings would allow mistakes such as 'Up' or 'WAITING'. They need names, but they do not need independent changing state."
-  decision="Enum"
->
-  Use `Direction` and `RequestType` enums. The compiler can then reject an unsupported value.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Door"
-  fromRequirement="Door mechanics and physical sensors were explicitly placed out of scope."
-  question="Does any confirmed behavior need a door object?"
-  reasoning="No. A real elevator has doors, but our agreed program never opens, closes, or checks one. Adding a Door class would mean designing a requirement the interviewer did not ask for."
-  decision="Leave out"
->
-  Do not add a door field or class yet. If door behavior is introduced as an extension, derive it from those new rules at that time.
-</CandidateWalkthrough>
+<EntityModelOverview model={elevatorEntityModel} />
 
 <Insight title="The entity test to remember" tone="mint">
   Do not ask only, “Is this a thing in the real world?” Ask, “What must this thing remember or decide in the system we agreed to build?” That second question produces smaller and clearer designs.
@@ -177,29 +110,7 @@ This creates a traceable chain:
 
 > requirement → responsible object → state it remembers → method that changes or reads that state
 
-### Derive the controller
-
-Begin with the controller because a passenger's hall call enters the system there. “Manage three elevators” becomes a list. “Assign a hall call” becomes a public method. “Choose one car” reveals a decision rule. “Advance the simulation” becomes `tick()`.
-
-<DerivationTable rows={[
-  ["Manage three elevators", "ElevatorController", "List<Elevator> elevators"],
-  ["Assign a hall call", "ElevatorController", "requestElevator(floor, direction)"],
-  ["Choose one car", "ElevatorController", "DispatchStrategy strategy"],
-  ["Advance all cars", "ElevatorController", "tick()"]
-]} />
-
-### Derive each elevator
-
-Now move one level down. The controller should say *advance this car*, not calculate its next floor itself. To perform that command, an elevator needs its current position, direction, and pending requests. Those requirements become its fields; the actions become methods.
-
-<DerivationTable rows={[
-  ["Know the current position", "Elevator", "int currentFloor"],
-  ["Know whether the car is moving", "Elevator", "Direction direction"],
-  ["Remember pending stops", "Elevator", "Set<Request> requests"],
-  ["Accept a stop", "Elevator", "addRequest(Request)"],
-  ["Move, stop, reverse, or become idle", "Elevator", "tick()"],
-  ["Help the controller choose", "Elevator", "getCurrentFloor(), getDirection()"]
-]} />
+<ClassDesignExplorer topic={elevatorClassDesign} />
 
 ### Decide whether a pattern helps
 
@@ -273,7 +184,7 @@ Real concurrency can be added later around the same domain rules.
 
 </ConceptDropdown>
 
-### Value types
+### Enums and request record
 
 Start with the smallest vocabulary. `Direction` describes motion, `RequestType` explains why a car should stop, and `Request` combines a floor with that reason. Keeping these meanings explicit prevents unclear booleans such as `isPickup` or direction strings such as `"up"`.
 
@@ -320,33 +231,9 @@ public enum RequestType {
 ```java
 import java.util.Objects;
 
-public final class Request {
-    private final int floor;
-    private final RequestType type;
-
-    public Request(int floor, RequestType type) {
-        this.floor = floor;
-        this.type = Objects.requireNonNull(type);
-    }
-
-    public int getFloor() {
-        return floor;
-    }
-
-    public RequestType getType() {
-        return type;
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        if (this == other) return true;
-        if (!(other instanceof Request request)) return false;
-        return floor == request.floor && type == request.type;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(floor, type);
+public record Request(int floor, RequestType type) {
+    public Request {
+        type = Objects.requireNonNull(type);
     }
 
     @Override
@@ -392,10 +279,10 @@ public final class Elevator {
     }
 
     public boolean addRequest(Request request) {
-        if (request == null || !isValidFloor(request.getFloor())) {
+        if (request == null || !isValidFloor(request.floor())) {
             return false;
         }
-        if (request.getFloor() == currentFloor) {
+        if (request.floor() == currentFloor) {
             return true; // already served
         }
         return requests.add(request); // false for a duplicate
@@ -426,30 +313,30 @@ public final class Elevator {
 
     private boolean serveCurrentFloor() {
         return requests.removeIf(request ->
-                request.getFloor() == currentFloor
-                        && request.getType().matches(direction));
+                request.floor() == currentFloor
+                        && request.type().matches(direction));
     }
 
     private boolean hasRequestAhead(Direction travelDirection) {
         return requests.stream().anyMatch(request ->
                 travelDirection == Direction.UP
-                        ? request.getFloor() > currentFloor
-                        : request.getFloor() < currentFloor);
+                        ? request.floor() > currentFloor
+                        : request.floor() < currentFloor);
     }
 
     private Direction directionToNearestRequest() {
         Request nearest = requests.stream()
                 .min((left, right) -> {
-                    int leftDistance = Math.abs(left.getFloor() - currentFloor);
-                    int rightDistance = Math.abs(right.getFloor() - currentFloor);
+                    int leftDistance = Math.abs(left.floor() - currentFloor);
+                    int rightDistance = Math.abs(right.floor() - currentFloor);
                     int byDistance = Integer.compare(leftDistance, rightDistance);
                     return byDistance != 0
                             ? byDistance
-                            : Integer.compare(left.getFloor(), right.getFloor());
+                            : Integer.compare(left.floor(), right.floor());
                 })
                 .orElseThrow();
 
-        return nearest.getFloor() > currentFloor
+        return nearest.floor() > currentFloor
                 ? Direction.UP
                 : Direction.DOWN;
     }
@@ -508,20 +395,20 @@ public final class DirectionAwareDispatchStrategy
         if (elevators == null || elevators.isEmpty()) {
             throw new IllegalArgumentException("At least one elevator is required");
         }
-        if (hallCall == null || hallCall.getType() == RequestType.DESTINATION) {
+        if (hallCall == null || hallCall.type() == RequestType.DESTINATION) {
             throw new IllegalArgumentException("A hall call is required");
         }
 
-        Direction requestedDirection = hallCall.getType() == RequestType.PICKUP_UP
+        Direction requestedDirection = hallCall.type() == RequestType.PICKUP_UP
                 ? Direction.UP
                 : Direction.DOWN;
 
         return elevators.stream()
                 .min(Comparator
                         .comparingInt((Elevator elevator) -> priority(
-                                elevator, hallCall.getFloor(), requestedDirection))
+                                elevator, hallCall.floor(), requestedDirection))
                         .thenComparingInt(elevator -> Math.abs(
-                                elevator.getCurrentFloor() - hallCall.getFloor()))
+                                elevator.getCurrentFloor() - hallCall.floor()))
                         .thenComparingInt(Elevator::getId))
                 .orElseThrow();
     }

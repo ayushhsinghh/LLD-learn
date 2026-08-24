@@ -1,5 +1,8 @@
-import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, EntityModelOverview, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ClassDesignExplorer } from "@/components/class-design-explorer"
 import { SplitwiseSimulator } from "@/components/simulations/splitwise-simulator"
+import { splitwiseEntityModel } from "@/lib/entity-models"
+import { splitwiseClassDesign } from "@/lib/class-design-models"
 
 <Lead>Design a shared-expense system that records who paid, calculates each person's fair share, shows who owes whom, and helps a group settle with fewer payments.</Lead>
 
@@ -26,62 +29,46 @@ Do not begin by drawing `User`, `Expense`, and `Group`. First make the money rul
 
 <QuestionGuide />
 
-### Ask questions and record what each answer changes
+### Ask these questions
 
 <QuestionAnswer
   ask="Which actions must the first version support?"
-  why="Recording bills, editing history, sending money, and tracking bank payments are different workflows."
   answer="Pre-created users in one group can record an expense, view pairwise balances, view a simplified payment plan, and settle a direct debt fully."
-  derived="Provide recordExpense(...), balances(), simplifiedDebts(), and settle(debtorId, creditorId, amount). Leave editing and real payment processing out."
 />
 
 <QuestionAnswer
   ask="Who pays an expense, and who shares it?"
-  why="The payer and the participants are not the same idea. A parent may pay for others without taking a share."
   answer="One registered user pays the complete expense. One or more registered participants receive shares; the payer may or may not be among them."
-  derived="Expense stores one payerId and a participant-to-share map. Every participant except the payer owes their share to the payer."
 />
 
 <QuestionAnswer
   ask="Which split rules are required?"
-  why="Equal, exact, and percentage splits need different inputs and validation."
   answer="Support EQUAL, EXACT, and PERCENTAGE. Exact amounts must total the bill. Percentages use basis points and must total 10,000 basis points, which means 100%."
-  derived="Create one SplitStrategy implementation per rule. Every strategy returns shares whose cents add exactly to the expense total."
 />
 
 <QuestionAnswer
   ask="How should fractions of one cent be handled?"
-  why="A $10 bill divided by three cannot produce three identical whole-cent values. Silently dropping a cent corrupts the ledger."
   answer="Store money as integer cents. Allocate leftover cents deterministically: for equal splits use sorted user IDs; for percentage splits use the largest fractional remainder, then user ID."
-  derived="$10.00 split equally becomes $3.34, $3.33, and $3.33 in sorted user-ID order, and every calculation still totals $10.00."
 />
 
 <QuestionAnswer
   ask="If Ava owes Ben $30 and a later expense makes Ben owe Ava $50, what should the balance show?"
-  why="Keeping both directions makes balances noisy and makes settlement harder to understand."
   answer="Net debt between the same pair immediately. The result is one direction only: Ava is owed $20 by Ben."
-  derived="BalanceSheet stores one signed value for each unordered user pair and removes the entry when the value becomes zero."
 />
 
 <QuestionAnswer
   ask="What does simplifying debts mean?"
-  why="Pairwise history and the smallest-looking repayment plan answer different questions."
   answer="Keep the accepted Expense history and pairwise BalanceSheet unchanged. Compute a separate suggested plan that preserves each user's net position and usually uses fewer payments."
-  derived="DebtSimplifier reads current debts, calculates each user's net amount, and returns deterministic suggestions without mutating expenses or balances."
 />
 
 <QuestionAnswer
   ask="What happens when an amount, user, exact split, or percentage split is invalid?"
-  why="A rejected expense must not leave half of its debts in the ledger."
   answer="Return a clear rejected result. Do not create an expense ID, append history, or change any balance."
-  derived="Validate users and calculate every share before constructing Expense or calling BalanceSheet.addDebt."
 />
 
 <QuestionAnswer
   ask="Which currency, group, storage, notification, and concurrency rules are in scope?"
-  why="These choices can expand one object-design exercise into accounting or distributed systems."
   answer="Use one pre-created group, USD only, and sequential calls in one in-memory process. Leave persistence, exchange rates, notifications, and simultaneous writers for extensions."
-  derived="Money stores cents without a currency field in this version. Do not add repositories, APIs, locks, or payment-gateway objects."
 />
 
 ### Confirm the specification
@@ -107,105 +94,7 @@ Do not begin by drawing `User`, `Expense`, and `Group`. First make the money rul
 
 Extract the nouns from the confirmed requirements: user, group, payer, participant, money, expense, split type, split rule, balance, debt, settlement, and receipt. A noun is only a candidate. It deserves a class when it owns meaningful state or an important rule.
 
-<CandidateWalkthrough
-  name="Money"
-  fromRequirement="Every accepted share must use whole cents and all shares must add to the bill."
-  question="Is an amount only a long, or does it have a rule that must be true everywhere?"
-  reasoning="Negative expense and debt amounts are invalid in this scope. A Money value keeps that rule beside cents and avoids floating-point values such as 9.999999."
-  decision="Class"
->
-  Use an immutable `Money` record containing non-negative `long cents`. Split strategies perform integer arithmetic and return Money values.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="User"
-  fromRequirement="Payers, participants, debtors, and creditors must all be registered users."
-  question="What stable identity is reused across expenses and balances?"
-  reasoning="Names may be duplicated or changed, but a user ID must remain stable. The first version does not need profiles or contact behavior."
-  decision="Class"
->
-  `User` is a small immutable record with `id` and `name`. Other objects store the stable ID rather than copying a mutable profile.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Expense"
-  fromRequirement="An accepted bill must remember who paid, the total, the chosen split rule, and every final share."
-  question="Which facts must remain together so history can explain a balance?"
-  reasoning="The calculated shares are part of the accepted fact. Re-running a future version of the strategy must not change an old bill."
-  decision="Class"
->
-  Use an immutable `Expense`. It stores the final share map, not only the inputs used to calculate it.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="SplitStrategy"
-  fromRequirement="Equal, exact, and percentage splits use different calculations but produce the same kind of share map."
-  question="Which behavior changes while expense recording and balance updates remain the same?"
-  reasoning="Only share calculation varies. ExpenseService should not contain a growing switch with three unrelated algorithms."
-  decision="Interface"
->
-  `SplitStrategy.calculate` is the common boundary. Equal, exact, and percentage implementations each validate their own inputs.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="BalanceSheet"
-  fromRequirement="Opposite debts between a pair must cancel and settlement must change only that pair."
-  question="Which object owns the current pairwise debt and therefore has enough information to net it safely?"
-  reasoning="Expense knows one historical bill, but not all earlier bills. BalanceSheet sees the current signed amount for every pair and protects the one-direction invariant."
-  decision="Class"
->
-  `BalanceSheet` owns a private map keyed by an unordered pair. It exposes Debt values, not its mutable map.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Debt"
-  fromRequirement="Callers need a readable current balance with one debtor, one creditor, and one positive amount."
-  question="Should callers interpret the private signed map, or receive one meaningful value?"
-  reasoning="The signed pair is an internal storage choice. A Debt gives direction a clear name and keeps the private representation from leaking into the rest of the design."
-  decision="Class"
->
-  Use an immutable `Debt` record as a snapshot returned by BalanceSheet and DebtSimplifier. It does not own ledger mutation.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Split type and result values"
-  fromRequirement="Callers choose one supported split rule and need clear accepted or rejected outcomes."
-  question="Do these values need identity or changing behavior?"
-  reasoning="No. Each comes from a small fixed set, so free-form strings would only permit invalid spellings and unclear failure handling."
-  decision="Enum"
->
-  Use enums for `SplitType`, `ExpenseStatus`, and `SettlementStatus`.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="DebtSimplifier"
-  fromRequirement="The simplified plan must preserve net positions without rewriting BalanceSheet or Expense history."
-  question="Should BalanceSheet mutate itself into the suggested plan?"
-  reasoning="No. Pairwise balances explain real accepted bills; suggestions are a calculated view. A separate object makes the read-only boundary visible."
-  decision="Class"
->
-  `DebtSimplifier.simplify` receives immutable Debt values and returns new suggestions. It owns no long-lived state.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Group"
-  fromRequirement="The interviewer limits the first version to one pre-created group."
-  question="What changing state or group-specific rule would a Group class own now?"
-  reasoning="None. There is no group creation, membership update, or cross-group lookup. Every object would carry the same unused group ID."
-  decision="Leave out"
->
-  Keep the one-group boundary in ExpenseService. Add Group when the requirements introduce several groups or membership rules.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Receipt"
-  fromRequirement="A user types a description and total; receipt upload is explicitly out of scope."
-  question="Does a physical receipt own any state or behavior required by this program?"
-  reasoning="No. Modeling it would invent image storage and extraction workflows that the interviewer did not ask for."
-  decision="Leave out"
->
-  Keep only `description` on Expense. A Receipt class belongs in a later receipt-upload feature.
-</CandidateWalkthrough>
+<EntityModelOverview model={splitwiseEntityModel} />
 
 ### See one expense move through the objects
 
@@ -230,32 +119,9 @@ Move from requirements to code with the same chain:
 
 Start with `ExpenseService.recordExpense` because it is the caller-visible action. Then follow its questions downward: are the users valid, which strategy calculates shares, and how does BalanceSheet apply them?
 
-### Derive the coordinating workflow
+<ClassDesignExplorer topic={splitwiseClassDesign} />
 
-“Reject before changing state” determines the order. ExpenseService validates identities and asks Strategy to calculate the *complete* share map before it generates an ID or touches BalanceSheet.
-
-<DerivationTable rows={[
-  ["Receive one expense action", "ExpenseService", "recordExpense(...)"],
-  ["Recognize only registered users", "ExpenseService", "usersById"],
-  ["Choose calculation by split type", "ExpenseService", "Map<SplitType, SplitStrategy>"],
-  ["Do not consume IDs on rejection", "ExpenseService", "nextExpenseNumber after validation"],
-  ["Keep accepted history", "ExpenseService", "List<Expense> expenses"],
-  ["Return balances and suggestions", "ExpenseService", "balances() and simplifiedDebts()"],
-  ["Settle through the state owner", "ExpenseService", "delegate to BalanceSheet.settle"]
-]} />
-
-### Derive the ledger's state and methods
-
-The current debt between Ava and Ben needs only one stored number. Use a sorted pair key `(AVA, BEN)`. A positive signed amount can mean the first user owes the second; a negative amount means the second owes the first. The sign gives direction without storing two entries.
-
-<DerivationTable rows={[
-  ["Keep one value per pair", "BalanceSheet", "Map<PairKey, Long> signedByPair"],
-  ["Turn a share into debt", "BalanceSheet", "addDebt(debtor, creditor, amount)"],
-  ["Cancel opposite directions", "BalanceSheet", "merge a signed delta into the pair"],
-  ["Remove zero balances", "BalanceSheet", "delete the pair when signed value is zero"],
-  ["Expose readable direction", "BalanceSheet", "balances() returns List<Debt>"],
-  ["Protect settlement limits", "BalanceSheet", "settle(...) returns SettlementStatus"]
-]} />
+The explorer separates ExpenseService orchestration from BalanceSheet mutation. The following lessons explain the exact-cent arithmetic and netting rules that make the ledger correct.
 
 ### Money concept: cents, remainders, and exact totals
 

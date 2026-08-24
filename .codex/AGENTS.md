@@ -59,6 +59,8 @@ Every LLD problem must use these exact top-level phases and IDs:
 
 Use `FrameworkMap` near the beginning of every lesson. Use the same phase labels in the page table of contents. The teaching page may take longer to read than the interview timings; the timings describe how long the interviewee should spend performing the step.
 
+Render walkthrough phase headings as direct children of the walkthrough prose with explicit stable IDs. Do not wrap them in topic-specific elements that bypass the shared `.lesson-prose` heading hierarchy, scroll margins, or table-of-contents observation.
+
 ## Teaching voice
 
 - Write like a skilled and patient teacher, not like API documentation or revision notes.
@@ -102,14 +104,14 @@ Use the same four question groups for every problem:
 3. Errors — Which invalid actions must be rejected, and must state remain unchanged?
 4. Boundaries — What is deliberately out of scope?
 
-For each important clarification, use `QuestionAnswer` and include:
+For each important clarification, use the compact `QuestionAnswer` accordion and include:
 
 - the exact question the interviewee should ask;
-- why that question changes the design;
-- a realistic interviewer answer;
-- the concrete requirement derived from that answer.
+- a realistic interviewer answer containing the observable rule.
 
-Do not use vague derived statements. Write observable requirements that can later create fields, methods, validation, or tests.
+Keep every question collapsed initially so the walkthrough is easy to scan. The closed row must remain one line, and expanding it must reveal only the interviewer answer. Do not add `Why ask it?`, `Write this down`, implementation notes, or design derivation to the Requirements question cards. Teach those consequences later in Entities, Class Design, and Implementation.
+
+Use the heading `Ask these questions` consistently. Ensure each answer or the final confirmed specification preserves every rule needed to create later fields, methods, validation, and tests.
 
 Finish with `RequirementBox` containing:
 
@@ -124,13 +126,22 @@ This section must teach how to discover entities from the confirmed requirements
 
 Start by extracting candidate nouns. Clearly say that a real-world noun does not automatically deserve a class.
 
-For every meaningful candidate, use `CandidateWalkthrough` with this sequence:
+Present the final choices in the shared passive `EntityModelOverview`, driven by topic metadata rather than repeated MDX cards. Keep it scannable:
 
-1. `fromRequirement` — quote or paraphrase the requirement that revealed the candidate;
-2. `question` — ask what the candidate must remember or decide;
-3. `reasoning` — work through changing state and rules in plain language;
-4. `decision` — choose `Class`, `Interface`, `Enum`, `Field`, or `Leave out`;
-5. child content — explain the final modeling choice and its boundary.
+1. **Types we will create** — show every finalized class, Java record, and interface together. Use one full-width row per type with its exact name, a subtle `Class`, `Record`, or `Interface` tag, and a clear responsibility explanation. Define a record as validated immutable data with generated accessors and value equality; keep immutability as the principle it demonstrates.
+2. **Enums** — use a separate section with one row per enum. Each row names the enum and explains the fixed choices or outcomes it represents.
+3. **Fields** — use a separate section with one row per important field. Each row names the field and explains why the containing type needs it. Show relevant infrastructure in its own quiet supporting section.
+4. **Why this model is enough** — summarize the main ownership relationship, explain which apparent entities remain fields, name what is deliberately omitted, and state why extra classes would not help the confirmed first version.
+
+This walkthrough overview is passive. Do not add accordions, chevrons, per-candidate reveals, `Decision:` labels, requirement excerpts, or detailed candidate reasoning. Keep requirement-to-class derivation in Class Design, where state and behavior are taught in context.
+
+Render each type, enum, field, and infrastructure item in one readable full-width row. Use aligned name and explanation columns on larger screens and stack them on mobile. Model names must use a plain monospaced text element, never the global inline-code chip treatment. Give rows consistent padding, line height, dividers, and enough group spacing that long names wrap without crowding or horizontal overflow.
+
+Display field names as exact Java-style camelCase identifiers, such as `userId`, `roomId`, and `attemptCount`. Do not turn field names into prose labels such as “user ID” or “attempt count”; keep the human-readable explanation in the purpose column.
+
+Store the types, enums, fields, infrastructure, omissions, relationship, and restraint rationale in shared topic metadata. When Focus Mode exists, its final entity checkpoint must consume the same metadata so classifications, omissions, and relationship explanations cannot drift. Every finalized type must be visible by its exact name.
+
+Every Focus-only entity checkpoint must remain inside both its registered `LessonStep` and `FocusOnly`. Never place `EntityModelSummary` unguarded in shared MDX, because `LessonStep` deliberately renders its children in the walkthrough.
 
 Use these tests:
 
@@ -139,9 +150,9 @@ Use these tests:
 - Is it only a value from a small fixed set? Use an enum.
 - Is it merely a number or value with no behavior in this scope? Keep it as a field.
 - Is it real in the physical system but absent from the confirmed requirements? Leave it out.
-- Do several values form one meaningful concept and need value equality? Consider an immutable value class.
+- Do several validated values form one immutable data carrier and need value equality? Consider a Java record.
 
-Always include at least one rejected class candidate. Readers must learn restraint, not only class creation.
+Always name at least one rejected class candidate in the final restraint note. Readers must learn restraint, not only class creation. End the overview by explaining how the state owners, values, and behavior boundaries work together.
 
 Explain ownership by asking, “What information does this rule need?” Keep the rule beside the state it needs.
 
@@ -184,6 +195,10 @@ Keep state private. Keep a rule in the object owning the state required by that 
 When a topic also has Focus Mode, its complete walkthrough must remain the detailed source of truth rather than leaving class reasoning only inside Focus interactions.
 
 - Discuss every finalized class, interface, and important immutable value from the Entities checkpoint.
+- Present state-owning and coordinating classes through the shared one-class-at-a-time explorer. Select the caller-facing coordinator first, keep exactly one class panel visible, and let learners follow the request into downstream state owners.
+- Every full class panel must name its requirement, private state, public API, internal behavior, invariant, collaborators, responsibilities it rejects, and demonstrated principle. Use exact Java member names with short plain-language explanations.
+- Keep records, interfaces, stateless implementations, and helpers in a compact supporting-types section rather than giving them full state-owner panels. Explain what each carries or varies and the mutation boundary it must not cross.
+- Use horizontally scrollable, keyboard-operable class tabs. Walkthrough panels may grow naturally with their content, but must not use fixed heights, nested tabs, dense dashboards, or page-level horizontal scrolling.
 - For each state-owning class, derive representative fields and methods from confirmed requirements before showing final code.
 - Distinguish private state, public API, internal behavior, and responsibilities that belong to another class.
 - State the invariant the class protects and whether mutable state or collections may escape.
@@ -279,6 +294,7 @@ Provide complete, compilable Java code for every entity, enum, interface, strate
 
 - Target Java 17 or later unless the topic requires otherwise.
 - Use one `JavaFile` block per `.java` file.
+- Pass Java source as `JavaFile` children and provide a concise `purpose` for every file. Never pass source through an unsupported prop or leave a code panel empty.
 - Keep file names and public type names consistent.
 - Use the existing Java syntax coloring.
 - Prefer clear code over clever code.
@@ -349,6 +365,10 @@ End with a short example of what a strong spoken interview explanation sounds li
 
 - Preserve the clean, quiet reading experience inspired by high-quality technical interview guides.
 - Use a narrow readable content column, generous whitespace, small side navigation, and an unobtrusive page index.
+- Establish a clear top-to-bottom reading order before adding decorative styling. Each callout or panel should communicate one primary idea.
+- Do not use multi-column prose unless the content is genuinely parallel, similar in length, and easier to compare side by side. Prefer a single vertical narrative for explanations and conclusions.
+- Give content at the same information level the same font size, weight, color, and line height. Reserve bold text and accent colors for headings, labels, and genuinely important terms rather than entire paragraphs.
+- Design mobile-first: stack content naturally, keep line lengths readable, balance whitespace, and align related labels and text consistently at every breakpoint.
 - Avoid dashboard-style cards, excessive borders, oversized colored blocks, and visual decoration that does not teach.
 - Use images only when they explain a system, relationship, state change, or request flow.
 - All generated diagrams must be original and project-local.
@@ -357,6 +377,7 @@ End with a short example of what a strong spoken interview explanation sounds li
 - Use concise captions that tell readers what to notice.
 - Keep code horizontally scrollable and readable on small screens.
 - Reuse the same component and color system across every topic.
+- Treat browser-based visual inspection as a required UX quality gate, not an optional follow-up to a successful build. Check both laptop and approximately 390 px mobile widths, and inspect the topic with the longest content as well as a short example.
 
 ## Files to add or update for a new topic
 
@@ -390,6 +411,8 @@ Also:
 - test the main simulation flow and at least one rejection or edge case;
 - visually inspect the lesson in a real browser at a laptop width;
 - visually inspect it at approximately 390 px mobile width;
+- verify phase heading hierarchy, direct hash alignment, and the active table-of-contents item at both sizes;
+- verify every Java panel contains visible syntax-colored source and that only the code area scrolls horizontally on mobile;
 - verify generated diagram labels, aspect ratio, captions, alt text, and mobile horizontal scrolling;
 - verify the opening overview appears before `FrameworkMap`, teaches the real-world problem without design jargon, and renders correctly on laptop and mobile;
 - check that the page index and previous/next links work;

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { isValidElement } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Clock3, Code2, HelpCircle, Lightbulb, MessageCircleQuestion, Sparkles, X } from "lucide-react";
+import type { EntityModel } from "@/lib/entity-models";
 import { cn } from "@/lib/utils";
 
 export function Lead({ children }: { children: React.ReactNode }) {
@@ -152,34 +153,21 @@ export function QuestionGuide() {
   );
 }
 
-export function QuestionAnswer({ ask, why, answer, derived }: { ask: string; why?: string; answer: string; derived?: string }) {
-  if (!why && !derived) {
-    return (
-      <details className="group my-3 overflow-hidden rounded-xl border border-[var(--line)] bg-white open:shadow-sm">
-        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--focus)] [&::-webkit-details-marker]:hidden">
-          <span className="shrink-0 rounded bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-extrabold uppercase text-[var(--accent-dark)]">Ask</span>
-          <span className="min-w-0 flex-1 truncate text-sm font-extrabold leading-6 text-[var(--ink)] group-open:whitespace-normal">{ask}</span>
-          <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)] sm:inline group-open:hidden">Show answer</span>
-          <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)] sm:group-open:inline">Hide answer</span>
-          <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-[var(--faint)] transition-transform group-open:rotate-180" />
-        </summary>
-        <div className="border-t border-[var(--line)] bg-[var(--blue-soft)] px-4 py-4 sm:px-5">
-          <p className="section-kicker !text-[#37627c]">Interviewer answers</p>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{answer}</p>
-        </div>
-      </details>
-    );
-  }
-
+export function QuestionAnswer({ ask, answer }: { ask: string; answer: string }) {
   return (
-    <div className="my-4 overflow-hidden rounded-xl border border-[var(--line)] bg-white">
-      <div className="border-b border-[var(--line)] px-4 py-3"><span className="mr-2 rounded bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-extrabold uppercase text-[var(--accent-dark)]">Ask</span><strong className="text-sm leading-6">{ask}</strong></div>
-      <div className="grid sm:grid-cols-3">
-        <div className="border-b border-[var(--line)] p-4 sm:border-b-0 sm:border-r"><p className="section-kicker">Why ask it?</p><p className="mt-2 text-xs leading-5 text-[var(--muted)]">{why}</p></div>
-        <div className="border-b border-[var(--line)] p-4 sm:border-b-0 sm:border-r"><p className="section-kicker">Interviewer says</p><p className="mt-2 text-xs leading-5 text-[var(--muted)]">{answer}</p></div>
-        <div className="bg-[var(--mint-soft)] p-4"><p className="section-kicker !text-[#28725c]">Write this down</p><p className="mt-2 text-xs font-semibold leading-5 text-[var(--ink)]">{derived}</p></div>
+    <details className="group my-3 overflow-hidden rounded-xl border border-[var(--line)] bg-white open:shadow-sm">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--focus)] [&::-webkit-details-marker]:hidden">
+        <span className="shrink-0 rounded bg-[var(--accent-soft)] px-2 py-1 text-[10px] font-extrabold uppercase text-[var(--accent-dark)]">Ask</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-extrabold leading-6 text-[var(--ink)] group-open:whitespace-normal">{ask}</span>
+        <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)] sm:inline group-open:hidden">Show answer</span>
+        <span className="hidden shrink-0 text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)] sm:group-open:inline">Hide answer</span>
+        <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-[var(--faint)] transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-[var(--line)] bg-[var(--blue-soft)] px-4 py-4 sm:px-5">
+        <p className="section-kicker !text-[#37627c]">Interviewer answers</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{answer}</p>
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -195,20 +183,75 @@ export function RequirementBox({ requirements, outOfScope }: { requirements: str
   );
 }
 
-export function CandidateWalkthrough({ name, fromRequirement, question, reasoning, decision, children }: { name: string; fromRequirement: string; question: string; reasoning: string; decision: "Class" | "Field" | "Enum" | "Interface" | "Leave out"; children?: React.ReactNode }) {
-  const createsObject = decision === "Class" || decision === "Interface";
-  return (
-    <section className="entity-walkthrough my-8 border-l-2 border-[var(--line)] pl-5 sm:pl-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h3 className="!m-0 !text-xl">{name}</h3>
-        <span className={cn("rounded px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide", createsObject ? "bg-[var(--mint-soft)] text-[#28725c]" : "bg-[var(--paper-2)] text-[var(--muted)]")}>{decision}</span>
+const entityKindPresentation = {
+  Class: { label: "Class", className: "bg-[var(--mint-soft)] text-[#24745b]" },
+  Record: { label: "Record", className: "bg-[var(--blue-soft)] text-[#37627c]" },
+  Interface: { label: "Interface", className: "bg-[#fff0cf] text-[#8a5b13]" },
+} as const;
+
+function EntityReferenceRow({ name, purpose, badge, muted = false }: { name: string; purpose: string; badge?: { label: string; className: string }; muted?: boolean }) {
+  return <div className={cn("grid min-w-0 gap-2 px-4 py-4 sm:grid-cols-[minmax(13rem,.7fr)_1.3fr] sm:items-start sm:gap-6 sm:px-5", muted && "bg-[var(--paper-2)]/70")}>
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+      <span className="min-w-0 break-words font-mono text-sm font-extrabold leading-5 text-[var(--accent-dark)]">{name}</span>
+      {badge && <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-[0.08em]", badge.className)}>{badge.label}</span>}
+    </div>
+    <p className="m-0 text-sm leading-6 text-[var(--muted)]">{purpose}</p>
+  </div>;
+}
+
+export function EntityModelOverview({ model }: { model: EntityModel }) {
+  return <section className="my-7" aria-label="Final entity model">
+    <section aria-labelledby="entity-types-heading">
+      <div className="max-w-2xl">
+        <p className="section-kicker">Final model</p>
+        <h3 id="entity-types-heading" className="mt-2 !text-2xl">Types we will create</h3>
       </div>
-      <p className="mt-3 text-sm leading-7 text-[var(--muted)]"><strong>Where did it come from?</strong> {fromRequirement}</p>
-      <p className="mt-3 text-sm leading-7 text-[var(--muted)]"><strong>Question to ask:</strong> {question}</p>
-      <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{reasoning}</p>
-      {children && <div className="mt-3 rounded-lg bg-[var(--paper-2)] px-4 py-3 text-sm leading-7 text-[var(--muted)]"><strong>Decision:</strong> {children}</div>}
+      <dl className="mt-4 grid overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--paper-2)] sm:grid-cols-3">
+        {[
+          ["Class", "Owns changing state or coordinates rules."],
+          ["Record", "A Java record for validated, immutable data with value equality."],
+          ["Interface", "Defines behavior that another implementation can replace."],
+        ].map(([term, definition], index) => <div key={term} className={cn("px-4 py-3", index > 0 && "border-t border-[var(--line)] sm:border-l sm:border-t-0")}><dt className="text-xs font-extrabold text-[var(--ink)]">{term}</dt><dd className="mt-1 text-xs leading-5 text-[var(--muted)]">{definition}</dd></div>)}
+      </dl>
+      <div className="mt-4 overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+        <div className="divide-y divide-[var(--line)]">
+          {model.items.map((item) => {
+            const presentation = entityKindPresentation[item.kind];
+            return <article key={item.name}><EntityReferenceRow name={item.name} purpose={item.purpose} badge={presentation} /></article>;
+          })}
+        </div>
+      </div>
     </section>
-  );
+
+    <section aria-labelledby="entity-enums-heading" className="mt-6 overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+      <div className="bg-[var(--paper-2)] px-4 py-3 sm:px-5"><h3 id="entity-enums-heading" className="!m-0 !text-lg">Enums</h3><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Enums name a small, fixed set of valid choices or outcomes.</p></div>
+      <div className="divide-y divide-[var(--line)] border-t border-[var(--line)]">{model.enums.map((item) => <EntityReferenceRow key={item.name} name={item.name} purpose={item.purpose} />)}</div>
+    </section>
+
+    <section aria-labelledby="entity-fields-heading" className="mt-6 overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+      <div className="bg-[var(--paper-2)] px-4 py-3 sm:px-5"><h3 id="entity-fields-heading" className="!m-0 !text-lg">Fields</h3><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Fields are simple values stored inside another type; they do not need independent behavior in this version.</p></div>
+      <div className="divide-y divide-[var(--line)] border-t border-[var(--line)]">{model.fields.map((item) => <EntityReferenceRow key={item.name} name={item.name} purpose={item.purpose} />)}</div>
+    </section>
+
+    {model.infrastructure && model.infrastructure.length > 0 && <section aria-labelledby="entity-infrastructure-heading" className="mt-6 overflow-hidden rounded-xl border border-dashed border-[var(--line)] bg-[var(--paper-2)]">
+      <div className="px-4 py-3 sm:px-5"><h3 id="entity-infrastructure-heading" className="!m-0 !text-base">Supporting implementation</h3></div>
+      <div className="divide-y divide-[var(--line)] border-t border-[var(--line)]">{model.infrastructure.map((item) => <EntityReferenceRow key={item.name} name={item.name} purpose={item.purpose} muted />)}</div>
+    </section>}
+
+    <aside className="mt-6 rounded-xl border border-[#b8ddcf] bg-[var(--mint-soft)] px-5 py-5 sm:px-6 sm:py-6" aria-labelledby="entity-enough-heading">
+      <h3 id="entity-enough-heading" className="!m-0 !text-sm font-extrabold uppercase tracking-[0.1em] text-[#24785f]">Why this model is enough</h3>
+      <div className="mt-5 max-w-3xl">
+        <section aria-labelledby="entity-collaboration-heading">
+          <p id="entity-collaboration-heading" className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#24785f]">How the model works together</p>
+          <p className="mt-2 text-sm font-normal leading-7 text-[var(--muted)]">{model.relationship}</p>
+        </section>
+        <section aria-labelledby="entity-restraint-heading" className="mt-4 border-t border-[#b8ddcf] pt-4">
+          <p id="entity-restraint-heading" className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-[#24785f]">Why we stop here</p>
+          <p className="mt-2 text-sm font-normal leading-7 text-[var(--muted)]">{model.rationale}</p>
+        </section>
+      </div>
+    </aside>
+  </section>;
 }
 
 export function DerivationTable({ rows }: { rows: Array<[string, string, string]> }) {
@@ -312,5 +355,5 @@ export function JavaFile({ name, purpose, children }: { name: string; purpose: s
 }
 
 export function ScenarioTrace({ steps }: { steps: string[] }) {
-  return <ol className="my-6 overflow-hidden rounded-xl border border-[var(--line)] bg-white">{steps.map((step, index) => <li key={step} className="flex gap-3 border-b border-[var(--line)] p-4 last:border-0"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--ink)] font-mono text-[10px] font-bold text-white">{index}</span><span className="text-sm leading-6 text-[var(--muted)]">{step}</span></li>)}</ol>;
+  return <ol className="my-6 overflow-hidden rounded-xl border border-[var(--line)] bg-white">{steps.map((step, index) => <li key={step} className="flex gap-3 border-b border-[var(--line)] p-4 last:border-0"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--ink)] font-mono text-[10px] font-bold text-white">{index + 1}</span><span className="text-sm leading-6 text-[var(--muted)]">{step}</span></li>)}</ol>;
 }

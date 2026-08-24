@@ -1,10 +1,13 @@
-import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, EntityModelOverview, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ClassDesignExplorer } from "@/components/class-design-explorer"
 import { MovieTicketBookingSimulator } from "@/components/simulations/movie-ticket-booking-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { PassiveLearningCards, EntityModelSummary, FocusFrameworkRoadmap, InterviewDynamicsGuide, InterviewDialogueExample, PredictionChecklist, ClassificationChallenge, FocusSpec, OrderQuestion, TabbedConceptView, TabbedCodeView, FocusCode, ChoiceQuestion } from "@/components/learning/learning-interactions"
 import { MovieOwnershipQuiz, MovieHoldFlow, MovieStateMachine, MovieClassBlueprint, MovieImplementationMap } from "@/components/learning/movie-ticket-booking-focus"
 import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
 import { movieBookingClassDiagrams } from "@/lib/class-diagrams"
+import { movieBookingEntityModel } from "@/lib/entity-models"
+import { movieBookingClassDesign } from "@/lib/class-design-models"
 
 <LessonStep id="movie-orientation"><FocusOnly><ConceptImage
   src="/images/movie-ticket-booking-overview.png"
@@ -68,7 +71,7 @@ import { movieBookingClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="movie-modeling-vocabulary"><FocusOnly><PassiveLearningCards
   intro="Use the smallest modeling choice that can protect the confirmed rule."
-  items={[{ title: "Class", body: "Owns meaningful state or behavior, such as Show or ShowSeat." }, { title: "Enum", body: "Names a small closed choice, such as AVAILABLE, HELD, or BOOKED." }, { title: "Immutable value", body: "Groups stable facts with value equality and no setters." }, { title: "Field", body: "A simple value belonging inside another object, such as userId." }, { title: "Leave out", body: "A physical concept with no responsibility in the agreed version." }]}
+  items={[{ title: "Class", body: "Owns meaningful state or behavior, such as Show or ShowSeat." }, { title: "Enum", body: "Names a small closed choice, such as AVAILABLE, HELD, or BOOKED." }, { title: "Record", body: "A Java record groups validated immutable facts and provides value equality." }, { title: "Field", body: "A simple value belonging inside another object, such as userId." }, { title: "Leave out", body: "A physical concept with no responsibility in the agreed version." }]}
 /></FocusOnly></LessonStep>
 
 <LessonStep id="movie-classes"><FocusOnly><PredictionChecklist
@@ -79,7 +82,7 @@ import { movieBookingClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="movie-values"><FocusOnly><ClassificationChallenge
   instruction="Choose the smallest useful representation for each remaining concept."
-  categories={[{ id: "enum", label: "Enum" }, { id: "value", label: "Immutable value" }, { id: "field", label: "Field" }, { id: "omit", label: "Leave out" }]}
+  categories={[{ id: "enum", label: "Enum" }, { id: "value", label: "Record" }, { id: "field", label: "Field" }, { id: "omit", label: "Leave out" }]}
   items={[{ id: "states", label: "Seat and result states", answer: "enum", feedback: "They are fixed named choices with no independent lifecycle." }, { id: "results", label: "HoldResult and ConfirmationResult", answer: "value", feedback: "Each groups a status with an optional accepted record." }, { id: "identity", label: "userId and showId", answer: "field", feedback: "The scope only stores and compares these identifiers." }, { id: "time", label: "startsAt and expiresAt", answer: "field", feedback: "Instants belong to Show and SeatHold." }, { id: "payment", label: "Payment and Refund", answer: "omit", feedback: "They are absent from the confirmed workflow." }]}
   success="Every concept now has the smallest shape that satisfies its rule."
 /></FocusOnly></LessonStep>
@@ -87,24 +90,7 @@ import { movieBookingClassDiagrams } from "@/lib/class-diagrams"
 <LessonStep id="movie-ownership"><FocusOnly><MovieOwnershipQuiz /></FocusOnly></LessonStep>
 <LessonStep id="movie-entity-flow"><FocusOnly><MovieHoldFlow /></FocusOnly></LessonStep>
 
-<LessonStep id="movie-entity-summary"><FocusOnly><EntityModelSummary
-  items={[
-    { name: "Movie", kind: "Immutable value", purpose: "Keeps a movie's stable ID and title." },
-    { name: "Seat", kind: "Immutable value", purpose: "Identifies one permanent physical seat." },
-    { name: "Screen", kind: "Class", purpose: "Owns the permanent physical seat layout." },
-    { name: "ShowSeat", kind: "Class", purpose: "Owns one seat's state for one screening." },
-    { name: "Show", kind: "Class", purpose: "Protects group seat changes and the per-show lock." },
-    { name: "SeatHold", kind: "Immutable value", purpose: "Records an accepted temporary seat claim." },
-    { name: "Booking", kind: "Immutable value", purpose: "Records a completed confirmation." },
-    { name: "BookingService", kind: "Class", purpose: "Coordinates lookup, IDs, holds, and bookings." },
-    { name: "HoldResult", kind: "Immutable value", purpose: "Returns a hold status and accepted hold." },
-    { name: "ConfirmationResult", kind: "Immutable value", purpose: "Returns a confirmation status and booking." }
-  ]}
-  enums={["SeatState", "HoldStatus", "ConfirmationStatus"]}
-  fields={["user ID", "show ID", "start time", "expiry time"]}
-  omitted={["User class", "Payment", "Refund"]}
-  relationship="Screen owns physical Seats; Show owns per-screening ShowSeats; BookingService records accepted holds and bookings."
-/></FocusOnly></LessonStep>
+<LessonStep id="movie-entity-summary"><FocusOnly><EntityModelSummary model={movieBookingEntityModel} /></FocusOnly></LessonStep>
 
 <LessonStep id="movie-principles"><FocusOnly><ClassificationChallenge
   instruction="Match each concrete failure to the design principle that prevents it."
@@ -116,7 +102,7 @@ import { movieBookingClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="movie-design-method"><FocusOnly><PassiveLearningCards intro="Design every class using the same chain: requirement → responsibility → state → behavior → public API → relationship → principle → pattern." items={[{ title: "Responsibility", body: "Name the rule this object owns." }, { title: "State", body: "Store only information needed for that rule." }, { title: "Behavior", body: "Keep checks and changes beside the state." }, { title: "API", body: "Expose use cases without mutable internals." }, { title: "Relationship", body: "Prefer has-a composition between different jobs." }, { title: "Pattern", body: "Add an abstraction only when behavior really varies." }]} /></FocusOnly></LessonStep>
 
-<LessonStep id="movie-immutable-values"><FocusOnly><PassiveLearningCards intro="Immutable values are created once and never edited. They safely cross object boundaries and make accepted results easy to trust." items={[{ title: "Movie and Seat", body: "Stable physical facts with value equality." }, { title: "SeatHold", body: "Accepted owner, group, and expiry; changes happen in ShowSeat, not inside the record." }, { title: "Booking", body: "Permanent receipt created only after Show reports BOOKED." }, { title: "Result records", body: "Pair a named status with the accepted value when one exists." }]} conclusion="Mutable domain state remains inside ShowSeat; records carry stable facts about it." /></FocusOnly></LessonStep>
+<LessonStep id="movie-immutable-values"><FocusOnly><PassiveLearningCards intro="Java records are created once and never edited. They safely cross object boundaries and make accepted results easy to trust." items={[{ title: "Movie and Seat", body: "Stable physical facts with value equality." }, { title: "SeatHold", body: "Accepted owner, group, and expiry; changes happen in ShowSeat, not inside the record." }, { title: "Booking", body: "Permanent receipt created only after Show reports BOOKED." }, { title: "Result records", body: "Pair a named status with the accepted record when one exists." }]} conclusion="Mutable domain state remains inside ShowSeat; records carry stable facts about it." /></FocusOnly></LessonStep>
 
 <LessonStep id="movie-physical-state"><FocusOnly><ChoiceQuestion prompt="A7 is booked for the 7:00 PM show but free for the 10:00 PM show. Where should BOOKED live?" choices={[{ id: "show-seat", label: "In a ShowSeat created for each Show", correct: true, feedback: "One physical Seat can have different state in different screenings." }, { id: "seat", label: "Inside the physical Seat", correct: false, feedback: "That would incorrectly book A7 for every show in the Screen." }, { id: "screen", label: "On the Screen", correct: false, feedback: "Screen owns the layout, not time-specific availability." }]} /></FocusOnly></LessonStep>
 
@@ -532,55 +518,41 @@ Turn the story into actions and rules first. The classes will come from those an
 
 <QuestionGuide />
 
-### Ask questions and record what each answer changes
+### Ask these questions
 
 <QuestionAnswer
   ask="What can the user do in the first version?"
-  why="Movie discovery, theatre search, seat selection, payment, and cancellation are different workflows. We need one clear starting and ending point."
   answer="Shows already exist. A user chooses one show and one or more seat IDs, holds them, and then confirms the hold."
-  derived="Provide holdSeats(showId, userId, seatIds) and confirmHold(holdId, userId). Creating movies and shows is setup, not a user workflow."
 />
 
 <QuestionAnswer
   ask="Why use a hold instead of booking the selected seat immediately?"
-  why="A person needs a short period to review the order or complete payment without another person taking the same seat."
   answer="A successful hold owns the requested seats for five minutes. Confirmation during that time makes them permanently booked."
-  derived="A show seat moves through AVAILABLE → HELD → BOOKED. A hold stores its owner and expiry time."
 />
 
 <QuestionAnswer
   ask="If a user requests A5 and A6 but A6 is unavailable, may we hold only A5?"
-  why="Partial success can split a group and makes the result hard for the caller to understand."
   answer="No. Holding a group is all-or-nothing. Either every requested seat is held or none of them changes."
-  derived="Validate every requested seat before changing any requested seat. Duplicate or unknown seat IDs also reject the whole request."
 />
 
 <QuestionAnswer
   ask="What happens when the five-minute hold expires?"
-  why="Expired seats must become usable again, and a late confirmation must not turn an expired hold into a booking."
   answer="The next operation releases expired seats. Confirming an expired hold returns HOLD_EXPIRED."
-  derived="Use an injected clock, store expiresAt, release expired HELD seats before reading or changing show state, and reject a confirmation at or after the expiry instant."
 />
 
 <QuestionAnswer
   ask="May another user confirm my hold?"
-  why="Knowing a hold ID must not be enough to take somebody else's seats."
   answer="No. Only the user who created the live hold may confirm it."
-  derived="SeatHold stores userId, and confirmHold compares the caller with that owner before changing seats."
 />
 
 <QuestionAnswer
   ask="Can two users request the same seat at the same time?"
-  why="Without a concurrency rule, both calls can read AVAILABLE before either call writes HELD."
   answer="Yes. In this interview version everything runs in one Java process. Use one lock per show, and exactly one competing hold may succeed."
-  derived="For one show, checking all requested seats and holding all of them must run inside one critical section protected by that show's lock."
 />
 
 <QuestionAnswer
   ask="Are payment, refunds, a database, and several application servers in scope?"
-  why="Those features change the consistency boundary and would require external services or storage, which this first design does not have."
   answer="No. Treat successful confirmation as payment having completed. Keep everything in memory in one process. Discuss production alternatives later."
-  derived="Do not add Payment, Refund, repositories, APIs, or distributed locks. State clearly that a Java lock protects threads in one process only."
 />
 
 ### Confirm the specification
@@ -603,95 +575,7 @@ Turn the story into actions and rules first. The classes will come from those an
 
 Now scan the confirmed requirements for nouns: movie, screen, seat, show, show seat, user, hold, booking, payment, and booking service. These are only candidates. A real thing becomes a class in our program only when it owns meaningful information or a rule.
 
-<CandidateWalkthrough
-  name="Movie"
-  fromRequirement="A pre-created show is a screening of one movie."
-  question="Which movie facts must the booking result display, and do they change during one booking?"
-  reasoning="An ID and title identify the movie throughout this lesson. They form one small immutable value and have no booking behavior."
-  decision="Class"
->
-  Use a `Movie` record. It describes what is being shown; it does not own seat availability.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Seat and Screen"
-  fromRequirement="A show contains the physical seats that belong to one screen, and requests use seat IDs such as A7."
-  question="What is permanent, and what changes from one show time to another?"
-  reasoning="Seat A7 remains seat A7 in Screen 1. But it can be booked for the 7:00 PM show and still be free for the 10:00 PM show. The physical layout and booking state therefore cannot be the same object."
-  decision="Class"
->
-  `Seat` is an immutable physical value, and `Screen` owns its fixed seat list. Neither stores AVAILABLE or BOOKED.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Show"
-  fromRequirement="Users choose seats for one movie at one start time, and concurrency is controlled separately for each show."
-  question="Which object knows the movie, time, screen, current seat states, and the lock protecting those states?"
-  reasoning="Those facts meet at one screening. A lock on the whole service would unnecessarily block bookings for unrelated shows, while the physical Screen cannot own time-specific state."
-  decision="Class"
->
-  `Show` owns one `ShowSeat` per physical seat and one `ReentrantLock`. It performs the all-or-nothing hold and confirmation rules.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="ShowSeat"
-  fromRequirement="For a particular show, each seat moves from AVAILABLE to HELD to BOOKED and remembers hold details while HELD."
-  question="Where should one seat's changing state and legal transitions live?"
-  reasoning="The object changing state needs the state, hold ID, owner, and expiry time. Keeping these values together prevents callers from creating impossible combinations such as AVAILABLE with an owner."
-  decision="Class"
->
-  `ShowSeat` owns the transition methods. They are called while `Show` holds the lock, so the object stays small and the multi-seat operation stays atomic.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="SeatHold and Booking"
-  fromRequirement="A successful hold must remember its owner, seats, and expiry; a confirmation returns a permanent booking receipt."
-  question="Do these results have a stable meaning after they are created?"
-  reasoning="Yes. A hold describes one accepted temporary claim. A booking describes one completed confirmation. Their values should not be edited later."
-  decision="Class"
->
-  Use immutable records. `SeatHold` has an expiry; `Booking` does not because BOOKED is final in this scope.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="BookingService"
-  fromRequirement="The caller supplies IDs, while the workflow must find a show, create hold and booking IDs, remember accepted holds, and return clear results."
-  question="Who can coordinate across shows and translate a public request into one show's protected operation?"
-  reasoning="A Show should not search every other show or issue global IDs. We need a small entry point that locates the responsible Show and records successful results."
-  decision="Class"
->
-  `BookingService` coordinates. The seat correctness rule remains inside `Show`; the service does not edit `ShowSeat` fields.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="SeatState and result values"
-  fromRequirement="Seats have three named states, and expected failures must explain why an action was rejected."
-  question="Are these independent objects with identity, or choices from a small fixed set?"
-  reasoning="They are closed choices. Strings allow spelling mistakes, while a boolean such as booked cannot represent HELD or explain a failure."
-  decision="Enum"
->
-  Use `SeatState`, `HoldStatus`, and `ConfirmationStatus` enums.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="User"
-  fromRequirement="A hold belongs to a user ID, and confirmation checks that same value."
-  question="Does this scope require a profile, account state, or user-owned behavior?"
-  reasoning="No. The design only compares identity. A User class would wrap one string and add no rule."
-  decision="Field"
->
-  Keep `userId` as a field in `SeatHold`, `Booking`, and request methods. Add a class only when user information gains behavior.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Payment"
-  fromRequirement="The interviewer explicitly placed real payment outside the first version."
-  question="What would a Payment class actually do in the code we agreed to build?"
-  reasoning="Nothing. Confirmation represents payment having already succeeded. Inventing gateways and payment states would solve an unrequested problem and distract from seat correctness."
-  decision="Leave out"
->
-  Do not create `Payment`. In Extensions we can explain where it would join the hold workflow.
-</CandidateWalkthrough>
+<EntityModelOverview model={movieBookingEntityModel} />
 
 ### See a seat request flow through the objects
 
@@ -716,61 +600,9 @@ Use the same bridge as every other lesson:
 
 Start with `BookingService.holdSeats`, the action visible to the caller. Then follow its needs into `Show.tryHold` and finally into `ShowSeat` transitions.
 
-### Design immutable values and the physical layout
+<ClassDesignExplorer topic={movieBookingClassDesign} />
 
-`Movie` and `Seat` describe stable catalog facts. `SeatHold` records an accepted temporary claim, and `Booking` records a completed confirmation. `HoldResult` and `ConfirmationResult` return expected outcomes without exposing mutable objects.
-
-<DerivationTable rows={[
-  ["Describe one film", "Movie value", "id and title"],
-  ["Identify one physical seat", "Seat value", "id, row, and number"],
-  ["Return an accepted temporary claim", "SeatHold value", "holdId, showId, userId, seatIds, expiresAt"],
-  ["Return an accepted purchase", "Booking value", "bookingId, holdId, showId, userId, seatIds"],
-  ["Make expected failure explicit", "Result values", "status plus optional accepted value"]
-]} />
-
-`Screen` owns the permanent list of physical Seats. It does not own availability, because A7 can be BOOKED for the 7:00 PM Show and AVAILABLE for the 10:00 PM Show. That requirement creates a separate `ShowSeat` for every screening.
-
-### Derive the public workflow
-
-“Find one show” creates the show map. “Return an accepted hold” creates the hold map and ID sequence. These are not generic manager fields: each exists because a caller-visible requirement needs it.
-
-<DerivationTable rows={[
-  ["Find the requested screening", "BookingService", "showsById and holdSeats(showId, userId, seatIds)"],
-  ["Remember accepted temporary claims", "BookingService", "holdsById"],
-  ["Return permanent confirmations", "BookingService", "bookingsById and confirmHold(holdId, userId)"],
-  ["Create deterministic unique IDs", "BookingService", "AtomicInteger holdSequence and bookingSequence"],
-  ["Use testable time", "BookingService", "Clock clock and Duration holdDuration"],
-  ["Read seat state without exposing objects", "BookingService", "seatStates(showId)"]
-]} />
-
-### Derive BookingService state and public API
-
-The service owns lookup and accepted records, not seat transitions. `holdSeats`, `confirmHold`, `seatStates`, and safe booking lookup are public use cases. ID allocation, index updates, and delegation into Show are internal steps. Returning the Show map, its lock, or mutable ShowSeat objects would let a caller bypass the protected workflow.
-
-<DerivationTable rows={[
-  ["Find a screening by ID", "BookingService state", "showsById"],
-  ["Remember accepted holds and bookings", "BookingService state", "holdsById and bookingsById"],
-  ["Make expiry deterministic", "BookingService state", "Clock and holdDuration"],
-  ["Submit the two caller workflows", "BookingService API", "holdSeats(...) and confirmHold(...)"],
-  ["Inspect without exposing mutation", "BookingService API", "seatStates(...) and booking(...)"],
-  ["Protect a complete seat group", "Show internal behavior", "lock, validation pass, mutation pass"]
-]} />
-
-### Derive the show and seat state
-
-“A7 is different for every show” creates `ShowSeat`. “Hold the whole group or none” puts the loop and lock in `Show`, because no single ShowSeat can judge its neighbours. “Only the owner confirms” creates owner data in the hold and a match check before booking.
-
-<DerivationTable rows={[
-  ["Keep seat state separate for each screening", "Show", "Map<String, ShowSeat> seatsById"],
-  ["Protect one show's multi-seat operation", "Show", "ReentrantLock lock"],
-  ["Validate the whole group before changing it", "Show", "tryHold(...) performs two passes"],
-  ["Release time-limited claims", "Show", "releaseExpired(now)"],
-  ["Represent one seat's lifecycle", "ShowSeat", "SeatState state"],
-  ["Know who owns a temporary claim", "ShowSeat", "holdId, heldBy, expiresAt"],
-  ["Permit only valid transitions", "ShowSeat", "placeHold, confirmHold, releaseIfExpired"]
-]} />
-
-`ShowSeat` keeps its fields private and exposes guarded transitions instead of `setState`. Its invariant is that HELD has an owner, hold ID, and expiry, while AVAILABLE and BOOKED do not pretend to belong to another live hold. `Show` owns the collection because only it can validate a requested group before changing every member.
+The explorer separates the stable Screen layout from each Show's mutable seats. The next sections deepen the two rules owned by Show and ShowSeat: legal state transitions and atomic group changes.
 
 ### Understand the seat state machine
 

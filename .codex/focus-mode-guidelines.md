@@ -90,8 +90,10 @@ Do not jump directly from a final answer in one phase to an unexplained exercise
 ### Recommended Entities pattern
 
 - Introduce noun extraction and explicitly state that not every noun deserves a class.
-- Before asking the learner to classify candidates, teach the four modeling choices—class, enum, field, and leave out—with a short passive lesson or matching exercise. Choose interaction only when matching the choices creates useful reasoning. The learner must understand the test for each choice before applying it:
+- Before asking the learner to classify candidates, teach the relevant modeling choices—class, Java record, interface, enum, field, and leave out—with a short passive lesson or matching exercise. Choose interaction only when matching the choices creates useful reasoning. Never use the vague standalone label `Value`; use `Record` when the Java model is a record. The learner must understand the test for each choice before applying it:
   - Class: owns information that changes while the program runs AND enforces rules on that information.
+  - Record: carries validated immutable data with generated accessors and value equality.
+  - Interface: defines behavior with a genuinely replaceable implementation.
   - Enum: a value from a small fixed set with no independent changing state.
   - Field: a simple value with no behavior in this scope, belonging inside another class.
   - Leave out: a real concept absent from the confirmed requirements or with only one fixed implementation.
@@ -135,11 +137,13 @@ Teach this repeatable sequence:
 ### End-of-Entities checkpoint
 
 - End the Entities phase with one passive `Review the final entity model` slide after the entity-flow exercise and before Class Design.
-- Show every finalized class, interface, and immutable value with one short sentence explaining how it helps satisfy the requirements.
+- Show every finalized class, interface, and Java record with one short sentence explaining how it helps satisfy the requirements.
 - Include compact supporting groups for enums, simple fields, infrastructure where relevant, and concepts deliberately left out.
 - Finish with one relationship sentence explaining how the state owners, coordinator, and replaceable behavior work together.
 - Use a compact grouped table that is readable at mobile and laptop sizes without tabs, reveal controls, interaction, or vertical scrolling.
 - Treat this slide as the contract for Class Design: later fields, methods, and principles must derive from the finalized model shown here.
+- Keep the summary inside both its registered `LessonStep` and `FocusOnly`; an unguarded summary leaks into the complete walkthrough because shared MDX renders there too.
+- Use only the visible type labels `Class`, `Record`, and `Interface`. Keep names as plain monospaced text without the walkthrough inline-code chip styling.
 
 ### Recommended Implementation pattern
 

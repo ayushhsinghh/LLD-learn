@@ -1,10 +1,13 @@
-import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, EntityModelOverview, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ClassDesignExplorer } from "@/components/class-design-explorer"
 import { RideSharingSimulator } from "@/components/simulations/ride-sharing-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { ChoiceQuestion, ClassificationChallenge, EntityModelSummary, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 import { DijkstraLearningTrace, RideClassBlueprint, RideClassPicker, RideImplementationMap, RideOwnershipQuiz, RideRequestFlow, RideScenarioProof } from "@/components/learning/ride-sharing-focus"
 import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
 import { rideSharingClassDiagrams } from "@/lib/class-diagrams"
+import { rideSharingEntityModel } from "@/lib/entity-models"
+import { rideSharingClassDesign } from "@/lib/class-design-models"
 
 <LessonStep id="ride-orientation"><FocusOnly>
 <div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--line)] bg-white"><img src="/images/ride-sharing-overview.png" alt="Three drivers take different weighted road routes to a rider before the selected ride continues to its destination" className="h-full w-full object-contain" /></div><p className="mt-3 shrink-0 text-xs leading-5 text-[var(--muted)]">A driver who looks close may be slow by road. Dispatch first compares routes to the pickup; the accepted ride then keeps a separate route to the destination.</p></div>
@@ -32,22 +35,22 @@ import { rideSharingClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="ride-entity-transition"><FocusOnly><PassiveLearningCards intro="With requirements fixed, extract nouns—but keep only candidates that own state, enforce a rule, carry one meaningful value, or define replaceable behavior." items={[{ title: "Graph candidates", body: "Location, Road, RoadGraph, and Route." }, { title: "People and intent", body: "Rider, Driver, and RideRequest." }, { title: "Algorithms", body: "RoutingStrategy and DriverMatchingStrategy." }, { title: "Workflow", body: "DriverMatch, Ride, results, and RideService." }, { title: "Supporting values", body: "Driver, ride, match, and action statuses." }, { title: "Rejected nouns", body: "Vehicle, payment, map display, and GPS tracking." }]} conclusion="Next, choose the smallest useful model for each candidate." /></FocusOnly></LessonStep>
 
-<LessonStep id="ride-modeling-vocabulary"><FocusOnly><PassiveLearningCards intro="Use the smallest modeling choice that can satisfy the confirmed requirements." items={[{ title: "Class", body: "Owns changing state and protects rules on that state." }, { title: "Interface", body: "Defines behavior with more than one plausible implementation." }, { title: "Enum", body: "Represents a small fixed set of valid states or outcomes." }, { title: "Immutable value", body: "Several stable values travel together and need value equality." }, { title: "Field", body: "A simple value belonging inside another object." }, { title: "Leave out", body: "No confirmed rule needs the concept yet." }]} /></FocusOnly></LessonStep>
+<LessonStep id="ride-modeling-vocabulary"><FocusOnly><PassiveLearningCards intro="Use the smallest modeling choice that can satisfy the confirmed requirements." items={[{ title: "Class", body: "Owns changing state and protects rules on that state." }, { title: "Interface", body: "Defines behavior with more than one plausible implementation." }, { title: "Enum", body: "Represents a small fixed set of valid states or outcomes." }, { title: "Record", body: "A Java record carries validated immutable data with value equality." }, { title: "Field", body: "A simple value belonging inside another object." }, { title: "Leave out", body: "No confirmed rule needs the concept yet." }]} /></FocusOnly></LessonStep>
 
 <LessonStep id="ride-classes"><FocusOnly><RideClassPicker /></FocusOnly></LessonStep>
 
-<LessonStep id="ride-values"><FocusOnly><ClassificationChallenge instruction="Give every remaining concept its smallest useful representation." categories={[{ id: "value", label: "Value" }, { id: "interface", label: "Interface" }, { id: "enum", label: "Enum" }, { id: "leave", label: "Leave out" }]} items={[{ id: "route", label: "Location, Road, Route", answer: "value", feedback: "Each bundles stable facts used throughout graph calculations." }, { id: "request", label: "Rider, RideRequest, DriverMatch, results", answer: "value", feedback: "These values carry identity, intent, or one completed decision." }, { id: "strategies", label: "RoutingStrategy and DriverMatchingStrategy", answer: "interface", feedback: "Both algorithms can vary while their callers remain stable." }, { id: "statuses", label: "Driver, Ride, Match, action statuses", answer: "enum", feedback: "They are closed sets that reject invalid strings." }, { id: "extras", label: "Vehicle, Payment, GPS tracker", answer: "leave", feedback: "No confirmed rule uses these production concepts." }]} success="Every candidate now has the smallest useful shape." /></FocusOnly></LessonStep>
+<LessonStep id="ride-values"><FocusOnly><ClassificationChallenge instruction="Give every remaining concept its smallest useful representation." categories={[{ id: "value", label: "Record" }, { id: "interface", label: "Interface" }, { id: "enum", label: "Enum" }, { id: "leave", label: "Leave out" }]} items={[{ id: "route", label: "Location, Road, Route", answer: "value", feedback: "Each is a Java record carrying stable facts used throughout graph calculations." }, { id: "request", label: "Rider, RideRequest, DriverMatch, results", answer: "value", feedback: "These records carry identity, intent, or one completed decision." }, { id: "strategies", label: "RoutingStrategy and DriverMatchingStrategy", answer: "interface", feedback: "Both algorithms can vary while their callers remain stable." }, { id: "statuses", label: "Driver, Ride, Match, action statuses", answer: "enum", feedback: "They are closed sets that reject invalid strings." }, { id: "extras", label: "Vehicle, Payment, GPS tracker", answer: "leave", feedback: "No confirmed rule uses these production concepts." }]} success="Every candidate now has the smallest useful shape." /></FocusOnly></LessonStep>
 
 <LessonStep id="ride-ownership"><FocusOnly><RideOwnershipQuiz /></FocusOnly></LessonStep>
 <LessonStep id="ride-entity-flow"><FocusOnly><RideRequestFlow /></FocusOnly></LessonStep>
 
-<LessonStep id="ride-entity-summary"><FocusOnly><EntityModelSummary items={[{ name: "RoadGraph", kind: "Class", purpose: "Owns locations and directed adjacency lists." }, { name: "Driver", kind: "Class", purpose: "Owns availability and current location." }, { name: "Ride", kind: "Class", purpose: "Owns accepted routes and lifecycle." }, { name: "RideService", kind: "Class", purpose: "Coordinates validation, matching, IDs, and state changes." }, { name: "Location · Road · Route", kind: "Immutable value", purpose: "Carry stable graph and path facts." }, { name: "Rider · RideRequest", kind: "Immutable value", purpose: "Carry identity and request intent." }, { name: "DriverMatch · Results", kind: "Immutable value", purpose: "Return completed decisions safely." }, { name: "RoutingStrategy", kind: "Interface", purpose: "Keeps path calculation replaceable." }, { name: "DriverMatchingStrategy", kind: "Interface", purpose: "Keeps driver selection replaceable." }]} enums={["DriverStatus", "RideStatus", "MatchStatus", "RideActionStatus"]} fields={["location ID", "travel minutes", "pickup", "destination", "next ride number"]} omitted={["Vehicle", "Payment", "GPS tracker", "Map display"]} relationship="Routing finds paths; Matching compares drivers using those paths; RideService changes Driver and Ride only after both route decisions succeed." /></FocusOnly></LessonStep>
+<LessonStep id="ride-entity-summary"><FocusOnly><EntityModelSummary model={rideSharingEntityModel} /></FocusOnly></LessonStep>
 
 <LessonStep id="ride-principles"><FocusOnly><ClassificationChallenge instruction="Match each failure to the principle that prevents it." categories={[{ id: "encapsulation", label: "Encapsulation" }, { id: "srp", label: "Single responsibility" }, { id: "immutable", label: "Immutability" }, { id: "dip", label: "Dependency inversion" }, { id: "separation", label: "Algorithm separation" }]} items={[{ id: "request", label: "Accepted endpoints change later", answer: "immutable", feedback: "Immutable request and route values preserve accepted facts." }, { id: "status", label: "Caller writes driver status directly", answer: "encapsulation", feedback: "Private state and guarded methods prevent double assignment." }, { id: "traversal", label: "RideService traverses graph edges", answer: "srp", feedback: "The coordinator should not own shortest-path mechanics." }, { id: "concrete", label: "Service constructs Dijkstra directly", answer: "dip", feedback: "Depending on RoutingStrategy keeps the high-level workflow independent." }, { id: "mixed", label: "Dijkstra filters BUSY drivers", answer: "separation", feedback: "Routing calculates a path; matching applies driver business rules." }]} callout="These principles protect the exact failures above; they are not decoration." success="Every principle now solves a concrete design failure." /></FocusOnly></LessonStep>
 
 <LessonStep id="ride-design-method"><FocusOnly><PassiveLearningCards intro="Design each class with one repeatable chain." items={[{ title: "1. Responsibility", body: "Name the job created by a requirement." }, { title: "2. State", body: "Store only information needed for that job." }, { title: "3. Behavior", body: "Keep checks beside the state they use." }, { title: "4. Public API", body: "Expose use cases without exposing internals." }, { title: "5. Relationships", body: "Compose objects with different jobs." }, { title: "6. Patterns", body: "Abstract only behavior that genuinely varies." }]} conclusion="We will move from graph values to algorithms, state owners, and finally RideService." /></FocusOnly></LessonStep>
 
-<LessonStep id="ride-graph-values-design"><FocusOnly><PassiveLearningCards intro="These immutable values make graph operations precise." items={[{ title: "Location", body: "Stable ID and display name identify one graph node." }, { title: "Road", body: "From, to, and positive minutes describe one directed edge." }, { title: "Route", body: "Ordered location IDs and total minutes form one answer." }, { title: "Two-way road", body: "Store two directed Road values instead of adding a Dijkstra special case." }]} conclusion="Value equality and List.copyOf keep route facts safe after construction." /></FocusOnly></LessonStep>
+<LessonStep id="ride-graph-values-design"><FocusOnly><PassiveLearningCards intro="These immutable Java records make graph operations precise." items={[{ title: "Location", body: "Stable ID and display name identify one graph node." }, { title: "Road", body: "From, to, and positive minutes describe one directed edge." }, { title: "Route", body: "Ordered location IDs and total minutes form one answer." }, { title: "Two-way road", body: "Store two directed Road records instead of adding a Dijkstra special case." }]} conclusion="Record value equality and List.copyOf keep route facts safe after construction." /></FocusOnly></LessonStep>
 
 <LessonStep id="ride-graph-design"><FocusOnly><ClassificationChallenge instruction="Classify what RoadGraph owns and what belongs elsewhere." categories={[{ id: "state", label: "State" }, { id: "behavior", label: "Behavior" }, { id: "other", label: "Not graph" }]} items={[{ id: "winner", label: "Choose a driver", answer: "other", feedback: "DriverMatchingStrategy owns that business decision." }, { id: "locations", label: "Locations and outgoing roads", answer: "state", feedback: "These maps are the graph's adjacency representation." }, { id: "add", label: "Validate and add roads", answer: "behavior", feedback: "RoadGraph has the locations needed to reject invalid edges." }, { id: "route", label: "Run Dijkstra", answer: "other", feedback: "RoutingStrategy owns the replaceable algorithm." }, { id: "read", label: "Return immutable roads from a node", answer: "behavior", feedback: "Routing needs safe adjacency reads without graph mutation." }]} callout="Encapsulation keeps the adjacency lists private and read-only to routing." success="RoadGraph owns map structure, not route or dispatch decisions." /></FocusOnly></LessonStep>
 
@@ -369,62 +372,46 @@ Do not start with `Rider`, `Driver`, and `Ride`. First ask what a request contai
 
 <QuestionGuide />
 
-### Ask questions and record what each answer changes
+### Ask these questions
 
 <QuestionAnswer
   ask="Which actions must the first version support?"
-  why="Requesting, accepting, canceling, pricing, and payment are different workflows."
   answer="A registered rider requests one ride. The system matches an available driver. The ride can then start and complete."
-  derived="Provide requestRide(request), startRide(rideId), and completeRide(rideId). Leave driver acceptance, cancellation, fare, and payment out."
 />
 
 <QuestionAnswer
   ask="What locations does a ride request contain?"
-  why="Coordinates, postal addresses, and road intersections lead to different models."
   answer="The interview version uses pre-created road-graph location IDs for pickup and destination. They must exist and be different."
-  derived="RideRequest stores riderId, pickupId, and destinationId. Unknown or equal locations return a rejected status before any driver changes."
 />
 
 <QuestionAnswer
   ask="How is the driver chosen?"
-  why="‘Nearest’ could mean straight-line distance, road distance, or estimated travel time."
   answer="Consider only AVAILABLE drivers who can reach the pickup. Choose the smallest road travel time; break equal times by driver ID."
-  derived="DriverMatchingStrategy asks RoutingStrategy for each available driver's route to pickup, then compares route minutes and driver ID."
 />
 
 <QuestionAnswer
   ask="Do we also need a route from pickup to destination before matching?"
-  why="A driver should not become busy for a trip the road graph cannot complete."
   answer="Yes. Validate the trip route first. If pickup cannot reach destination, reject without matching or changing a driver."
-  derived="RideService calculates pickup-to-destination before driver selection. State changes only after both tripRoute and pickupRoute exist."
 />
 
 <QuestionAnswer
   ask="What road information is available, and may weights be negative?"
-  why="The graph shape and weight rules decide which shortest-path algorithm is correct."
   answer="Intersections are locations, directed road segments are edges, and each positive integer weight is travel minutes. Some roads may be two-way."
-  derived="RoadGraph stores directed Road values with minutes > 0. Dijkstra is valid because every edge weight is non-negative."
 />
 
 <QuestionAnswer
   ask="What changes when a driver is matched and when the ride completes?"
-  why="Matching the same available driver twice would create two active rides."
   answer="A matched driver becomes BUSY. On completion, the ride becomes COMPLETED, the driver moves to the destination, and becomes AVAILABLE."
-  derived="Driver owns status and currentLocationId. Ride owns MATCHED → IN_PROGRESS → COMPLETED. RideService coordinates the two objects."
 />
 
 <QuestionAnswer
   ask="What happens if the trip is unreachable or no available driver can reach pickup?"
-  why="A failed request must not consume a ride ID or leave one driver busy."
   answer="Return UNREACHABLE_TRIP or NO_DRIVER_AVAILABLE. Do not create Ride and do not change any Driver."
-  derived="Perform all route and match calculations before incrementing nextRideNumber, calling driver.assign(), or adding to ridesById."
 />
 
 <QuestionAnswer
   ask="Which map, traffic, scale, storage, and concurrency concerns are in scope?"
-  why="Production ride sharing is a distributed geospatial system; this interview task is object design plus honest routing."
   answer="Use one fixed in-memory graph, pre-created users, static travel minutes, and sequential calls. Exclude GPS streaming, traffic, spatial indexes, persistence, and concurrent dispatch."
-  derived="Keep the core deterministic and local. Discuss live traffic, A*, geographic lookup, locks, and transactions only as extensions."
 />
 
 ### Confirm the specification
@@ -450,115 +437,7 @@ Do not start with `Rider`, `Driver`, and `Ride`. First ask what a request contai
 
 Scan the specification for nouns: rider, driver, location, road, graph, ride request, route, match, ride, status, vehicle, payment, and map. These are candidates, not automatic classes. Ask what each must remember or decide.
 
-<CandidateWalkthrough
-  name="Location"
-  fromRequirement="Requests and routes refer to pre-created road intersections by stable ID."
-  question="Is a location only a string, or do several values form one meaningful identity?"
-  reasoning="An ID and display name belong together and need value equality. Coordinates are not required by the chosen routing algorithm."
-  decision="Class"
->
-  Use an immutable `Location` record with `id` and `name`. Add coordinates only when A* or geographic lookup becomes a requirement.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Road"
-  fromRequirement="Each directed road connects two known locations and owns a positive travel-time weight."
-  question="Which values must travel together whenever the graph examines a neighbour?"
-  reasoning="From, to, and minutes describe one edge. Keeping them separate would make it easy to lose the weight or reverse a one-way road."
-  decision="Class"
->
-  Use an immutable `Road` record. A two-way street becomes two Road values rather than a special case in Dijkstra.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="RoadGraph"
-  fromRequirement="Routing repeatedly asks which outgoing roads leave a location."
-  question="Which object owns the locations and their directed adjacency lists?"
-  reasoning="Neither Driver nor Ride should build neighbour lists. RoadGraph has the state required to validate roads and answer that question."
-  decision="Class"
->
-  `RoadGraph` owns locations and adjacency lists. It exposes immutable road lists so routing cannot edit the map.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Route"
-  fromRequirement="A match must explain the ordered path and total minutes for pickup and trip travel."
-  question="Are a node list and its total cost meaningful only together?"
-  reasoning="Yes. Returning only minutes loses the path; returning only nodes makes every caller recalculate the cost. Both are one immutable result."
-  decision="Class"
->
-  `Route` stores an ordered location-ID list and `totalMinutes`.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="RoutingStrategy"
-  fromRequirement="The fixed graph currently uses Dijkstra, while a future map may use A* or an external route engine."
-  question="Which behavior can change without changing drivers or ride lifecycle?"
-  reasoning="Only finding a path between two locations varies. The result remains Route regardless of the algorithm."
-  decision="Interface"
->
-  `RoutingStrategy.route(graph, start, target)` isolates the path algorithm. `DijkstraRoutingStrategy` is the complete first implementation.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Driver"
-  fromRequirement="Matching filters by availability, and completion changes both availability and current location."
-  question="Which object owns the state used by assign and complete?"
-  reasoning="Driver has exactly the information required to protect those changes. A service should ask Driver rather than writing status fields directly."
-  decision="Class"
->
-  `Driver` owns `currentLocationId`, `DriverStatus`, `assign`, and `completeAt`.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Rider and RideRequest"
-  fromRequirement="A stable rider must exist, while each request carries one pickup and destination."
-  question="Which values are stable identity and which describe one action?"
-  reasoning="Rider identity is reused. RideRequest is short-lived input. Neither changes after construction in this scope."
-  decision="Class"
->
-  Use immutable records for both. RideRequest describes intent; it does not claim a driver was assigned.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="DriverMatchingStrategy"
-  fromRequirement="Candidate filtering and the minutes-plus-ID comparison are business rules separate from route calculation."
-  question="Who chooses among drivers without owning graph traversal?"
-  reasoning="The matcher can ask RoutingStrategy for each pickup route, then compare Route results. It should not reimplement Dijkstra."
-  decision="Interface"
->
-  `NearestDriverMatchingStrategy` implements the confirmed policy. A future rating-aware matcher can reuse the same RoutingStrategy.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Ride"
-  fromRequirement="A successful request must keep rider, driver, both routes, endpoints, ID, and lifecycle state together."
-  question="Which object has enough information to reject an invalid start or completion?"
-  reasoning="Ride owns its status and therefore owns transition guards. Driver still owns availability and location."
-  decision="Class"
->
-  `Ride` owns MATCHED → IN_PROGRESS → COMPLETED. It keeps the accepted routes as historical facts.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Statuses"
-  fromRequirement="Driver, ride, matching, and ride actions each have small fixed outcome sets."
-  question="Would strings add behavior or only permit invalid values?"
-  reasoning="Only invalid values. Enums make both state and expected rejection reasons explicit."
-  decision="Enum"
->
-  Use `DriverStatus`, `RideStatus`, `MatchStatus`, and `RideActionStatus`.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Vehicle and Payment"
-  fromRequirement="Vehicle details, pricing, and payment are absent from the confirmed workflow."
-  question="What rule would these classes perform in this version?"
-  reasoning="None. A Driver's car model does not affect matching, and no fare is charged. Adding these names would pretend unfinished features exist."
-  decision="Leave out"
->
-  Add vehicle capability or payment objects only after a requirement uses them.
-</CandidateWalkthrough>
+<EntityModelOverview model={rideSharingEntityModel} />
 
 ### See one request move through the objects
 
@@ -583,68 +462,9 @@ Bridge the entities into code with the usual chain:
 
 Start at `RideService.requestRide` because it receives the main user action. Then follow the questions it delegates: can the trip be routed, which driver wins, and which objects change after success?
 
-### Design immutable graph values and RoadGraph
+<ClassDesignExplorer topic={rideSharingClassDesign} />
 
-`Location` gives a node stable identity. `Road` records one directed edge and its positive travel time. `Route` freezes the ordered location IDs and total minutes returned by an algorithm. None owns changing dispatch state.
-
-<DerivationTable rows={[
-  ["Identify a graph node", "Location value", "id and name"],
-  ["Represent one directed weighted edge", "Road value", "fromId, toId, travelMinutes"],
-  ["Return one completed path", "Route value", "locationIds and totalMinutes"],
-  ["Own all known nodes and outgoing edges", "RoadGraph state", "locationsById and adjacency map"],
-  ["Protect graph structure from callers", "RoadGraph API", "containsLocation and immutable outgoingRoads"]
-]} />
-
-RoadGraph validates and stores map facts; it does not calculate routes or inspect Drivers. `RoutingStrategy.route(graph, start, target)` is the algorithm boundary. Dijkstra is one implementation that reads the graph and returns an optional immutable Route.
-
-### Design Rider, Driver, and RideRequest
-
-`Rider` and `RideRequest` are immutable identity and intent. `Driver` is deliberately mutable because availability and current location change across accepted rides. Its guarded `assign` and `completeAt` methods replace public setters.
-
-<DerivationTable rows={[
-  ["Identify the caller", "Rider value", "id and name"],
-  ["Carry pickup and destination intent", "RideRequest value", "riderId, pickupId, destinationId"],
-  ["Filter only reusable drivers", "Driver state", "DriverStatus status"],
-  ["Route from the live position", "Driver state", "currentLocationId"],
-  ["Prevent double assignment", "Driver behavior", "assign()"],
-  ["Release at the destination", "Driver behavior", "completeAt(destinationId)"]
-]} />
-
-### Derive the request workflow
-
-“Reject without changing state” decides the order. Trip routing and driver comparison happen before ID creation and `Driver.assign`. The service coordinates those calls, but it does not traverse graph edges or edit Driver fields.
-
-<DerivationTable rows={[
-  ["Validate registered rider", "RideService", "ridersById and requestRide"],
-  ["Validate known, different locations", "RideService", "RoadGraph.containsLocation"],
-  ["Reject an impossible trip first", "RideService", "routing.route(pickup, destination)"],
-  ["Choose among available drivers", "RideService", "DriverMatchingStrategy"],
-  ["Keep successful IDs deterministic", "RideService", "nextRideNumber after all validation"],
-  ["Find rides for later actions", "RideService", "ridesById"],
-  ["Coordinate driver and ride changes", "RideService", "startRide and completeRide"]
-]} />
-
-### Derive state-owning objects
-
-“A driver cannot be matched twice” creates Driver status and `assign`. “Completion updates location” creates `completeAt`. “Ride transitions are ordered” creates status and guarded methods on Ride.
-
-<DerivationTable rows={[
-  ["Filter only available drivers", "Driver", "DriverStatus status"],
-  ["Route from current position", "Driver", "currentLocationId"],
-  ["Prevent double assignment", "Driver", "assign()"],
-  ["Become reusable at destination", "Driver", "completeAt(destinationId)"],
-  ["Keep accepted endpoints and routes", "Ride", "pickupId, destinationId, pickupRoute, tripRoute"],
-  ["Allow only ordered transitions", "Ride", "start() and complete()"],
-  ["Expose expected failures", "RideService", "MatchResult and RideActionStatus"]
-]} />
-
-`Ride` owns accepted endpoints, both routes, the chosen driver, and the lifecycle `MATCHED → IN_PROGRESS → COMPLETED`. It exposes guarded `start` and `complete` behavior rather than a public status setter. A rejected or repeated transition returns a named result and leaves both Ride and Driver unchanged.
-
-### Derive matching and the RideService API
-
-`DriverMatchingStrategy` filters AVAILABLE drivers, asks RoutingStrategy for each pickup route, ignores unreachable candidates, and compares travel minutes followed by driver ID. It does not traverse graph edges itself and cannot assign the winner.
-
-RideService exposes `requestRide`, `startRide`, `completeRide`, and safe reads. Rider lookup, trip-route validation, matching, ID allocation, indexing, and coordinated Driver/Ride changes stay internal. The graph, strategy objects, and mutable collections never escape.
+The explorer keeps RoadGraph storage, routing, matching, and accepted state changes separate. The next sections focus on the algorithm owned by RoutingStrategy and the graph data it reads.
 
 ### Routing concept: turn roads into a graph
 

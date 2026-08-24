@@ -7,6 +7,7 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ticTacToeClassDiagrams } from "@/lib/class-diagrams";
+import type { EntityModel } from "@/lib/entity-models";
 import { cn } from "@/lib/utils";
 
 export type LearningChoice = {
@@ -58,38 +59,29 @@ export function PassiveLearningCards({ intro, items, conclusion }: { intro: stri
   </section>;
 }
 
-export type EntityModelSummaryItem = {
-  name: string;
-  kind: "Class" | "Interface" | "Immutable value";
-  purpose: string;
-};
-
-export function EntityModelSummary({ items, enums = [], fields = [], infrastructure = [], omitted, relationship }: {
-  items: EntityModelSummaryItem[];
-  enums?: string[];
-  fields?: string[];
-  infrastructure?: string[];
-  omitted: string[];
-  relationship: string;
-}) {
+export function EntityModelSummary({ model }: { model: EntityModel }) {
+  const { items, enums, fields, infrastructure = [], omitted } = model;
+  const dense = items.length > 10;
   const supporting = [
-    { label: "Enums", values: enums },
-    { label: "Fields", values: fields },
-    { label: "Infrastructure", values: infrastructure },
+    { label: "Enums", values: enums.map((item) => item.name) },
+    { label: "Fields", values: fields.map((item) => item.name) },
+    { label: "Infrastructure", values: infrastructure.map((item) => item.name) },
     { label: "Left out", values: omitted },
   ].filter((group) => group.values.length > 0);
 
   return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-2.5 sm:p-4">
-    <p className="shrink-0 text-[10px] font-medium leading-4 text-[var(--muted)] sm:text-xs sm:leading-5">This is the model we will design. Every type has one clear job.</p>
-    <div aria-label="Final entity model" className="mt-2 grid min-h-0 grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
-      {items.map((item) => <article key={item.name} className="min-w-0 rounded-lg border border-[var(--line)] bg-white px-2 py-1.5 sm:px-2.5 sm:py-2">
-        <p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[var(--accent-dark)] sm:text-[8px]">{item.kind === "Immutable value" ? "Value" : item.kind}</p>
-        <span className="mt-0.5 block min-w-0 break-words font-mono text-[9px] font-extrabold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{item.name}</span>
-        <p className="mt-1 break-words text-[8px] leading-3 text-[var(--muted)] sm:text-[9px] sm:leading-4">{item.purpose}</p>
+    <p className={cn("shrink-0 font-medium text-[var(--muted)]", dense ? "text-[8px] leading-3 sm:text-[10px] sm:leading-4" : "text-[10px] leading-4 sm:text-xs sm:leading-5")}>This is the model we will design. Every type has one clear job.</p>
+    <div aria-label="Final entity model" className={cn("mt-2 grid shrink-0 grid-cols-2 sm:grid-cols-3", dense ? "gap-1" : "gap-1.5 sm:gap-2")}>
+      {items.map((item) => <article key={item.name} className={cn("min-w-0 rounded-lg border border-[var(--line)] bg-white", dense ? "px-1.5 py-1" : "px-2 py-1.5 sm:px-2.5 sm:py-2")}>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0">
+          <span className="min-w-0 break-words font-mono text-[9px] font-extrabold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{item.name}</span>
+          <span className="text-[6px] font-extrabold uppercase tracking-[0.06em] text-[var(--accent-dark)] sm:text-[7px]">{item.kind}</span>
+        </div>
+        <p className={cn("break-words text-[var(--muted)]", dense ? "mt-0.5 text-[8px] leading-3" : "mt-1 text-[8px] leading-3 sm:text-[9px] sm:leading-4")}>{item.purpose}</p>
       </article>)}
     </div>
     <div aria-label="Supporting model choices" className="mt-2 grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-4">{supporting.map((group) => <article key={group.label} className="min-w-0 rounded-lg border border-[var(--line)] bg-white px-2 py-1.5"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[var(--accent-dark)] sm:text-[8px]">{group.label}</p><p className="mt-0.5 break-words text-[8px] leading-3 text-[var(--muted)] sm:text-[9px] sm:leading-4">{group.values.join(", ")}</p></article>)}</div>
-    <div className="mt-2 shrink-0 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-2.5 py-1.5 sm:px-3 sm:py-2"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[#24785f] sm:text-[8px]">How it fits together</p><p className="mt-0.5 break-words text-[9px] font-bold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{relationship}</p></div>
+    <div className="mt-2 shrink-0 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-2.5 py-1.5 sm:px-3 sm:py-2"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[#24785f] sm:text-[8px]">How it fits together</p><p className="mt-0.5 break-words text-[9px] font-bold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{model.relationship}</p></div>
   </section>;
 }
 
@@ -318,17 +310,17 @@ export function ClarificationAnswerDeck() {
 }
 
 const entityCandidates = [
-  { id: "game", label: "Game", isClass: true, feedback: "Game remembers the current player, status, and winner while coordinating a complete move." },
-  { id: "board", label: "Board", isClass: true, feedback: "Board owns the changing cells and every rule that can be answered from them." },
-  { id: "player", label: "Player", isClass: true, feedback: "Player keeps a name and assigned mark together as one stable identity." },
-  { id: "cell", label: "Cell", isClass: false, feedback: "A cell adds no behavior here; one Mark value inside Board is enough." },
-  { id: "mark", label: "Mark", isClass: false, feedback: "X and O are choices from a fixed set, so Mark is an enum." },
-  { id: "winning-rule", label: "WinningRule", isClass: false, feedback: "There is only one fixed winning rule, so a separate abstraction would be premature." },
+  { id: "game", label: "Game", kind: "Class", feedback: "Game remembers the current player, status, and winner while coordinating a complete move." },
+  { id: "board", label: "Board", kind: "Class", feedback: "Board owns the changing cells and every rule that can be answered from them." },
+  { id: "player", label: "Player", kind: "Record", feedback: "Player is validated, immutable identity data, so a Java record fits it." },
+  { id: "cell", label: "Cell", kind: null, feedback: "A cell adds no behavior here; one Mark value inside Board is enough." },
+  { id: "mark", label: "Mark", kind: null, feedback: "X and O are choices from a fixed set, so Mark is an enum." },
+  { id: "winning-rule", label: "WinningRule", kind: null, feedback: "There is only one fixed winning rule, so a separate abstraction would be premature." },
 ] as const;
 
 const entityIntroductionSteps = [
   ["Extract candidates", "Find nouns such as Game, Board, Player, Cell, Mark, and WinningRule."],
-  ["Choose real classes", "Keep candidates that own meaningful state, behavior, or rules."],
+  ["Choose real types", "Use classes for state owners and records for validated immutable data."],
   ["Model simple concepts", "Use enums for fixed choices and fields or parameters for simple values."],
   ["Assign responsibility", "Put each rule beside the object that owns the information it needs."],
   ["Trace the relationships", "Follow one move through Player, Game, and Board."],
@@ -356,7 +348,7 @@ export function EntityClassPicker() {
   const [selected, setSelected] = useState<string[]>([]);
   const [checked, setChecked] = useState(false);
   const [reviewId, setReviewId] = useState<string | null>(null);
-  const expected = entityCandidates.filter((candidate) => candidate.isClass).map((candidate) => candidate.id);
+  const expected = entityCandidates.filter((candidate) => candidate.kind !== null).map((candidate) => candidate.id);
   const isCorrect = selected.length === expected.length && expected.every((id) => selected.includes(id));
   const reviewed = entityCandidates.find((candidate) => candidate.id === reviewId);
 
@@ -368,12 +360,12 @@ export function EntityClassPicker() {
 
   return (
     <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
-      <p className="text-xs leading-5 text-[var(--muted)]">Select every concept that owns meaningful state or rules.</p>
+      <p className="text-xs leading-5 text-[var(--muted)]">Select every concept that deserves a class or Java record.</p>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {entityCandidates.map((candidate) => checked ? (
-          <button key={candidate.id} type="button" aria-pressed={reviewId === candidate.id} onClick={() => setReviewId(candidate.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", candidate.isClass ? "border-[#92c8b5] bg-[var(--mint-soft)]" : "border-[#efc2bb] bg-[#fff3f0]", reviewId === candidate.id && "ring-2 ring-[var(--ink)]")}>
+          <button key={candidate.id} type="button" aria-pressed={reviewId === candidate.id} onClick={() => setReviewId(candidate.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", candidate.kind ? "border-[#92c8b5] bg-[var(--mint-soft)]" : "border-[#efc2bb] bg-[#fff3f0]", reviewId === candidate.id && "ring-2 ring-[var(--ink)]")}>
             <span className="text-xs font-extrabold text-[var(--ink)]">{candidate.label}</span>
-            <span className={cn("text-[9px] font-extrabold uppercase", candidate.isClass ? "text-[#24785f]" : "text-[#a23d2e]")}>{candidate.isClass ? "Class" : "Not class"}</span>
+            <span className={cn("text-[9px] font-extrabold uppercase", candidate.kind ? "text-[#24785f]" : "text-[#a23d2e]")}>{candidate.kind ?? "Keep simple"}</span>
           </button>
         ) : (
           <label key={candidate.id} className={cn("flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs font-extrabold text-[var(--ink)]", selected.includes(candidate.id) ? "border-[var(--ink)]" : "border-[var(--line)]")}>
@@ -385,7 +377,7 @@ export function EntityClassPicker() {
       {checked && reviewed && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[10px] leading-4 text-[var(--muted)]"><strong className="text-[var(--ink)]">{reviewed.label}: </strong>{reviewed.feedback}</div>}
       <div className="mt-3 flex items-center gap-3">
         {!checked ? <Button size="sm" disabled={selected.length === 0} onClick={() => { setChecked(true); setReviewId("cell"); }}>Check classes</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}
-        <p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "Exactly right." : "Review each Class label.")}</p>
+        <p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "Exactly right." : "Review each modeling label.")}</p>
       </div>
     </section>
   );

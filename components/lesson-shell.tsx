@@ -36,17 +36,25 @@ export function LessonShell({
   const [activeId, setActiveId] = useState(toc[0]?.id ?? "");
 
   useEffect(() => {
-    const observers = toc.map(({ id }) => {
-      const element = document.getElementById(id);
-      if (!element) return null;
-      const observer = new IntersectionObserver(
-        ([entry]) => entry.isIntersecting && setActiveId(id),
-        { rootMargin: "-18% 0px -70%", threshold: 0 },
-      );
-      observer.observe(element);
-      return observer;
-    });
-    return () => observers.forEach((observer) => observer?.disconnect());
+    const updateActiveSection = () => {
+      const readingLine = window.scrollY + window.innerHeight * 0.24;
+      let nextId = toc[0]?.id ?? "";
+      for (const { id } of toc) {
+        const element = document.getElementById(id);
+        if (element && element.offsetTop <= readingLine) nextId = id;
+      }
+      setActiveId(nextId);
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+    window.addEventListener("hashchange", updateActiveSection);
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+      window.removeEventListener("hashchange", updateActiveSection);
+    };
   }, [toc]);
 
   const curriculum = (
@@ -162,6 +170,7 @@ export function LessonShell({
             <a
               key={item.id}
               href={`#${item.id}`}
+              onClick={() => setActiveId(item.id)}
               className={cn(
                 "block border-l-2 py-1.5 pl-3 text-sm transition",
                 activeId === item.id ? "border-[var(--accent)] font-bold text-[var(--ink)]" : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]",

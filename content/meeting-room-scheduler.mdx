@@ -1,10 +1,13 @@
-import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, EntityModelOverview, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ClassDesignExplorer } from "@/components/class-design-explorer"
 import { MeetingRoomSchedulerSimulator } from "@/components/simulations/meeting-room-scheduler-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { EntityModelSummary } from "@/components/learning/learning-interactions"
 import { MeetingRoomFocusSlide } from "@/components/learning/meeting-room-scheduler-focus"
 import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
 import { meetingRoomClassDiagrams } from "@/lib/class-diagrams"
+import { meetingRoomEntityModel } from "@/lib/entity-models"
+import { meetingRoomClassDesign } from "@/lib/class-design-models"
 
 <LessonStep id="meeting-orientation"><FocusOnly><MeetingRoomFocusSlide id="meeting-orientation" /></FocusOnly></LessonStep>
 <LessonStep id="meeting-framework"><FocusOnly><MeetingRoomFocusSlide id="meeting-framework" /></FocusOnly></LessonStep>
@@ -21,22 +24,7 @@ import { meetingRoomClassDiagrams } from "@/lib/class-diagrams"
 <LessonStep id="meeting-values"><FocusOnly><MeetingRoomFocusSlide id="meeting-values" /></FocusOnly></LessonStep>
 <LessonStep id="meeting-ownership"><FocusOnly><MeetingRoomFocusSlide id="meeting-ownership" /></FocusOnly></LessonStep>
 <LessonStep id="meeting-entity-flow"><FocusOnly><MeetingRoomFocusSlide id="meeting-entity-flow" /></FocusOnly></LessonStep>
-<LessonStep id="meeting-entity-summary"><FocusOnly><EntityModelSummary
-  items={[
-    { name: "TimeSlot", kind: "Immutable value", purpose: "Validates boundaries and owns overlap reasoning." },
-    { name: "MeetingRequest", kind: "Immutable value", purpose: "Carries one organizer's scheduling intent." },
-    { name: "Meeting", kind: "Immutable value", purpose: "Records one accepted room reservation." },
-    { name: "Room", kind: "Class", purpose: "Owns suitability and its ordered schedule." },
-    { name: "RoomSelectionStrategy", kind: "Interface", purpose: "Keeps deterministic room choice replaceable." },
-    { name: "MeetingScheduler", kind: "Class", purpose: "Coordinates selection, IDs, indexing, and cancellation." },
-    { name: "ScheduleResult", kind: "Immutable value", purpose: "Returns a named scheduling outcome." }
-  ]}
-  enums={["Equipment", "ScheduleStatus", "CancellationStatus"]}
-  fields={["organizer ID", "attendee count", "room ID", "meeting ID"]}
-  infrastructure={["Room TreeMap schedule"]}
-  omitted={["Calendar class", "Organizer class", "Attendee class"]}
-  relationship="MeetingScheduler delegates selection to Strategy while each Room protects its own ordered schedule."
-/></FocusOnly></LessonStep>
+<LessonStep id="meeting-entity-summary"><FocusOnly><EntityModelSummary model={meetingRoomEntityModel} /></FocusOnly></LessonStep>
 <LessonStep id="meeting-principles"><FocusOnly><MeetingRoomFocusSlide id="meeting-principles" /></FocusOnly></LessonStep>
 <LessonStep id="meeting-design-method"><FocusOnly><MeetingRoomFocusSlide id="meeting-design-method" /></FocusOnly></LessonStep>
 <LessonStep id="meeting-immutable-values"><FocusOnly><MeetingRoomFocusSlide id="meeting-immutable-values" /></FocusOnly></LessonStep>
@@ -97,55 +85,41 @@ Do not begin with a `Room` class. First turn the vague prompt into actions whose
 
 <QuestionGuide />
 
-### Ask questions and record what each answer changes
+### Ask these questions
 
 <QuestionAnswer
   ask="Which actions must the first version support?"
-  why="Creating, changing, canceling, and recurring meetings are separate workflows. We need a small complete core."
   answer="An organizer submits one meeting request. The system chooses a room and returns a meeting ID. The same organizer may later cancel it."
-  derived="Provide schedule(request) and cancel(meetingId, organizerId). Rescheduling is cancel followed by a new schedule request."
 />
 
 <QuestionAnswer
   ask="What makes a room suitable before we check its calendar?"
-  why="Availability alone is not enough if the room is too small or lacks required equipment."
   answer="A request contains an attendee count and zero or more required equipment values. A room needs enough capacity and every required item."
-  derived="Room must answer whether capacity >= attendeeCount and room equipment contains all required equipment."
 />
 
 <QuestionAnswer
   ask="Who chooses the room, and which suitable room wins?"
-  why="Without an ordering, two correct implementations may return different rooms and tests become unpredictable."
   answer="The system chooses the smallest suitable available room. If capacities tie, choose the lower room ID. Keep the policy replaceable."
-  derived="Use a RoomSelectionStrategy. The first implementation compares capacity and then room ID after filtering unsuitable or busy rooms."
 />
 
 <QuestionAnswer
   ask="Does a meeting from 09:00 to 10:00 block a meeting starting exactly at 10:00?"
-  why="The answer changes the overlap formula and whether back-to-back meetings are possible."
   answer="No. Treat every slot as [start, end): start is included and end is excluded."
-  derived="Two slots overlap only when first.start < second.end and second.start < first.end. Equal touching boundaries do not overlap."
 />
 
 <QuestionAnswer
   ask="What happens when no room satisfies every rule?"
-  why="A failed request must not leave a partial meeting or change a room schedule."
   answer="Return NO_ROOM_AVAILABLE. Do not create a meeting ID or reserve any room."
-  derived="Perform suitability and availability checks before constructing and recording the Meeting."
 />
 
 <QuestionAnswer
   ask="Who may cancel a meeting, and what does cancellation change?"
-  why="Cancellation needs an ownership rule and must remove the exact scheduled interval."
   answer="Only the organizer may cancel. An unknown ID or wrong organizer is rejected without changing the schedule."
-  derived="Meeting stores organizerId and roomId. cancel finds the meeting, checks ownership, removes it from its Room, and then removes the service index entry."
 />
 
 <QuestionAnswer
   ask="Which time-zone, attendee, recurrence, storage, and concurrency rules are in scope?"
-  why="Each of these can turn a focused LLD problem into a calendar or distributed-system design."
   answer="Use one office time zone and pre-created rooms. Calls reach one in-memory process sequentially. Leave recurring meetings, attendee calendars, persistence, and simultaneous callers for extensions."
-  derived="Use LocalDateTime in the core model. Do not add users, invitations, recurrence engines, databases, or locks to the first implementation."
 />
 
 ### Confirm the specification
@@ -169,95 +143,7 @@ Do not begin with a `Room` class. First turn the vague prompt into actions whose
 
 Scan the confirmed requirements for nouns: organizer, meeting request, time slot, meeting, room, equipment, calendar, selection rule, and scheduler. These are candidates, not automatic classes. Ask what each one must remember or decide.
 
-<CandidateWalkthrough
-  name="TimeSlot"
-  fromRequirement="Every request has a start and end, back-to-back meetings are allowed, and overlap has one exact rule."
-  question="Do start and end have meaning only as two separate fields, or do they form one concept with its own rule?"
-  reasoning="The values must always be valid together, and many objects need the same overlap calculation. Keeping them separate would repeat the hardest rule."
-  decision="Class"
->
-  Use an immutable `TimeSlot` record. Its constructor protects `start < end`, and `overlaps` owns the half-open interval formula.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="MeetingRequest"
-  fromRequirement="Scheduling receives a title, organizer, time slot, attendee count, and equipment requirements as one action."
-  question="Should these values travel as many parameters or one meaningful input?"
-  reasoning="They describe one requested meeting and should be validated and passed together. They do not change after submission."
-  decision="Class"
->
-  Use an immutable `MeetingRequest` record. It describes intent but does not claim that a room has been reserved.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Room"
-  fromRequirement="A room owns capacity, equipment, and the meetings that make it unavailable."
-  question="Which object has all the information required to answer ‘can this request use me?’"
-  reasoning="Room has the fixed suitability facts and its changing schedule. It can check both without exposing or letting callers edit the schedule map."
-  decision="Class"
->
-  `Room` owns its ordered schedule and the `canHost`, `isAvailable`, `reserve`, and `remove` rules.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Meeting"
-  fromRequirement="A successful schedule action returns an ID and must later reveal the organizer, room, and exact slot for cancellation."
-  question="What stable facts describe an accepted reservation?"
-  reasoning="The assigned room and meeting ID do not exist until selection succeeds. After creation, all meeting facts are a permanent record in this scope."
-  decision="Class"
->
-  Use an immutable `Meeting` record. It is the accepted result, unlike `MeetingRequest`, which is only a request.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="MeetingScheduler"
-  fromRequirement="The public action must find a room, issue an ID, record the meeting, and coordinate cancellation."
-  question="Who sees all rooms and accepted meeting IDs without taking over each room's overlap rule?"
-  reasoning="No single Room can compare itself with every other room or maintain the global meeting lookup. A coordinator is useful, but it should ask Room instead of reading Room's schedule fields."
-  decision="Class"
->
-  `MeetingScheduler` is the public entry point. It coordinates selection and indexes accepted meetings; `Room` still owns schedule correctness.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="RoomSelectionStrategy"
-  fromRequirement="The interviewer explicitly asks to keep room choice replaceable while smallest suitable is the current policy."
-  question="Which rule may change while scheduling and cancellation stay the same?"
-  reasoning="ID creation, overlap checking, and cancellation remain stable. Only the comparison among qualified rooms may later prefer location, floor, or equipment cost."
-  decision="Interface"
->
-  `RoomSelectionStrategy` isolates that one variation. `SmallestSuitableRoomStrategy` is the first implementation.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Equipment and result values"
-  fromRequirement="Equipment and expected outcomes come from small, fixed sets."
-  question="Do these values have changing state or identity?"
-  reasoning="No. Strings permit invalid spellings, while named choices make requirements and failures explicit."
-  decision="Enum"
->
-  Use enums for `Equipment`, `ScheduleStatus`, and `CancellationStatus`.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Organizer and attendee"
-  fromRequirement="The scheduler compares an organizer ID and counts attendees, but does not manage profiles or invitations."
-  question="What behavior would User or Attendee classes own in this scope?"
-  reasoning="None. We only need one identity string and one count. Creating profile objects would add names without adding rules."
-  decision="Field"
->
-  Keep `organizerId` and `attendeeCount` as fields. Add user objects only if attendee calendars or invitations become requirements.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="Calendar"
-  fromRequirement="The word calendar appears in the physical story, but the confirmed scope only stores meetings per room."
-  question="Would a separate Calendar object own state or behavior that Room does not already own?"
-  reasoning="No. It would wrap the same room schedule and forward every call. The real-world noun does not justify another layer."
-  decision="Leave out"
->
-  Keep the ordered schedule inside `Room`. Introduce a calendar abstraction only when several calendar types gain different rules.
-</CandidateWalkthrough>
+<EntityModelOverview model={meetingRoomEntityModel} />
 
 ### See one request move through the objects
 
@@ -282,48 +168,9 @@ Move from the entities into methods using the same chain:
 
 Start at `MeetingScheduler.schedule` because that is the caller-visible action. Then follow its questions downward: which rooms qualify, and how does one Room know that its time is free?
 
-### Design the immutable request and accepted values
+<ClassDesignExplorer topic={meetingRoomClassDesign} />
 
-`TimeSlot` owns interval validity and overlap because every room uses the same definition. `MeetingRequest` represents intent before a room is chosen. `Meeting` adds the accepted meeting and room IDs, while `ScheduleResult` makes acceptance or normal rejection explicit.
-
-<DerivationTable rows={[
-  ["Require start before end", "TimeSlot value", "constructor validation"],
-  ["Use one overlap rule everywhere", "TimeSlot behavior", "overlaps(other)"],
-  ["Carry scheduling intent", "MeetingRequest value", "title, organizer, slot, attendees, equipment"],
-  ["Remember an accepted reservation", "Meeting value", "meetingId and roomId plus request facts"],
-  ["Return a named normal outcome", "ScheduleResult value", "ScheduleStatus and optional Meeting"]
-]} />
-
-The records defensively copy equipment sets. Without `Set.copyOf`, a caller could change required equipment after scheduling and make the stored Meeting disagree with the Room that accepted it.
-
-### Derive the coordinating workflow
-
-“Choose among all rooms” creates a room list and Strategy. “Cancel by meeting ID” creates the global meeting index. “Do not create an ID on rejection” determines when the sequence advances: only after a room is selected.
-
-<DerivationTable rows={[
-  ["Accept one scheduling action", "MeetingScheduler", "schedule(MeetingRequest)"],
-  ["Compare all configured rooms", "MeetingScheduler", "List<Room> rooms"],
-  ["Keep room choice replaceable", "MeetingScheduler", "RoomSelectionStrategy strategy"],
-  ["Return unique accepted meeting IDs", "MeetingScheduler", "nextMeetingNumber"],
-  ["Cancel by meeting ID", "MeetingScheduler", "meetingsById and cancel(...)"],
-  ["Reject a different organizer", "MeetingScheduler", "compare Meeting.organizerId before removal"]
-]} />
-
-The scheduler's public API is `schedule`, `cancel`, and `meetingsForRoom`. Room selection, tentative ID construction, index updates, and organizer checks are internal workflow steps. It never exposes the room map or mutable schedules.
-
-### Derive the room's state and methods
-
-The room owns the information used by every local rule. Capacity and equipment decide suitability. Existing meetings decide availability. A `TreeMap` orders meetings by start time, which lets Room check only the neighbouring entries instead of scanning its complete day.
-
-<DerivationTable rows={[
-  ["Check attendee capacity", "Room", "capacity and canHost(request)"],
-  ["Check every equipment requirement", "Room", "Set<Equipment> equipment"],
-  ["Keep meetings ordered by start", "Room", "TreeMap<LocalDateTime, Meeting> schedule"],
-  ["Prevent time conflicts", "Room", "isAvailable(TimeSlot)"],
-  ["Change state only after validation", "Room", "reserve(Meeting)"],
-  ["Free the exact accepted interval", "Room", "remove(Meeting)"],
-  ["Expose schedule safely", "Room", "meetings() returns an immutable list"]
-]} />
+The explorer shows that Room—not MeetingScheduler—owns interval and schedule state. The next sections explain the half-open interval and TreeMap neighbour rules that make Room's invariant efficient.
 
 ### Scheduling concept: half-open intervals
 

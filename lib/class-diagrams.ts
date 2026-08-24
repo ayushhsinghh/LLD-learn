@@ -16,7 +16,7 @@ export const ticTacToeClassDiagrams: ClassDiagramDefinition[] = [
 ];
 
 export const parkingLotClassDiagrams: ClassDiagramDefinition[] = [
-  { id: "values", label: "Values", image: "/images/parking-lot-values-class.png", alt: "Sketch UML of Parking Lot immutable values", reading: "Vehicle, ticket, selection, and result objects carry completed decisions without exposing mutable parking state.", principle: "Immutability makes accepted inputs and returned facts safe to share." },
+  { id: "values", label: "Records", image: "/images/parking-lot-values-class.png", alt: "Sketch UML of Parking Lot records", reading: "Vehicle, ticket, selection, and result records carry completed decisions without exposing mutable parking state.", principle: "Immutability makes accepted inputs and returned facts safe to share." },
   { id: "spot", label: "Spot", image: "/images/parking-lot-spot-class.png", alt: "Sketch UML of ParkingSpot", reading: "ParkingSpot combines its fixed type with the one occupant it validates, stores, and releases.", principle: "Encapsulation keeps compatibility and occupation beside the state they protect." },
   { id: "floor", label: "Floor", image: "/images/parking-lot-floor-class.png", alt: "Sketch UML of ParkingFloor", reading: "ParkingFloor groups spots under one floor number and offers safe lookup and availability reads.", principle: "Cohesion gives the floor a narrow grouping responsibility without global allocation policy." },
   { id: "strategy", label: "Strategy", image: "/images/parking-lot-strategy-class.png", alt: "Sketch UML of SpotAssignmentStrategy", reading: "The Strategy reads floors and returns a SpotSelection; it never occupies a spot or creates a ticket.", principle: "Open/closed design localizes a replaceable ordering rule." },
@@ -24,7 +24,7 @@ export const parkingLotClassDiagrams: ClassDiagramDefinition[] = [
 ];
 
 export const movieBookingClassDiagrams: ClassDiagramDefinition[] = [
-  { id: "values", label: "Values", image: "/images/movie-ticket-booking-values-class.png", alt: "Sketch UML of Movie Booking immutable values", reading: "Movie, Seat, holds, bookings, and result values preserve facts that should not change after creation.", principle: "Immutability keeps request intent and accepted receipts stable." },
+  { id: "values", label: "Records", image: "/images/movie-ticket-booking-values-class.png", alt: "Sketch UML of Movie Booking records", reading: "Movie, Seat, hold, booking, and result records preserve facts that should not change after creation.", principle: "Immutability keeps request intent and accepted receipts stable." },
   { id: "physical", label: "Layout", image: "/images/movie-ticket-booking-physical-class.png", alt: "Sketch UML of Screen and physical Seat", reading: "Screen owns the permanent seat layout; it does not store whether A7 is available for a particular show.", principle: "Single responsibility separates physical layout from per-screening availability." },
   { id: "show-seat", label: "ShowSeat", image: "/images/movie-ticket-booking-show-seat-class.png", alt: "Sketch UML of ShowSeat", reading: "ShowSeat owns one seat's AVAILABLE, HELD, and BOOKED transitions plus temporary ownership data.", principle: "Encapsulation prevents callers from setting seat state directly." },
   { id: "show", label: "Show", image: "/images/movie-ticket-booking-show-class.png", alt: "Sketch UML of Show", reading: "Show owns the per-screening seat map and protects group validation and mutation with one lock.", principle: "Thread safety makes the multi-seat invariant atomic inside one process." },
@@ -32,7 +32,7 @@ export const movieBookingClassDiagrams: ClassDiagramDefinition[] = [
 ];
 
 export const notificationClassDiagrams: ClassDiagramDefinition[] = [
-  { id: "values", label: "Values", image: "/images/notification-system-values-class.png", alt: "Sketch UML of notification immutable values", reading: "Requests, receipts, snapshots, and retry limits cross boundaries as stable values.", principle: "Immutability prevents queued content from changing.", width: 1693, height: 929 },
+  { id: "values", label: "Records", image: "/images/notification-system-values-class.png", alt: "Sketch UML of notification records", reading: "Request, receipt, snapshot, and retry records cross boundaries as stable data.", principle: "Immutability prevents queued content from changing.", width: 1693, height: 929 },
   { id: "job", label: "Job", image: "/images/notification-system-job-class.png", alt: "Sketch UML of DeliveryJob", reading: "DeliveryJob keeps one job's mutable status behind synchronized methods.", principle: "Encapsulation and thread safety protect legal transitions.", width: 1693, height: 929 },
   { id: "senders", label: "Senders", image: "/images/notification-system-senders-class.png", alt: "Sketch UML of NotificationSender implementations", reading: "Each sender implements the same small channel contract.", principle: "Dependency inversion lets the service depend on an interface.", width: 1693, height: 929 },
   { id: "service", label: "Service", image: "/images/notification-system-service-class.png", alt: "Sketch UML of NotificationService", reading: "The service composes jobs, policy, senders, and executor to coordinate delivery.", principle: "Single responsibility keeps provider code outside the workflow.", width: 1693, height: 929 },
@@ -40,7 +40,7 @@ export const notificationClassDiagrams: ClassDiagramDefinition[] = [
 ];
 
 export const meetingRoomClassDiagrams: ClassDiagramDefinition[] = [
-  { id: "values", label: "Values", image: "/images/meeting-room-scheduler-values-class.png", alt: "Sketch UML of immutable meeting values", reading: "TimeSlot, request, meeting, and result objects preserve requested and accepted facts.", principle: "Immutability prevents accepted reservations changing later." },
+  { id: "values", label: "Records", image: "/images/meeting-room-scheduler-values-class.png", alt: "Sketch UML of meeting records", reading: "TimeSlot, request, meeting, and result records preserve requested and accepted facts.", principle: "Immutability prevents accepted reservations changing later." },
   { id: "room", label: "Room", image: "/images/meeting-room-scheduler-room-class.png", alt: "Sketch UML of Room", reading: "Room owns fixed properties and one ordered, non-overlapping TreeMap schedule.", principle: "Encapsulation protects the schedule invariant." },
   { id: "strategy", label: "Strategy", image: "/images/meeting-room-scheduler-strategy-class.png", alt: "Sketch UML of RoomSelectionStrategy", reading: "Strategy filters qualified rooms and chooses by capacity, then room ID.", principle: "Open/closed design localizes a replaceable selection policy." },
   { id: "scheduler", label: "Scheduler", image: "/images/meeting-room-scheduler-service-class.png", alt: "Sketch UML of MeetingScheduler", reading: "MeetingScheduler composes rooms and Strategy, then owns accepted IDs, lookup, and cancellation workflow.", principle: "Single responsibility separates coordination from interval rules." },

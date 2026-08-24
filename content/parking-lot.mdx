@@ -1,10 +1,13 @@
-import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, CandidateWalkthrough, DerivationTable, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { Lead, FrameworkMap, ConceptImage, QuestionGuide, QuestionAnswer, RequirementBox, EntityModelOverview, PatternDecision, ImplementationGuide, ConceptDropdown, JavaFile, ScenarioTrace, Insight } from "@/components/lesson-blocks"
+import { ClassDesignExplorer } from "@/components/class-design-explorer"
 import { ParkingLotSimulator } from "@/components/simulations/parking-lot-simulator"
 import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/lesson-step"
 import { ChoiceQuestion, ClassificationChallenge, EntityModelSummary, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 import { ParkingClassBlueprint, ParkingClassPicker, ParkingEntryFlow, ParkingImplementationMap, ParkingOwnershipQuiz, ParkingStateProof } from "@/components/learning/parking-lot-focus"
 import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
 import { parkingLotClassDiagrams } from "@/lib/class-diagrams"
+import { parkingLotEntityModel } from "@/lib/entity-models"
+import { parkingLotClassDesign } from "@/lib/class-design-models"
 
 <LessonStep id="parking-orientation"><FocusOnly>
 <ConceptImage src="/images/parking-lot-overview.png" alt="A car entering a two-floor parking garage and following an assigned route to a highlighted compatible free spot" caption="Entry is a workflow: choose a compatible spot, remember the assignment, then free that exact spot on exit." width={1536} height={1024} />
@@ -57,14 +60,14 @@ import { parkingLotClassDiagrams } from "@/lib/class-diagrams"
 
 <LessonStep id="parking-modeling-vocabulary"><FocusOnly><PassiveLearningCards
   intro="Use the smallest modeling choice that preserves meaning and rules."
-  items={[{ title: "Class", label: "State + behavior", body: "Own changing information and enforce rules on it." }, { title: "Interface", label: "Behavior varies", body: "Name a boundary only when multiple policies may replace one another." }, { title: "Enum", label: "Fixed choices", body: "Represent a small closed vocabulary without independent state." }, { title: "Immutable value", label: "Facts together", body: "Use a record when several values form one stable concept with value equality." }, { title: "Field", label: "Simple value", body: "Keep a number or ID inside the class that gives it meaning." }, { title: "Leave out", label: "No current job", body: "Omit physical nouns and future concepts outside the confirmed scope." }]}
+  items={[{ title: "Class", label: "State + behavior", body: "Own changing information and enforce rules on it." }, { title: "Interface", label: "Behavior varies", body: "Name a boundary only when multiple policies may replace one another." }, { title: "Enum", label: "Fixed choices", body: "Represent a small closed vocabulary without independent state." }, { title: "Record", label: "Immutable data", body: "Use a Java record when related validated facts need generated accessors and value equality." }, { title: "Field", label: "Simple value", body: "Keep a number or ID inside the class that gives it meaning." }, { title: "Leave out", label: "No current job", body: "Omit physical nouns and future concepts outside the confirmed scope." }]}
 /></FocusOnly></LessonStep>
 
 <LessonStep id="parking-classes"><FocusOnly><ParkingClassPicker /></FocusOnly></LessonStep>
 
 <LessonStep id="parking-values"><FocusOnly><ClassificationChallenge
   instruction="Choose the smallest representation that preserves each concept's meaning."
-  categories={[{ id: "interface", label: "Interface" }, { id: "enum", label: "Enum" }, { id: "value", label: "Value" }, { id: "field", label: "Field" }, { id: "leave", label: "Leave out" }]}
+  categories={[{ id: "interface", label: "Interface" }, { id: "enum", label: "Enum" }, { id: "value", label: "Record" }, { id: "field", label: "Field" }, { id: "leave", label: "Leave out" }]}
   items={[{ id: "ids", label: "Floor number, plate, and IDs", answer: "field", feedback: "These simple values gain meaning inside their owning object." }, { id: "strategy", label: "SpotAssignmentStrategy", answer: "interface", feedback: "The interviewer explicitly expects the ranking policy to be replaceable." }, { id: "payment", label: "Payment and gate hardware", answer: "leave", feedback: "Both are outside the confirmed first version." }, { id: "selection", label: "SpotSelection and ParkingResult", answer: "value", feedback: "Each bundles stable result facts that travel together." }, { id: "kinds", label: "VehicleType, SpotType, statuses", answer: "enum", feedback: "These are small closed sets of valid choices." }]}
   success="Every remaining concept has the smallest useful shape."
 /></FocusOnly></LessonStep>
@@ -72,22 +75,7 @@ import { parkingLotClassDiagrams } from "@/lib/class-diagrams"
 <LessonStep id="parking-ownership"><FocusOnly><ParkingOwnershipQuiz /></FocusOnly></LessonStep>
 <LessonStep id="parking-entity-flow"><FocusOnly><ParkingEntryFlow /></FocusOnly></LessonStep>
 
-<LessonStep id="parking-entity-summary"><FocusOnly><EntityModelSummary
-  items={[
-    { name: "Vehicle", kind: "Immutable value", purpose: "Carries the plate and vehicle type together." },
-    { name: "ParkingSpot", kind: "Class", purpose: "Owns compatibility, availability, occupation, and release." },
-    { name: "ParkingFloor", kind: "Class", purpose: "Groups and locates spots on one numbered floor." },
-    { name: "ParkingLot", kind: "Class", purpose: "Coordinates entry, tickets, indexes, and exit." },
-    { name: "ParkingTicket", kind: "Immutable value", purpose: "Records the accepted vehicle-to-spot assignment." },
-    { name: "SpotAssignmentStrategy", kind: "Interface", purpose: "Keeps the candidate ranking policy replaceable." },
-    { name: "SpotSelection", kind: "Immutable value", purpose: "Returns the selected floor and spot together." },
-    { name: "ParkingResult", kind: "Immutable value", purpose: "Returns a named status and optional ticket." }
-  ]}
-  enums={["VehicleType", "SpotType", "ParkingStatus", "ExitStatus"]}
-  fields={["plate", "floor number", "spot ID", "ticket ID"]}
-  omitted={["gate hardware", "payment", "address"]}
-  relationship="ParkingLot coordinates floors, delegates ranking to Strategy, and lets each ParkingSpot own occupation."
-/></FocusOnly></LessonStep>
+<LessonStep id="parking-entity-summary"><FocusOnly><EntityModelSummary model={parkingLotEntityModel} /></FocusOnly></LessonStep>
 
 <LessonStep id="parking-principles"><FocusOnly><ClassificationChallenge
   instruction="Match each concrete failure to the design principle that prevents it."
@@ -500,55 +488,41 @@ Start by turning the physical story into actions the program must perform. Do no
 
 <QuestionGuide />
 
-### Ask questions and record what each answer changes
+### Ask these questions
 
 <QuestionAnswer
   ask="Which vehicle and spot types must the first version support?"
-  why="Compatibility decides which requests may use which resources. It affects validation and the allocation rule."
   answer="Support motorcycles and cars. Spots are motorcycle, compact, or large. A motorcycle fits any spot; a car fits compact or large."
-  derived="For every free spot, the program must be able to answer whether its type supports the entering vehicle type."
 />
 
 <QuestionAnswer
   ask="Does the lot have several floors, and what does nearest mean?"
-  why="‘Nearest’ is too vague to implement or test until the interviewer gives us an exact ordering."
   answer="Yes. Floor 0 is closest to the entrance, then floor 1, and so on. On one floor, prefer the smallest suitable spot type and then the lowest spot ID."
-  derived="Choose by floor number, then vehicle-to-spot preference, then spot ID. The same input must always select the same spot."
 />
 
 <QuestionAnswer
   ask="Does the driver choose a spot, or does the system assign one?"
-  why="This decides where the main action begins and whether an allocation rule is required."
   answer="The system assigns the nearest compatible free spot when a vehicle enters."
-  derived="park(vehicle) must either occupy exactly one selected spot and return a ticket, or reject the request without changing any spot."
 />
 
 <QuestionAnswer
   ask="What identifies an active parking session, and how does exit work?"
-  why="The exit operation needs a reliable way to find the exact occupied spot."
   answer="Entry returns a unique ticket containing the vehicle plate, floor, and spot ID. Exit supplies that ticket ID."
-  derived="Keep active tickets by ticket ID. leave(ticketId) releases the spot recorded by that ticket and removes the active ticket."
 />
 
 <QuestionAnswer
   ask="Which invalid actions should be rejected?"
-  why="A rejected request must not accidentally consume a spot or remove a valid ticket."
   answer="Reject a vehicle that is already parked, an entry with no compatible spot, and an unknown exit ticket."
-  derived="Return named result values. Check duplicate entry before allocation, and check the ticket before releasing a spot."
 />
 
 <QuestionAnswer
   ask="Will the assignment rule change?"
-  why="If selection is a replaceable business rule, ParkingLot should not contain one hard-coded sorting algorithm."
   answer="Implement nearest compatible spot now, but keep the selection rule replaceable so another lot can use a different policy."
-  derived="ParkingLot receives a SpotAssignmentStrategy. The first implementation is NearestAvailableSpotStrategy."
 />
 
 <QuestionAnswer
   ask="Do we need payment, reservations, electric charging, several entrances, or persistent storage?"
-  why="Each addition brings separate rules that are not needed to prove the core allocation design."
   answer="No. Keep them as follow-up discussions. Assume calls reach one in-memory process sequentially."
-  derived="The first version handles entry, assignment, tickets, and exit only. It does not claim to be safe across concurrent entrances or application servers."
 />
 
 ### Confirm the specification
@@ -571,85 +545,7 @@ Start by turning the physical story into actions the program must perform. Do no
 
 Scan the confirmed requirements for candidate nouns: vehicle, parking lot, floor, spot, ticket, assignment rule, entrance gate, payment, and address. A noun from the real world is only a candidate. It becomes a class when it owns changing information or an important rule.
 
-<CandidateWalkthrough
-  name="Vehicle"
-  fromRequirement="Compatibility depends on the entering vehicle type, and duplicate entry is detected using its license plate."
-  question="Which values describe the vehicle throughout one parking session?"
-  reasoning="The plate and type always travel together. They do not change while the vehicle is parked, and two vehicle values with the same plate and type should compare as the same value."
-  decision="Class"
->
-  Use an immutable `Vehicle` value class. In Java, a `record` gives us final components and value equality without mutable setters.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="ParkingSpot"
-  fromRequirement="A successful entry occupies exactly one compatible free spot, and exit frees that same spot."
-  question="What changes when a vehicle parks, and which object has enough information to protect that change?"
-  reasoning="Availability belongs to one spot. The spot knows its own type and current vehicle, so it can reject an incompatible vehicle or a second occupant before changing state."
-  decision="Class"
->
-  `ParkingSpot` owns its ID, type, and current vehicle. It exposes `canFit`, `occupy`, and `release`; callers cannot set `occupied=true` directly.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="ParkingFloor"
-  fromRequirement="The lot contains spots on several ordered floors, and floor number is the first part of the nearest rule."
-  question="Is a floor only a number, or does it own a meaningful group?"
-  reasoning="The floor groups the spots that physically belong together. It can expose a safe read-only list and find a spot by ID during exit. The number alone cannot provide those operations."
-  decision="Class"
->
-  `ParkingFloor` owns its floor number and spots. It does not decide the cross-floor assignment policy.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="ParkingLot"
-  fromRequirement="Entry must check duplicate vehicles, ask for one selection, occupy it, issue a ticket, and later coordinate exit."
-  question="Who sees enough of the workflow to perform those steps in the correct order?"
-  reasoning="No single spot knows active tickets or other floors. We need one public object that coordinates the transaction while letting each spot protect its own state."
-  decision="Class"
->
-  `ParkingLot` is the entry point for `park` and `leave`. It owns the floors, active-ticket indexes, ticket sequence, and assignment strategy.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="ParkingTicket"
-  fromRequirement="Entry returns a unique ticket that remembers the vehicle, floor, and selected spot for a later exit."
-  question="Does this information have its own meaning and value equality?"
-  reasoning="These values form one stable receipt for a parking session. Keeping them together prevents exit from recomputing or guessing where the vehicle was placed."
-  decision="Class"
->
-  Use an immutable `ParkingTicket` record. It contains facts about an accepted entry and has no setters.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="SpotAssignmentStrategy"
-  fromRequirement="The interviewer explicitly wants the selection policy to be replaceable while nearest-compatible is used now."
-  question="What behavior may change while the parking workflow stays the same?"
-  reasoning="Duplicate checks, ticket creation, and spot occupation do not change when selection changes. Only the rule that chooses one free spot varies, so that is the useful interface boundary."
-  decision="Interface"
->
-  `SpotAssignmentStrategy` returns a `SpotSelection`. `NearestAvailableSpotStrategy` implements the exact floor, type, and ID ordering.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="VehicleType, SpotType, and result values"
-  fromRequirement="Vehicle and spot kinds come from small fixed sets, and entry or exit has a small set of expected outcomes."
-  question="Do these values have independent identity or changing state?"
-  reasoning="No. They name closed choices. Strings would permit invalid spellings, while booleans would not explain why an action failed."
-  decision="Enum"
->
-  Use enums for `VehicleType`, `SpotType`, `ParkingStatus`, and `ExitStatus`.
-</CandidateWalkthrough>
-
-<CandidateWalkthrough
-  name="EntranceGate"
-  fromRequirement="The scope asks the software to park and release vehicles but gives no gate identity, gate state, or gate-specific rule."
-  question="What would an EntranceGate class remember or decide in this version?"
-  reasoning="Nothing yet. The gate is part of the physical story, but `ParkingLot.park` already represents the incoming action. A pass-through class would add a name without adding responsibility."
-  decision="Leave out"
->
-  Do not create `EntranceGate`. Add it only when several entrances, gate hardware state, or per-gate queues enter the requirements.
-</CandidateWalkthrough>
+<EntityModelOverview model={parkingLotEntityModel} />
 
 ### See an entry flow through the objects
 
@@ -674,52 +570,9 @@ Bridge from the requirements using the same chain each time:
 
 Start with `ParkingLot.park` because that is the main action visible to the caller. Then follow its needs downward into the strategy, floor, and spot.
 
-### Design the immutable values first
+<ClassDesignExplorer topic={parkingLotClassDesign} />
 
-Some types carry facts but do not own a changing lifecycle. `Vehicle` keeps a plate and vehicle type together. `SpotSelection` records the floor and spot chosen by the policy. `ParkingTicket` is the accepted parking receipt, while `ParkingResult` makes success and expected rejection explicit.
-
-<DerivationTable rows={[
-  ["Identify one vehicle throughout a session", "Vehicle value", "plate and VehicleType"],
-  ["Return the policy's completed choice", "SpotSelection value", "floorNumber and spotId"],
-  ["Remember the accepted assignment", "ParkingTicket value", "ticketId, plate, floorNumber, spotId"],
-  ["Return success or a normal rejection", "ParkingResult value", "ParkingStatus and Optional<ParkingTicket>"]
-]} />
-
-These Java records are immutable: their values are fixed after construction. That is different from `ParkingSpot`, whose occupant must change. Keeping the distinction clear prevents callers from treating a result object as another route into live parking state.
-
-### Derive the coordinating class
-
-“Reject a vehicle already parked” creates an index by plate. “Exit by ticket ID” creates another index by ticket ID. “Issue a unique ticket” creates a sequence. These fields are not generic manager data; each one exists because of an observable rule.
-
-<DerivationTable rows={[
-  ["Coordinate entry across all floors", "ParkingLot", "park(Vehicle)"],
-  ["Reject a duplicate active vehicle", "ParkingLot", "activeTicketIdByPlate"],
-  ["Exit using a ticket ID", "ParkingLot", "activeTicketsById and leave(ticketId)"],
-  ["Issue a unique deterministic ticket", "ParkingLot", "nextTicketNumber"],
-  ["Keep selection replaceable", "ParkingLot", "SpotAssignmentStrategy strategy"],
-  ["Expose floors without allowing replacement", "ParkingLot", "getFloors() returns an unmodifiable list"]
-]} />
-
-### Derive floor and spot responsibilities
-
-`ParkingFloor` remembers which spots belong together. `ParkingSpot` remembers the one piece of state that changes during entry and exit: its occupant. Because `ParkingSpot` has both the type and occupant, it has everything needed to protect compatibility and availability.
-
-<DerivationTable rows={[
-  ["Order floors by closeness", "ParkingFloor", "int number"],
-  ["Group spots and find one during exit", "ParkingFloor", "spots and findSpot(id)"],
-  ["Know whether a vehicle fits", "ParkingSpot", "SpotType type and canFit(vehicle)"],
-  ["Prevent two occupants", "ParkingSpot", "Vehicle occupiedBy and occupy(vehicle)"],
-  ["Make the spot reusable after exit", "ParkingSpot", "release()"],
-  ["Do not expose mutable ownership", "ParkingSpot", "getVehicle() returns Optional"]
-]} />
-
-`ParkingSpot` protects the invariant that it has at most one compatible occupant. Its occupant stays private, and `occupy` and `release` are the only mutation paths. `ParkingFloor` exposes an immutable spot list and local lookup; it does not compare spots on other floors.
-
-### Derive the selection boundary and public API
-
-`SpotAssignmentStrategy.select` is a read-only decision. It may inspect floors and spots and return a `SpotSelection`, but only `ParkingLot` may turn that choice into an accepted parking session. This prevents a policy object from creating tickets or changing occupation as a side effect.
-
-The caller-facing API remains narrow: `park(vehicle)`, `leave(ticketId)`, and safe reads. Ticket-index updates and sequence changes are internal workflow steps. Direct spot mutation, mutable floor replacement, and public ticket setters would bypass the invariants established above.
+The explorer keeps the workflow compact: ParkingLot coordinates, ParkingFloor groups, and ParkingSpot protects occupation. With those boundaries clear, we can examine the one algorithm intentionally delegated outside the state owners.
 
 ### Understand the allocation algorithm
 
