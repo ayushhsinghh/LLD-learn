@@ -1,6 +1,6 @@
-# LLD Interview Guide
+# System Design Guide
 
-A teacher-led guide for learning low-level design and preparing for product-company interviews. Each lesson starts with an unclear interview prompt and shows how to turn it into requirements, entities, class responsibilities, complete Java code, and a working simulation.
+A visual, interview-focused guide to system components and low-level design. Component lessons explain mechanics through deterministic comparisons; LLD lessons turn unclear prompts into requirements, entities, class responsibilities, complete Java code, and working simulations.
 
 ## Live website
 
@@ -20,6 +20,14 @@ The guide is live at **[learn.ayush.ltd](https://learn.ayush.ltd/)**.
 - Fully static frontend with no backend, authentication, accounts, or storage
 
 ## Available lessons
+
+### System components
+
+| # | Topic | Main idea | Level |
+|---:|---|---|---|
+| C1 | [Apache Kafka](https://learn.ayush.ltd/components/kafka/) ([Focus Mode](https://learn.ayush.ltd/components/kafka/learn/)) | Partitions, consumer groups, offsets, replay, and use-case trade-offs | Beginner |
+
+### LLD walkthroughs
 
 | # | Topic | Main idea | Level |
 |---:|---|---|---|

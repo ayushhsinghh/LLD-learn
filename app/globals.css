@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
 
 @theme inline {
   --font-sans: var(--font-ui);
@@ -51,7 +52,7 @@ button { cursor: pointer; }
 
 .lesson-prose > * + * { margin-top: 1rem; }
 .lesson-prose > h2 {
-  scroll-margin-top: 2rem;
+  scroll-margin-top: 5.5rem;
   margin-top: 4rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
@@ -61,7 +62,7 @@ button { cursor: pointer; }
   letter-spacing: -0.03em;
 }
 .lesson-prose > h3 {
-  scroll-margin-top: 2rem;
+  scroll-margin-top: 5.5rem;
   margin-top: 2.5rem;
   font-size: 1.18rem;
   font-weight: 800;
@@ -281,6 +282,11 @@ button { cursor: pointer; }
 @media (min-width: 640px) {
   .learning-question { padding: 1.25rem; }
   .learning-choice { padding: 1rem; }
+}
+
+@media (min-width: 1280px) {
+  .lesson-prose > h2,
+  .lesson-prose > h3 { scroll-margin-top: 2rem; }
 }
 
 @media (max-width: 639px) {

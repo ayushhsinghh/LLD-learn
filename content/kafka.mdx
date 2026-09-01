@@ -1,0 +1,222 @@
+import { ConceptImage, Insight, Lead } from "@/components/lesson-blocks"
+import { ChoiceQuestion, PassiveLearningCards } from "@/components/learning/learning-interactions"
+import { FocusOnly, LessonStep, WalkthroughOnly } from "@/components/learning/lesson-step"
+import { KafkaActivityAnalyticsSimulator, KafkaCdcSimulator, KafkaOrderFanoutSimulator, KafkaTrafficSpikeSimulator } from "@/components/system-components/kafka-simulators"
+import { KafkaBoundary, KafkaDeliverySemantics, KafkaInterviewQuestions, KafkaMechanicBullets, KafkaMotivation, KafkaRecap, KafkaRecordJourney, KafkaTerminology, KafkaUseCaseCatalog, kafkaPlatformUseCases, kafkaRealtimeUseCases, kafkaTerms } from "@/components/system-components/kafka-learning"
+
+<LessonStep id="kafka-overview"><FocusOnly>
+<ConceptImage src="/images/components/kafka/kafka-overview.png" width={1536} height={1024} eager alt="Labeled sketch showing producers writing records to Kafka topic partitions stored by brokers and read by independent consumer groups" caption="Kafka keeps a durable stream between producers and consumers." />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-record-journey"><FocusOnly><KafkaRecordJourney compact /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-before"><FocusOnly><KafkaMotivation compact /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-boundary"><FocusOnly><KafkaBoundary compact /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-terms-storage"><FocusOnly><KafkaTerminology compact terms={kafkaTerms.slice(0, 6)} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-terms-consumers"><FocusOnly><KafkaTerminology compact terms={kafkaTerms.slice(8, 12)} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-terms-reliability"><FocusOnly><KafkaTerminology compact terms={[...kafkaTerms.slice(6, 8), ...kafkaTerms.slice(12)]} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-log"><FocusOnly>
+<ConceptImage src="/images/components/kafka/kafka-partitions.png" width={1536} height={1024} alt="Labeled sketch of producer records routed by keys into three append-only Kafka partitions with offsets" caption="Each partition is its own ordered append-only log." />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-keying"><FocusOnly>
+<ChoiceQuestion prompt="Which key best preserves the order of events for one order?" choices={[{ id: "order", label: "orderId", correct: true, feedback: "All events for one order reach the same partition, so their order is preserved there." }, { id: "random", label: "A random UUID for every event", correct: false, feedback: "Related events may be scattered across partitions, losing a useful ordering boundary." }, { id: "time", label: "Current timestamp", correct: false, feedback: "A timestamp changes per event and does not group one order's history." }]} />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-ordering"><FocusOnly>
+<ChoiceQuestion prompt="A topic has three partitions. What ordering can a consumer rely on?" choices={[{ id: "global", label: "Every topic record has one global order", correct: false, feedback: "Separate partitions progress independently; Kafka does not merge them into one total order." }, { id: "partition", label: "Records are ordered within each partition", correct: true, feedback: "A consumer reads one partition in append order. A useful key keeps related records together." }, { id: "group", label: "Each consumer creates its own order", correct: false, feedback: "Consumers observe the order stored in their assigned partitions." }]} />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-replication"><FocusOnly>
+<ConceptImage src="/images/components/kafka/kafka-replication.png" width={1536} height={1024} alt="Labeled sketch showing a Kafka partition leader replicating records to followers and a healthy follower becoming leader after broker failure" caption="Replication copies a partition log; one replica leads at a time." />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-failover"><FocusOnly>
+<PassiveLearningCards intro="Replication protects a partition only when the relevant replicas have the data and producer acknowledgement settings demand enough confirmation." items={[{ title: "Leader", body: "Handles partition writes and establishes the append order." }, { title: "Followers", body: "Copy the leader's log so another replica can take over." }, { title: "Failure", body: "A healthy in-sync replica may become the new leader." }, { title: "Boundary", body: "A replication factor alone does not make every write equally durable." }]} conclusion="Replication improves availability; acknowledgement and replica health still matter." />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-groups"><FocusOnly>
+<ConceptImage src="/images/components/kafka/kafka-consumer-groups.png" width={1536} height={1024} alt="Labeled sketch showing three Kafka partitions assigned among consumers in two independent consumer groups with separate committed offsets" caption="A group shares partitions; separate groups keep separate offsets." />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-group-scale"><FocusOnly>
+<ChoiceQuestion prompt="A consumer group has three partitions and five consumers. How many can actively receive partition data?" choices={[{ id: "three", label: "Three consumers", correct: true, feedback: "Within one group, each partition is assigned to one active consumer. Two consumers remain idle." }, { id: "five", label: "All five consumers", correct: false, feedback: "Five consumers cannot split only three partitions inside one group." }, { id: "one", label: "Only one consumer", correct: false, feedback: "The group may process different partitions in parallel." }]} />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-offsets"><FocusOnly>
+<ChoiceQuestion prompt="Processing succeeds, but the consumer crashes before committing the next offset. What happens after restart?" choices={[{ id: "repeat", label: "The record may be processed again", correct: true, feedback: "The committed offset still points before that record, producing at-least-once behavior." }, { id: "lost", label: "Kafka deletes the record", correct: false, feedback: "Consumption does not delete retained Kafka records." }, { id: "skip", label: "Kafka always skips to the newest record", correct: false, feedback: "The consumer resumes from its committed group position." }]} />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-semantics"><FocusOnly><KafkaDeliverySemantics compact /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-order-sim"><FocusOnly><KafkaOrderFanoutSimulator compact /></FocusOnly></LessonStep>
+<LessonStep id="kafka-order-choice"><FocusOnly><ChoiceQuestion prompt="Would you choose Kafka for one background worker with no replay or fan-out?" choices={[{ id: "queue", label: "Prefer SQS or RabbitMQ", correct: true, feedback: "A simpler managed queue matches one-consumer work without Kafka's streaming overhead." }, { id: "kafka", label: "Always choose Kafka", correct: false, feedback: "Kafka earns its cost when retention, replay, ordering, throughput, or independent groups matter." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-analytics-sim"><FocusOnly><KafkaActivityAnalyticsSimulator compact /></FocusOnly></LessonStep>
+<LessonStep id="kafka-analytics-choice"><FocusOnly><ChoiceQuestion prompt="Would you choose Kafka for 200 analytics rows uploaded once each night?" choices={[{ id: "batch", label: "Use a direct batch load", correct: true, feedback: "The small delayed workload does not need a continuously retained event stream." }, { id: "kafka", label: "Add Kafka first", correct: false, feedback: "Kafka adds operations without solving a scale or replay problem here." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-cdc-sim"><FocusOnly><KafkaCdcSimulator compact /></FocusOnly></LessonStep>
+<LessonStep id="kafka-cdc-choice"><FocusOnly><ChoiceQuestion prompt="Would you choose Kafka when one small search index can be updated in the same local process?" choices={[{ id: "direct", label: "Start with direct synchronization", correct: true, feedback: "One reliable local target may not justify CDC and Kafka infrastructure." }, { id: "kafka", label: "Kafka is mandatory for every dual write", correct: false, feedback: "Kafka is useful when several consumers need a durable replayable change stream, not by default." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-spike-sim"><FocusOnly><KafkaTrafficSpikeSimulator compact /></FocusOnly></LessonStep>
+<LessonStep id="kafka-spike-choice"><FocusOnly><ChoiceQuestion prompt="Would you choose Kafka for ordinary independent jobs with no event history?" choices={[{ id: "sqs", label: "Prefer a managed work queue", correct: true, feedback: "SQS is simpler when the requirement is only durable background work." }, { id: "kafka", label: "Kafka because every queue is a log", correct: false, feedback: "Kafka's partitioning, retention, replay, and group model are unnecessary unless the product needs them." }]} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-realtime-use-cases"><FocusOnly><KafkaUseCaseCatalog compact items={kafkaRealtimeUseCases} /></FocusOnly></LessonStep>
+<LessonStep id="kafka-platform-use-cases"><FocusOnly><KafkaUseCaseCatalog compact items={kafkaPlatformUseCases} /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-questions"><FocusOnly><KafkaInterviewQuestions compact /></FocusOnly></LessonStep>
+
+<LessonStep id="kafka-answer"><FocusOnly>
+<ChoiceQuestion prompt="Which interview explanation is strongest?" choices={[{ id: "patterns", label: "Kafka is scalable, reliable, and exactly-once.", correct: false, feedback: "This is vague and overstates exactly-once behavior." }, { id: "decision", label: "Kafka stores ordered partition logs, lets consumer groups progress independently, and supports replay. I would use it when throughput, retention, or fan-out justify the operational cost; external side effects still need idempotency.", correct: true, feedback: "This states the mechanics, use threshold, and correctness boundary." }, { id: "queue", label: "Kafka is just a faster message queue.", correct: false, feedback: "That misses retention, replay, partitions, and independent consumer-group positions." }]} />
+</FocusOnly></LessonStep>
+
+<LessonStep id="kafka-recap"><FocusOnly><KafkaRecap compact /></FocusOnly></LessonStep>
+
+<WalkthroughOnly>
+
+<Lead>Kafka is a distributed event-streaming platform. Producers append records to named topics, topics are divided into ordered partitions, and consumers read those records at their own pace. Kafka retains records after they are read, which makes lag, replay, and several independent consumer groups possible.</Lead>
+
+<h2 id="what-is-kafka">What is Kafka?</h2>
+
+Kafka places a durable log between applications that create events and applications that react to them. The producer does not need to wait for every consumer, and one consumer does not control whether another can read the same record. That separation is the central idea; partitions, offsets, and consumer groups are the mechanics that make it practical at scale.
+
+<ConceptImage src="/images/components/kafka/kafka-overview.png" width={1536} height={1024} eager alt="Labeled sketch showing producers writing records to Kafka topic partitions stored by brokers and read by independent consumer groups" caption="Read the picture left to right: producers append once, brokers retain partition logs, and consumer groups progress independently." />
+
+<KafkaRecordJourney />
+
+<h2 id="motivation">Motivation</h2>
+
+Before a shared event stream, a service often called every downstream system directly. Adding another consumer meant changing the producer, and one slow dependency could delay the original user request. Teams also polled databases for changes, repeating queries and making missed updates difficult to replay.
+
+Kafka filled the gap between synchronous service calls and a database containing only current state. Producers publish an event once; Kafka retains it; consumers decide when to read it and remember their own progress.
+
+<KafkaMotivation />
+
+<KafkaBoundary />
+
+<h2 id="terminology">Key terminology</h2>
+
+These terms are enough to follow the rest of the lesson.
+
+<KafkaTerminology />
+
+<h2 id="core-mechanics">Core mechanics</h2>
+
+<KafkaMechanicBullets />
+
+### Partitions, keys, and ordering
+
+- A topic is divided into partitions so storage and consumption can scale across brokers.
+- A partition is an append-only log. New records receive increasing offsets.
+- Records sharing a useful key, such as `orderId`, are commonly routed to the same partition.
+- Kafka guarantees order within one partition, not one global order across the whole topic.
+
+<ConceptImage src="/images/components/kafka/kafka-partitions.png" width={1536} height={1024} alt="Labeled sketch of producer records routed by keys into three append-only Kafka partitions with offsets" caption="The key chooses an ordering lane; each lane advances independently." />
+
+### Replication and broker failure
+
+- One replica leads each partition and handles its writes.
+- Followers copy the leader's log.
+- When the leader fails, an eligible healthy replica can take over.
+- Durability also depends on acknowledgement configuration and replica health; replication factor alone is not a universal guarantee.
+
+<ConceptImage src="/images/components/kafka/kafka-replication.png" width={1536} height={1024} alt="Labeled sketch showing a Kafka partition leader replicating records to followers and a healthy follower becoming leader after broker failure" caption="The replicated unit is a partition. Only one replica leads its writes at a time." />
+
+### Consumer groups, offsets, and replay
+
+- Inside one consumer group, a partition is assigned to one active consumer at a time.
+- More consumers help only while there are unassigned partitions; extra consumers remain idle.
+- A separate group can read the same topic with its own committed offsets.
+- The committed position is where a restarted consumer resumes.
+- Retention keeps records independently of consumption, so a group may reset an offset and replay retained history.
+
+<ConceptImage src="/images/components/kafka/kafka-consumer-groups.png" width={1536} height={1024} mobileScrollable alt="Labeled sketch showing three Kafka partitions assigned among consumers in two independent consumer groups with separate committed offsets" caption="Partition assignments divide work inside a group; offsets isolate progress between groups." />
+
+### Delivery semantics
+
+<KafkaDeliverySemantics />
+
+<Insight title="Exactly-once has a boundary" tone="warning">Kafka transactions can coordinate Kafka output records and consumed offsets. They do not automatically make an email, payment, database update, or other external side effect exactly once. Those boundaries still need idempotency, a transaction, or another deduplication mechanism.</Insight>
+
+<h2 id="use-cases">Use-cases</h2>
+
+### 1. Order event fan-out
+
+An accepted order must update inventory, start shipping, and feed analytics. Kafka fits when these capabilities should consume the same event independently and a slow consumer must not block the others.
+
+For example, the Order Service publishes `ORDER_CREATED { orderId: "ORD-101", customerId: "C-44", amount: 2500 }` to `order-events`. Inventory, payment, shipping, notifications, and analytics use separate consumer groups. Each group advances at its own pace, so a delayed shipping consumer does not hold up inventory or the customer response.
+
+Use `orderId` as the key when per-order sequence matters. That keeps `ORDER_CREATED`, `PAYMENT_COMPLETED`, and `ORDER_SHIPPED` in one partition and therefore in one readable order. Consumers must still make external effects idempotent because a retry may deliver the same event again.
+
+**Choose Kafka when:** several independent capabilities need the event, lag must be recoverable, or a new consumer should replay history. **Choose something simpler when:** one background worker needs one disposable task and no replay; a managed queue is usually easier.
+
+<ConceptImage src="/images/components/kafka/kafka-order-fanout.png" width={1536} height={1024} alt="Labeled comparison showing a stalled synchronous order chain and Kafka consumer groups progressing independently with shipping lag" caption="The key difference is independent progress: Shipping can lag without blocking Inventory, Analytics, or the producer." />
+
+<KafkaOrderFanoutSimulator />
+
+### 2. Activity analytics
+
+A product emits a continuous stream of clicks and views. Kafka can absorb a burst, partition by `userId`, and let consumers drain lag while preserving each user's event order inside one partition.
+
+Imagine a shopping app publishing `PRODUCT_VIEWED`, `SEARCH_PERFORMED`, `ADD_TO_CART`, and `PURCHASE_COMPLETED`. Recommendation, marketing, fraud, and reporting consumers can all read the same activity without the web request waiting for them. If an analytics bug is fixed tomorrow, that consumer can reset its offset and replay the retained events.
+
+Keying by `userId` keeps one user's journey together, but Kafka does not create one global order across all users. Partition count and consumer capacity should match the sustained event rate, while lag shows whether processing is falling behind.
+
+**Choose Kafka when:** events arrive continuously, bursts are expected, and several real-time consumers need the stream. **Choose something simpler when:** 200 rows arrive once each night and a direct batch load meets the freshness requirement.
+
+<ConceptImage src="/images/components/kafka/kafka-activity-analytics.png" width={1536} height={1024} alt="Labeled comparison showing direct analytics writes overloading a store and Kafka partitions buffering user events for consumers" caption="Partitioning spreads work while the key preserves the ordering boundary that matters." />
+
+<KafkaActivityAnalyticsSimulator />
+
+### 3. Change-data capture
+
+Search, cache, and analytics often need database changes. A CDC process can publish committed changes to Kafka so each target applies them independently and replays anything missed during an outage.
+
+Suppose the Products database commits a price change for product `P-42` from ₹999 to ₹899. The CDC connector publishes the committed row change to `product-changes`; search updates its document, cache invalidates the old value, and the warehouse records the new version. If search is offline, the database transaction still succeeds and search catches up from its stored offset later.
+
+The database remains the source of truth. Kafka carries the change history, and each target must apply repeated records safely. Kafka Connect is useful when standard source and sink connectors can replace several custom integration jobs.
+
+**Choose Kafka when:** multiple targets need a durable, replayable stream of committed changes. **Choose something simpler when:** one small local index can be updated reliably in the same process or a scheduled batch is sufficient.
+
+<ConceptImage src="/images/components/kafka/kafka-cdc.png" width={1536} height={1024} alt="Labeled comparison showing inconsistent direct database dual writes and a Kafka CDC event replaying to Search and Cache" caption="The retained change event is the recovery path that a failed direct dual write lacks." />
+
+<KafkaCdcSimulator />
+
+### 4. Traffic-spike buffering
+
+Producers sometimes create work faster than workers can finish it. Kafka can accept the burst and expose lag while consumers drain the retained backlog at a steady rate.
+
+Imagine 100,000 ticket requests arriving in two minutes while booking workers can safely validate only 2,000 requests per minute. Producers append requests quickly, the consumer group's lag grows, and workers continue at the rate the booking database can sustain. Adding consumers increases throughput only while enough partitions are available.
+
+Kafka separates arrival rate from processing rate, but it does not prevent double booking or reserve inventory by itself. The booking store still needs an atomic reservation rule, and users still need an honest pending or rejected result.
+
+**Choose Kafka when:** the burst must be retained, lag must be observable, and replay or ordered histories matter. **Choose something simpler when:** ordinary independent jobs only need durable background execution; a managed work queue is usually the clearer tool.
+
+<ConceptImage src="/images/components/kafka/kafka-traffic-spike.png" width={1536} height={1024} alt="Labeled comparison showing direct workers timing out six of eight jobs and Kafka retaining the backlog until all eight complete" caption="Kafka separates the producer's burst rate from the consumer's processing rate." />
+
+<KafkaTrafficSpikeSimulator />
+
+### More common uses from the same mechanics
+
+The next examples do not require a new Kafka concept. They reuse the same partitioning, independent consumer groups, retention, offsets, replay, and stream-processing boundaries from the four core scenarios.
+
+<KafkaUseCaseCatalog items={[...kafkaRealtimeUseCases, ...kafkaPlatformUseCases]} />
+
+<h2 id="interview-questions">Likely interview questions</h2>
+
+<KafkaInterviewQuestions />
+
+A strong answer starts with the requirement, names the Kafka mechanic that satisfies it, and finishes with the cost or boundary. For example: “We need several independent consumers and replay, so a retained partitioned log fits. We key by `orderId` for per-order ordering. Consumers are at-least-once, so external effects must be idempotent.”
+
+<h2 id="recap">TL;DR recap</h2>
+
+<KafkaRecap />
+
+<p className="!text-xs !leading-5 !text-[var(--faint)]">Source note: mechanics and guarantees were checked against the current <a href="https://kafka.apache.org/documentation/" target="_blank" rel="noreferrer">Apache Kafka documentation</a>, including its guidance for <a href="https://kafka.apache.org/documentation/#connect" target="_blank" rel="noreferrer">Kafka Connect</a>, <a href="https://kafka.apache.org/documentation/streams/" target="_blank" rel="noreferrer">Kafka Streams</a>, and <a href="https://kafka.apache.org/documentation/#georeplication" target="_blank" rel="noreferrer">geo-replication</a>. The simulators deliberately simplify networking and storage while preserving the decision-relevant behavior.</p>
+
+</WalkthroughOnly>

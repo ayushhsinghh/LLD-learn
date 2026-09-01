@@ -374,6 +374,8 @@ Do not start with `Rider`, `Driver`, and `Ride`. First ask what a request contai
 
 ### Ask these questions
 
+#### Actions
+
 <QuestionAnswer
   ask="Which actions must the first version support?"
   answer="A registered rider requests one ride. The system matches an available driver. The ride can then start and complete."
@@ -383,6 +385,8 @@ Do not start with `Rider`, `Driver`, and `Ride`. First ask what a request contai
   ask="What locations does a ride request contain?"
   answer="The interview version uses pre-created road-graph location IDs for pickup and destination. They must exist and be different."
 />
+
+#### Rules
 
 <QuestionAnswer
   ask="How is the driver chosen?"
@@ -404,10 +408,14 @@ Do not start with `Rider`, `Driver`, and `Ride`. First ask what a request contai
   answer="A matched driver becomes BUSY. On completion, the ride becomes COMPLETED, the driver moves to the destination, and becomes AVAILABLE."
 />
 
+#### Errors
+
 <QuestionAnswer
   ask="What happens if the trip is unreachable or no available driver can reach pickup?"
   answer="Return UNREACHABLE_TRIP or NO_DRIVER_AVAILABLE. Do not create Ride and do not change any Driver."
 />
+
+#### Boundaries
 
 <QuestionAnswer
   ask="Which map, traffic, scale, storage, and concurrency concerns are in scope?"
@@ -435,7 +443,7 @@ Do not start with `Rider`, `Driver`, and `Ride`. First ask what a request contai
 
 <h2 id="entities">2. Entities and relationships (~3 minutes)</h2>
 
-Scan the specification for nouns: rider, driver, location, road, graph, ride request, route, match, ride, status, vehicle, payment, and map. These are candidates, not automatic classes. Ask what each must remember or decide.
+Extract candidate nouns in three passes: **road model** (location, road, graph, route), **people and intent** (rider, driver, ride request), then **workflow and decisions** (match, ride, status). Vehicle, payment, and map are also nouns, but no confirmed rule requires them in this version. The final model keeps only concepts that remember state, carry validated data, enforce a rule, or define replaceable behavior.
 
 <EntityModelOverview model={rideSharingEntityModel} />
 

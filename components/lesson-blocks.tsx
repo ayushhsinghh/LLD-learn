@@ -2,6 +2,7 @@ import Image from "next/image";
 import { isValidElement } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Clock3, Code2, HelpCircle, Lightbulb, MessageCircleQuestion, Sparkles, X } from "lucide-react";
 import type { EntityModel } from "@/lib/entity-models";
+import { withBasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 
 export function Lead({ children }: { children: React.ReactNode }) {
@@ -101,7 +102,7 @@ export function ConceptImage({ src, alt, caption, width = 1536, height = 1024, m
     <figure className="concept-image my-7">
       {mobileScrollable && <p className="mb-2 text-right text-[10px] font-bold uppercase tracking-wider text-[var(--faint)] sm:hidden">Swipe to follow the flow →</p>}
       <div className={cn("rounded-xl border border-[var(--line)] bg-[#fbfaf7]", mobileScrollable ? "overflow-x-auto" : "overflow-hidden")}>
-        <Image src={src} alt={alt} width={width} height={height} loading={eager ? "eager" : undefined} unoptimized className={cn("h-auto w-full", mobileScrollable && "min-w-[680px] sm:min-w-0")} />
+        <Image src={withBasePath(src)} alt={alt} width={width} height={height} loading={eager ? "eager" : undefined} unoptimized className={cn("h-auto w-full", mobileScrollable && "min-w-[680px] sm:min-w-0")} />
       </div>
       <figcaption className="mt-2 text-center text-xs leading-5 text-[var(--faint)]">{caption}</figcaption>
     </figure>
@@ -164,7 +165,7 @@ export function QuestionAnswer({ ask, answer }: { ask: string; answer: string })
         <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-[var(--faint)] transition-transform group-open:rotate-180" />
       </summary>
       <div className="border-t border-[var(--line)] bg-[var(--blue-soft)] px-4 py-4 sm:px-5">
-        <p className="section-kicker !text-[#37627c]">Interviewer answers</p>
+        <p className="section-kicker !text-[#37627c]">Interviewer answer</p>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{answer}</p>
       </div>
     </details>
@@ -173,12 +174,20 @@ export function QuestionAnswer({ ask, answer }: { ask: string; answer: string })
 
 export function RequirementBox({ requirements, outOfScope }: { requirements: string[]; outOfScope: string[] }) {
   return (
-    <div className="my-7 rounded-xl border-2 border-[var(--ink)] bg-white">
-      <div className="border-b-2 border-[var(--ink)] px-5 py-3"><p className="font-mono text-xs font-bold uppercase tracking-wider">Confirmed specification</p></div>
-      <div className="grid md:grid-cols-[1.4fr_.8fr]">
-        <div className="border-b border-[var(--line)] p-5 md:border-b-0 md:border-r"><p className="mb-3 text-sm font-extrabold">Requirements</p><ol className="space-y-2 text-sm leading-6 text-[var(--muted)]">{requirements.map((item, index) => <li key={item} className="flex gap-3"><span className="font-mono text-xs font-bold text-[var(--accent-dark)]">{index + 1}.</span><span>{item}</span></li>)}</ol></div>
-        <div className="bg-[var(--paper-2)] p-5"><p className="mb-3 text-sm font-extrabold">Not building</p><ul className="space-y-2 text-xs leading-5 text-[var(--muted)]">{outOfScope.map((item) => <li key={item}>— {item}</li>)}</ul></div>
+    <div className="my-7 overflow-hidden rounded-xl border-2 border-[var(--ink)] bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[var(--ink)] px-5 py-3">
+        <p className="font-mono text-xs font-bold uppercase tracking-wider">Confirmed specification</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--faint)]">{requirements.length} requirements · {outOfScope.length} boundaries</p>
       </div>
+      <div className="p-5 sm:p-6"><p className="mb-3 text-sm font-extrabold">The first version must</p><ol className="space-y-2 text-sm leading-6 text-[var(--muted)]">{requirements.map((item, index) => <li key={item} className="flex gap-3"><span className="font-mono text-xs font-bold text-[var(--accent-dark)]">{index + 1}.</span><span>{item}</span></li>)}</ol></div>
+      <details className="group border-t border-[var(--line)] bg-[var(--paper-2)]">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 px-5 py-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[var(--focus)] [&::-webkit-details-marker]:hidden">
+          <span className="flex-1 text-sm font-extrabold">Not building in this version</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--faint)]">{outOfScope.length} boundaries</span>
+          <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-[var(--faint)] transition-transform group-open:rotate-180" />
+        </summary>
+        <ul className="grid gap-x-8 gap-y-2 border-t border-[var(--line)] px-5 py-4 text-xs leading-5 text-[var(--muted)] sm:grid-cols-2 sm:px-6">{outOfScope.map((item) => <li key={item} className="flex gap-2"><span aria-hidden="true" className="text-[var(--accent-dark)]">—</span><span>{item}</span></li>)}</ul>
+      </details>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type LearningPhase = "start" | "requirements" | "entities" | "class-design" | "implementation" | "extensions";
+export type LearningPhase = "start" | "requirements" | "entities" | "class-design" | "implementation" | "extensions" | "what-is-kafka" | "motivation" | "terminology" | "core-mechanics" | "use-cases" | "interview-questions" | "recap";
 
 export type LearningStep = {
   id: string;
@@ -16,7 +16,46 @@ export const learningPhaseLabels: Record<LearningPhase, string> = {
   "class-design": "Class design",
   implementation: "Implementation",
   extensions: "Extensions",
+  "what-is-kafka": "What is Kafka",
+  motivation: "Motivation",
+  terminology: "Terminology",
+  "core-mechanics": "Core mechanics",
+  "use-cases": "Use cases",
+  "interview-questions": "Interview questions",
+  recap: "TL;DR recap",
 };
+
+export const kafkaLearningSteps: LearningStep[] = [
+  { id: "kafka-overview", phase: "what-is-kafka", title: "See Kafka at a glance", eyebrow: "Mental model", minutes: 1 },
+  { id: "kafka-record-journey", phase: "what-is-kafka", title: "Follow one event", eyebrow: "Producer to consumer", minutes: 1 },
+  { id: "kafka-before", phase: "motivation", title: "See the coupling Kafka removes", eyebrow: "Why it exists", minutes: 2 },
+  { id: "kafka-boundary", phase: "motivation", title: "Know what Kafka is not", eyebrow: "Choose deliberately", minutes: 1 },
+  { id: "kafka-terms-storage", phase: "terminology", title: "Name the storage pieces", eyebrow: "Topic, partition, broker", minutes: 2 },
+  { id: "kafka-terms-consumers", phase: "terminology", title: "Name the reading pieces", eyebrow: "Consumer, group, offset", minutes: 2 },
+  { id: "kafka-terms-reliability", phase: "terminology", title: "Name the reliability pieces", eyebrow: "Replica, retention, replay", minutes: 2 },
+  { id: "kafka-log", phase: "core-mechanics", title: "Read the append-only log", eyebrow: "Partition mechanics", minutes: 2 },
+  { id: "kafka-keying", phase: "core-mechanics", title: "Choose a partition key", eyebrow: "Routing records", minutes: 2 },
+  { id: "kafka-ordering", phase: "core-mechanics", title: "Find the ordering boundary", eyebrow: "Per-partition guarantee", minutes: 2 },
+  { id: "kafka-replication", phase: "core-mechanics", title: "Replicate a partition", eyebrow: "Leader and followers", minutes: 2 },
+  { id: "kafka-failover", phase: "core-mechanics", title: "Respond to broker failure", eyebrow: "Availability boundary", minutes: 2 },
+  { id: "kafka-groups", phase: "core-mechanics", title: "Split work inside a group", eyebrow: "Consumer groups", minutes: 2 },
+  { id: "kafka-group-scale", phase: "core-mechanics", title: "Scale consumers to partitions", eyebrow: "Assignment limit", minutes: 2 },
+  { id: "kafka-offsets", phase: "core-mechanics", title: "Commit, restart, and replay", eyebrow: "Offsets", minutes: 2 },
+  { id: "kafka-semantics", phase: "core-mechanics", title: "Choose delivery semantics", eyebrow: "Duplicates and loss", minutes: 3 },
+  { id: "kafka-order-sim", phase: "use-cases", title: "Simulate order fan-out", eyebrow: "Kafka live flow", minutes: 3 },
+  { id: "kafka-order-choice", phase: "use-cases", title: "Decide if Kafka fits orders", eyebrow: "Trade-off check", minutes: 1 },
+  { id: "kafka-analytics-sim", phase: "use-cases", title: "Simulate activity analytics", eyebrow: "Kafka live flow", minutes: 3 },
+  { id: "kafka-analytics-choice", phase: "use-cases", title: "Decide if Kafka fits analytics", eyebrow: "Trade-off check", minutes: 1 },
+  { id: "kafka-cdc-sim", phase: "use-cases", title: "Simulate change-data capture", eyebrow: "Kafka live flow", minutes: 3 },
+  { id: "kafka-cdc-choice", phase: "use-cases", title: "Decide if Kafka fits CDC", eyebrow: "Trade-off check", minutes: 1 },
+  { id: "kafka-spike-sim", phase: "use-cases", title: "Simulate a traffic spike", eyebrow: "Kafka live flow", minutes: 3 },
+  { id: "kafka-spike-choice", phase: "use-cases", title: "Decide if Kafka fits buffering", eyebrow: "Trade-off check", minutes: 1 },
+  { id: "kafka-realtime-use-cases", phase: "use-cases", title: "Recognize real-time Kafka uses", eyebrow: "More practical examples", minutes: 2 },
+  { id: "kafka-platform-use-cases", phase: "use-cases", title: "Recognize platform Kafka uses", eyebrow: "Integration and recovery", minutes: 2 },
+  { id: "kafka-questions", phase: "interview-questions", title: "Practise likely questions", eyebrow: "Interview review", minutes: 2 },
+  { id: "kafka-answer", phase: "interview-questions", title: "Build a strong Kafka answer", eyebrow: "Explain the decision", minutes: 2 },
+  { id: "kafka-recap", phase: "recap", title: "Remember the Kafka decision", eyebrow: "Final checkpoint", minutes: 1 },
+];
 
 export const ticTacToeLearningSteps: LearningStep[] = [
   { id: "orientation", phase: "start", title: "See the game loop", eyebrow: "Mental model", minutes: 1 },
