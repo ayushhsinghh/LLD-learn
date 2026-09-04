@@ -7,3 +7,18 @@ out
 
 .codex
 .github
+
+Intro Of the Pattern
+How to identify it
+General Recurrence relation/template
+Base cases
+Brute-force recursive decision
+Memoization template
+Tabulation template
+Correct iteration order
+Space optimization
+Common problem forms
+Answer reconstruction when relevant
+Quick interview checklist
+Common mistakes
+Complexity analysis
