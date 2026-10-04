@@ -5,12 +5,13 @@ import { LessonStep, FocusOnly, WalkthroughOnly } from "@/components/learning/le
 import { ChoiceQuestion, ClassificationChallenge, EntityModelSummary, FocusCode, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions"
 import { DijkstraLearningTrace, RideClassBlueprint, RideClassPicker, RideImplementationMap, RideOwnershipQuiz, RideRequestFlow, RideScenarioProof } from "@/components/learning/ride-sharing-focus"
 import { ClassDiagramGallery } from "@/components/class-diagram-gallery"
+import { StaticImage } from "@/components/static-image"
 import { rideSharingClassDiagrams } from "@/lib/class-diagrams"
 import { rideSharingEntityModel } from "@/lib/entity-models"
 import { rideSharingClassDesign } from "@/lib/class-design-models"
 
 <LessonStep id="ride-orientation"><FocusOnly>
-<div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--line)] bg-white"><img src="/images/ride-sharing-overview.png" alt="Three drivers take different weighted road routes to a rider before the selected ride continues to its destination" className="h-full w-full object-contain" /></div><p className="mt-3 shrink-0 text-xs leading-5 text-[var(--muted)]">A driver who looks close may be slow by road. Dispatch first compares routes to the pickup; the accepted ride then keeps a separate route to the destination.</p></div>
+<div className="flex h-full min-h-0 flex-col"><div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-[var(--line)] bg-white"><StaticImage src="/images/ride-sharing-overview.png" alt="Three drivers take different weighted road routes to a rider before the selected ride continues to its destination" width={1690} height={931} eager className="h-full w-full object-contain" /></div><p className="mt-3 shrink-0 text-xs leading-5 text-[var(--muted)]">A driver who looks close may be slow by road. Dispatch first compares routes to the pickup; the accepted ride then keeps a separate route to the destination.</p></div>
 </FocusOnly></LessonStep>
 
 <LessonStep id="ride-framework"><FocusOnly><FocusFrameworkRoadmap /></FocusOnly></LessonStep>

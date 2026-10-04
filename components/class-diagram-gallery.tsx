@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { StaticImage } from "@/components/static-image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ClassDiagramDefinition } from "@/lib/class-diagrams";
 
@@ -20,7 +20,7 @@ export function ClassDiagramGallery({ diagrams, label = "Final class diagrams" }
           <TabsContent key={diagram.id} value={diagram.id} className="mt-3">
             <figure className="overflow-hidden rounded-xl border border-[var(--line)] bg-white">
               <div className="flex min-h-[220px] items-center justify-center bg-[#fbf7ef] p-2 sm:min-h-[360px] sm:p-4">
-                <Image src={diagram.image} alt={diagram.alt} width={diagram.width ?? 1536} height={diagram.height ?? 1024} className="max-h-[620px] h-auto w-full object-contain" unoptimized />
+                <StaticImage src={diagram.image} alt={diagram.alt} width={diagram.width ?? 1536} height={diagram.height ?? 1024} className="max-h-[620px] h-auto w-full object-contain" />
               </div>
               <figcaption className="grid gap-3 border-t border-[var(--line)] p-4 sm:grid-cols-2 sm:p-5">
                 <p className="text-sm leading-6 text-[var(--muted)]"><strong className="text-[var(--ink)]">How to read it: </strong>{diagram.reading}</p>

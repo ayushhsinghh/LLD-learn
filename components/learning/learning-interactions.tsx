@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Eye, Lightbulb, RotateCcw, Sparkles, X } from "lucide-react";
-import Image from "next/image";
+import { StaticImage } from "@/components/static-image";
 import { RadioGroup } from "radix-ui";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -60,28 +60,32 @@ export function PassiveLearningCards({ intro, items, conclusion }: { intro: stri
 }
 
 export function EntityModelSummary({ model }: { model: EntityModel }) {
-  const { items, enums, fields, infrastructure = [], omitted } = model;
-  const dense = items.length > 10;
   const supporting = [
-    { label: "Enums", values: enums.map((item) => item.name) },
-    { label: "Fields", values: fields.map((item) => item.name) },
-    { label: "Infrastructure", values: infrastructure.map((item) => item.name) },
-    { label: "Left out", values: omitted },
+    { label: "Enums", values: model.enums.map((item) => item.name) },
+    { label: "Fields", values: model.fields.map((item) => item.name) },
+    { label: "Infrastructure", values: (model.infrastructure ?? []).map((item) => item.name) },
+    { label: "Left out", values: model.omitted },
   ].filter((group) => group.values.length > 0);
 
-  return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-2.5 sm:p-4">
-    <p className={cn("shrink-0 font-medium text-[var(--muted)]", dense ? "text-[8px] leading-3 sm:text-[10px] sm:leading-4" : "text-[10px] leading-4 sm:text-xs sm:leading-5")}>This is the model we will design. Every type has one clear job.</p>
-    <div aria-label="Final entity model" className={cn("mt-2 grid shrink-0 grid-cols-2 sm:grid-cols-3", dense ? "gap-1" : "gap-1.5 sm:gap-2")}>
-      {items.map((item) => <article key={item.name} className={cn("min-w-0 rounded-lg border border-[var(--line)] bg-white", dense ? "px-1.5 py-1" : "px-2 py-1.5 sm:px-2.5 sm:py-2")}>
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0">
-          <span className="min-w-0 break-words font-mono text-[9px] font-extrabold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{item.name}</span>
-          <span className="text-[6px] font-extrabold uppercase tracking-[0.06em] text-[var(--accent-dark)] sm:text-[7px]">{item.kind}</span>
-        </div>
-        <p className={cn("break-words text-[var(--muted)]", dense ? "mt-0.5 text-[8px] leading-3" : "mt-1 text-[8px] leading-3 sm:text-[9px] sm:leading-4")}>{item.purpose}</p>
-      </article>)}
+  return <section aria-label="Final entity model" className="flex h-full min-h-0 flex-col gap-2 rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-2.5 text-xs leading-[1.2] sm:gap-3 sm:p-4">
+    <div className="grid shrink-0 gap-2 sm:gap-3">
+      <div className="grid content-start gap-2">{(["Class", "Record", "Interface"] as const).map((kind) => {
+        const items = model.items.filter((item) => item.kind === kind);
+        if (!items.length) return null;
+        return <section key={kind} aria-label={`${kind} types`}>
+          <h3 className="!m-0 !text-xs !leading-4 font-bold text-[var(--accent-dark)]">{kind}</h3>
+          <dl className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 sm:grid-cols-4 sm:gap-x-3 sm:gap-y-2">{items.map((item) => <div key={item.name} className="min-w-0">
+            <dt className="break-words font-mono font-semibold tracking-[-0.035em] text-[var(--ink)]">{item.name}</dt>
+            <dd className="mt-0.5 text-[var(--muted)]">{item.focusPurpose ?? item.purpose}</dd>
+          </div>)}</dl>
+        </section>;
+      })}</div>
+      <dl aria-label="Supporting model choices" className="grid content-start gap-1.5 border-t border-[var(--line)] pt-1 sm:grid-cols-2 sm:gap-2">{supporting.map((group) => <div key={group.label} className="min-w-0">
+        <dt className="inline font-bold text-[var(--accent-dark)]">{group.label}: </dt>
+        <dd className="inline break-words text-[var(--muted)]">{group.values.join(", ")}</dd>
+      </div>)}</dl>
     </div>
-    <div aria-label="Supporting model choices" className="mt-2 grid shrink-0 grid-cols-2 gap-1.5 sm:grid-cols-4">{supporting.map((group) => <article key={group.label} className="min-w-0 rounded-lg border border-[var(--line)] bg-white px-2 py-1.5"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[var(--accent-dark)] sm:text-[8px]">{group.label}</p><p className="mt-0.5 break-words text-[8px] leading-3 text-[var(--muted)] sm:text-[9px] sm:leading-4">{group.values.join(", ")}</p></article>)}</div>
-    <div className="mt-2 shrink-0 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-2.5 py-1.5 sm:px-3 sm:py-2"><p className="text-[7px] font-extrabold uppercase tracking-[0.08em] text-[#24785f] sm:text-[8px]">How it fits together</p><p className="mt-0.5 break-words text-[9px] font-bold leading-3.5 text-[var(--ink)] sm:text-[10px] sm:leading-4">{model.relationship}</p></div>
+    <p className="shrink-0 border-t border-[var(--line)] pt-2 text-[var(--ink)]"><strong>How it fits: </strong>{model.relationship}</p>
   </section>;
 }
 
@@ -414,6 +418,7 @@ const entityModelRows: EntityModelRow[] = [
 ];
 
 export function EntityModelClassifier() {
+  const groupId = useId();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
   const [reviewRowId, setReviewRowId] = useState("cell");
@@ -444,18 +449,18 @@ export function EntityModelClassifier() {
           <button key={row.id} type="button" aria-pressed={reviewRowId === row.id} onClick={() => setReviewRowId(row.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewRowId === row.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}>
             <span className="text-xs font-extrabold text-[var(--ink)]">{row.label}</span>
             {rowIsCorrect ? (
-              <span className="flex shrink-0 items-center gap-1 text-[10px] font-extrabold text-[#24785f]"><Check className="size-3.5" /> {correctOption.label}</span>
+              <span className="flex shrink-0 items-center gap-1 text-[10px] font-extrabold text-[#24785f]"><Check aria-hidden="true" className="size-3.5" /> Correct: {correctOption.label}</span>
             ) : (
               <span className="flex shrink-0 items-center gap-2 text-[9px] font-extrabold">
-                <span className="flex items-center gap-1 text-[#a23d2e]"><X className="size-3.5" /> {selectedOption.label}</span>
-                <span className="flex items-center gap-1 text-[#24785f]"><Check className="size-3.5" /> {correctOption.label}</span>
+                <span className="flex items-center gap-1 text-[#a23d2e]"><X aria-hidden="true" className="size-3.5" /> Selected: {selectedOption.label}</span>
+                <span className="flex items-center gap-1 text-[#24785f]"><Check aria-hidden="true" className="size-3.5" /> Correct: {correctOption.label}</span>
               </span>
             )}
           </button>
         ) : (
           <div key={row.id} className="rounded-lg border border-[var(--line)] bg-white px-3 py-2">
-            <p className="text-[11px] font-extrabold text-[var(--ink)]">{row.label}</p>
-            <div className="mt-1 grid grid-cols-4 gap-1">{row.options.map((option) => <button key={option.id} type="button" aria-pressed={answers[row.id] === option.id} onClick={() => setAnswers((current) => ({ ...current, [row.id]: option.id }))} className={cn("rounded-md border px-1 py-1 text-[9px] font-extrabold leading-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", answers[row.id] === option.id ? "border-[var(--ink)] bg-[var(--ink)] text-white" : "border-[var(--line)] bg-[var(--paper-2)] text-[var(--muted)]")}>{option.label}</button>)}</div>
+            <p id={`${groupId}-${row.id}`} className="text-xs font-extrabold text-[var(--ink)]">{row.label}</p>
+            <div role="group" aria-labelledby={`${groupId}-${row.id}`} className="mt-1 grid grid-cols-4 gap-1">{row.options.map((option) => <button key={option.id} type="button" aria-label={`${row.label}: ${option.label}`} aria-pressed={answers[row.id] === option.id} onClick={() => setAnswers((current) => ({ ...current, [row.id]: option.id }))} className={cn("min-h-8 rounded-md border px-1 py-1 text-xs font-bold leading-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", answers[row.id] === option.id ? "border-[var(--ink)] bg-[var(--ink)] text-white" : "border-[var(--line)] bg-[var(--paper-2)] text-[var(--muted)]")}>{option.label}</button>)}</div>
           </div>
         );})}
       </div>
@@ -480,36 +485,56 @@ const responsibilityRules = [
   { id: "change", label: "Switch to the next player", owner: "Game", feedback: "Game controls the turn, so it switches players only after a valid move." },
 ] as const;
 
-export function EntityResponsibilityQuiz() {
+/** Keeps submitted ownership decisions in their original order while reviewing one reason. */
+export function OwnershipQuiz({ instruction, owners, items, success }: {
+  instruction: string;
+  owners: readonly string[];
+  items: readonly { id: string; label: string; owner: string; feedback: string }[];
+  success: string;
+}) {
+  const groupId = useId();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
-  const [reviewId, setReviewId] = useState("occupied");
-  const reviewed = responsibilityRules.find((rule) => rule.id === reviewId)!;
-  const isCorrect = responsibilityRules.every((rule) => answers[rule.id] === rule.owner);
+  const [reviewId, setReviewId] = useState(items[0].id);
+  const reviewed = items.find((item) => item.id === reviewId)!;
+  const score = items.filter((item) => answers[item.id] === item.owner).length;
+  const reset = () => { setAnswers({}); setChecked(false); setReviewId(items[0].id); };
+  const check = () => {
+    setReviewId(items.find((item) => answers[item.id] !== item.owner)?.id ?? items[0].id);
+    setChecked(true);
+  };
 
-  const reset = () => { setAnswers({}); setChecked(false); setReviewId("occupied"); };
+  return <section className="ownership-quiz rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-2 text-xs leading-4 sm:p-4">
+    <p className="mb-2 text-[var(--muted)]">{instruction}</p>
+    <div className="grid gap-1 sm:grid-cols-2 sm:gap-2">{items.map((item) => {
+      const right = answers[item.id] === item.owner;
+      return checked ? <button key={item.id} type="button" aria-pressed={reviewId === item.id} aria-controls={`${groupId}-reason`} onClick={() => setReviewId(item.id)} className={cn("grid min-h-11 grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] items-center gap-2 rounded-md border bg-white px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewId === item.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}>
+        <span className="font-semibold text-[var(--ink)]">{item.label}</span>
+        <span className="min-w-0">
+          <span className={cn("flex items-center gap-1", right ? "text-[#24785f]" : "text-[#a23d2e]")}>{right ? <Check aria-hidden="true" className="size-3.5 shrink-0" /> : <X aria-hidden="true" className="size-3.5 shrink-0" />}<span>{right ? "Correct" : "Selected"}: {answers[item.id]}<span className="sr-only">{right ? ", selected owner" : ", incorrect"}</span></span></span>
+          {!right && <span className="flex items-center gap-1 text-[var(--ink)]"><Check aria-hidden="true" className="size-3.5 shrink-0" /><span>Expected: {item.owner}</span></span>}
+        </span>
+      </button> : <div key={item.id} className="grid min-h-11 grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-2 rounded-md border border-[var(--line)] bg-white px-2 py-1">
+        <label htmlFor={`${groupId}-${item.id}`} className="font-semibold text-[var(--ink)]">{item.label}</label>
+        <select id={`${groupId}-${item.id}`} value={answers[item.id] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [item.id]: event.target.value }))} className="min-h-9 min-w-0 rounded-md border border-[var(--line)] bg-[var(--paper-2)] px-1 text-xs focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]">
+          <option value="" disabled>Choose owner</option>
+          {owners.map((owner) => <option key={owner} value={owner}>{owner}</option>)}
+        </select>
+      </div>;
+    })}</div>
+    {checked && <div id={`${groupId}-reason`} className="mt-2 rounded-md border border-[var(--line)] bg-white px-2 py-1.5">
+      <p className="font-bold text-[var(--ink)]">{reviewed.label} — why {reviewed.owner}?</p>
+      <p className="mt-1 text-[var(--muted)]">{reviewed.feedback}</p>
+    </div>}
+    <div className="mt-2 flex items-center gap-2">
+      {checked ? <Button size="sm" variant="ghost" onClick={reset}><RotateCcw /> Try again</Button> : <Button size="sm" disabled={items.some((item) => !answers[item.id])} onClick={check}>Check owners</Button>}
+      <p role="status" aria-live="polite" className="font-bold text-[var(--ink)]">{checked && `${score}/${items.length} correct. ${score === items.length ? success : "Review a row."}`}</p>
+    </div>
+  </section>;
+}
 
-  return (
-    <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-4">
-      <div className="mb-2 rounded-lg border border-[#b8ddcf] bg-[var(--mint-soft)] px-3 py-2">
-        <p className="text-[10px] font-extrabold leading-4 text-[var(--ink)]">Give each rule to the class that has the information needed to check it.</p>
-        <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">Board stores the cells, so it checks cell rules. Game stores the current player and match status, so it checks game rules.</p>
-      </div>
-      {!checked ? <div className="grid gap-1.5">{responsibilityRules.map((rule) => <div key={rule.id} className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5"><span className="text-[11px] font-bold leading-4 text-[var(--ink)]">{rule.label}</span><div className="flex rounded-md bg-[var(--paper-2)] p-0.5">{["Game", "Board"].map((owner) => <button key={owner} type="button" aria-pressed={answers[rule.id] === owner} onClick={() => setAnswers((current) => ({ ...current, [rule.id]: owner }))} className={cn("rounded px-2 py-1 text-[9px] font-extrabold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", answers[rule.id] === owner ? "bg-[var(--ink)] text-white" : "text-[var(--muted)]")}>{owner}</button>)}</div></div>)}</div> : (
-        <div className="grid grid-cols-2 gap-2">{["Game", "Board"].map((owner) => <div key={owner} className="rounded-lg border border-[var(--line)] bg-white p-2"><p className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--faint)]">{owner} owns</p><div className="mt-1.5 grid gap-1">{responsibilityRules.filter((rule) => rule.owner === owner).map((rule) => <button key={rule.id} type="button" onClick={() => setReviewId(rule.id)} className={cn("rounded-md px-2 py-1 text-left text-[9px] font-bold leading-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", answers[rule.id] === rule.owner ? "bg-[var(--mint-soft)] text-[#24785f]" : "bg-[#fff3f0] text-[#a23d2e]", reviewId === rule.id && "ring-2 ring-[var(--ink)]")}>{rule.label}</button>)}</div></div>)}</div>
-      )}
-      {checked && <>
-        <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2">
-          <p className="text-[10px] font-extrabold text-[var(--ink)]">Why {reviewed.owner}?</p>
-          <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p>
-        </div>
-      </>}
-      <div className="mt-2 flex items-center gap-3">
-        {!checked ? <Button size="sm" disabled={Object.keys(answers).length !== responsibilityRules.length} onClick={() => setChecked(true)}>Check owners</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}
-        <p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? "Every rule has its owner." : "The groups show the right owners.")}</p>
-      </div>
-    </section>
-  );
+export function EntityResponsibilityQuiz() {
+  return <OwnershipQuiz instruction="Give each rule to the class with the information needed to check it." owners={["Game", "Board"]} items={responsibilityRules} success="Every rule has its owner." />;
 }
 
 const entityFlowItems = [
@@ -558,7 +583,7 @@ export function EntityFlowChallenge() {
         })}</ol>
         {checked && <p className={cn("mt-2 text-xs font-extrabold", isCorrect ? "text-[#24785f]" : "text-[#a23d2e]")} aria-live="polite">{correctCount} of {entityFlowItems.length} positions correct</p>}
       </div> : <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg border border-[var(--line)] bg-white"><Image src="/images/tic-tac-toe-entity-flow.png" alt="Player sends makeMove to Game, Game delegates placement to Board, and Board returns a result" width={1774} height={887} className="h-full w-full object-contain" priority unoptimized /></div>
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg border border-[var(--line)] bg-white"><StaticImage src="/images/tic-tac-toe-entity-flow.png" alt="Player sends makeMove to Game, Game delegates placement to Board, and Board returns a result" width={1774} height={887} className="h-full w-full object-contain" eager /></div>
         <ol className="mt-2 grid shrink-0 grid-cols-2 gap-1 text-[9px] font-bold leading-4">{entityFlowItems.map((item, index) => <li key={item.id} className="flex gap-1.5 rounded-md bg-white px-2 py-1"><span className="text-[var(--orange)]">{index + 1}.</span><span>{item.label}</span></li>)}</ol>
       </div>}
       <div className="mt-3 flex shrink-0 items-center gap-3">
@@ -599,6 +624,7 @@ export type ClassificationCategory = { id: string; label: string };
 export type ClassificationItem = { id: string; label: string; answer: string; feedback: string };
 
 export function ClassificationChallenge({ instruction, callout, categories, items, success, submitLabel = "Check answers" }: { instruction: string; callout?: string; categories: ClassificationCategory[]; items: ClassificationItem[]; success: string; submitLabel?: string }) {
+  const groupId = useId();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
   const [reviewId, setReviewId] = useState(items[0].id);
@@ -607,17 +633,17 @@ export function ClassificationChallenge({ instruction, callout, categories, item
   const reset = () => { setAnswers({}); setChecked(false); setReviewId(items[0].id); };
   const check = () => { setReviewId(items.find((item) => answers[item.id] !== item.answer)?.id ?? items[0].id); setChecked(true); };
 
-  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-5">
-    <p className="text-xs leading-5 text-[var(--muted)]">{instruction}</p>
+  return <section className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-2 sm:p-5">
+    <p className="text-xs leading-4 text-[var(--muted)]">{instruction}</p>
     {checked && callout && <p className="mt-2 rounded-md bg-[var(--mint-soft)] px-2 py-1 text-[9px] font-bold leading-4 text-[var(--ink)]">{callout}</p>}
-    <div className="mt-2 grid gap-1.5 sm:grid-cols-2">{items.map((item) => {
+    <div className="mt-2 grid gap-1 sm:grid-cols-2 sm:gap-1.5">{items.map((item) => {
       const selected = categories.find((category) => category.id === answers[item.id]);
       const correct = categories.find((category) => category.id === item.answer)!;
       const rowCorrect = answers[item.id] === item.answer;
-      return checked ? <button key={item.id} type="button" aria-pressed={reviewId === item.id} onClick={() => setReviewId(item.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewId === item.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}><span className="text-[10px] font-extrabold text-[var(--ink)] sm:text-xs">{item.label}</span><span className={cn("flex shrink-0 items-center gap-1 text-[9px] font-extrabold", rowCorrect ? "text-[#24785f]" : "text-[#a23d2e]")}>{rowCorrect ? <Check className="size-3" /> : <X className="size-3" />}{rowCorrect ? correct.label : `${selected?.label} → ${correct.label}`}</span></button> : <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-[var(--line)] bg-white px-3 py-1.5"><span className="text-[10px] font-extrabold leading-4 text-[var(--ink)] sm:text-xs">{item.label}</span><div className={cn("grid rounded-md bg-[var(--paper-2)] p-0.5", categories.length > 3 ? "grid-cols-2" : "grid-flow-col")}>{categories.map((category) => <button key={category.id} type="button" aria-pressed={answers[item.id] === category.id} onClick={() => setAnswers((current) => ({ ...current, [item.id]: category.id }))} className={cn("rounded px-1.5 py-1 text-[8px] font-extrabold leading-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)] sm:px-2 sm:text-[9px]", answers[item.id] === category.id ? "bg-[var(--ink)] text-white" : "text-[var(--muted)]")}>{category.label}</button>)}</div></div>;
+      return checked ? <button key={item.id} type="button" aria-pressed={reviewId === item.id} onClick={() => setReviewId(item.id)} className={cn("flex items-center justify-between gap-2 rounded-lg border bg-white px-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", reviewId === item.id && "border-[var(--ink)] ring-2 ring-[var(--ink)]")}><span className="text-[10px] font-extrabold text-[var(--ink)] sm:text-xs">{item.label}</span><span className={cn("flex shrink-0 items-center gap-1 text-[9px] font-extrabold", rowCorrect ? "text-[#24785f]" : "text-[#a23d2e]")}>{rowCorrect ? <Check className="size-3" /> : <X className="size-3" />}{rowCorrect ? correct.label : `${selected?.label} → ${correct.label}`}</span></button> : <div key={item.id} className={cn("grid rounded-lg border border-[var(--line)] bg-white px-2 py-1", categories.length > 4 ? "gap-1" : "grid-cols-[minmax(0,1fr)_auto] items-center gap-2")}><span id={`${groupId}-${item.id}`} className="text-xs font-bold leading-4 text-[var(--ink)]">{item.label}</span><div role="group" aria-labelledby={`${groupId}-${item.id}`} className={cn("grid rounded-md bg-[var(--paper-2)]", categories.length > 4 ? "grid-cols-3" : categories.length > 3 ? "w-48 grid-cols-2" : "grid-flow-col")}>{categories.map((category) => <button key={category.id} type="button" aria-label={`${item.label}: ${category.label}`} aria-pressed={answers[item.id] === category.id} onClick={() => setAnswers((current) => ({ ...current, [item.id]: category.id }))} className={cn("min-w-6 break-words rounded px-1 text-xs font-bold leading-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]", "min-h-8 py-0.5", answers[item.id] === category.id ? "bg-[var(--ink)] text-white" : "text-[var(--muted)]")}>{category.label}</button>)}</div></div>;
     })}</div>
     {checked && <div className="mt-2 rounded-lg border border-[var(--line)] bg-white px-3 py-2"><p className="text-[10px] font-extrabold text-[var(--ink)]">Why {categories.find((category) => category.id === reviewed.answer)?.label}?</p><p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{reviewed.feedback}</p></div>}
-    <div className="mt-3 flex items-center gap-3">{!checked ? <Button size="sm" disabled={Object.keys(answers).length !== items.length} onClick={check}>{submitLabel}</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}<p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? success : "Review the marked decisions.")}</p></div>
+    <div className="mt-2 flex items-center gap-3">{!checked ? <Button size="sm" disabled={Object.keys(answers).length !== items.length} onClick={check}>{submitLabel}</Button> : <Button variant="ghost" size="sm" onClick={reset}><RotateCcw /> Try again</Button>}<p aria-live="polite" className={cn("text-xs font-bold", checked && (isCorrect ? "text-[#24785f]" : "text-[#a23d2e]"))}>{checked && (isCorrect ? success : "Review the marked decisions.")}</p></div>
   </section>;
 }
 
@@ -691,7 +717,7 @@ export function FinalClassBlueprint() {
   return <section className="flex h-full min-h-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--paper-2)] p-3 sm:p-4">
     <Tabs defaultValue="player" className="flex min-h-0 flex-1 flex-col">
       <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="player" className="py-1.5 text-xs">Player</TabsTrigger><TabsTrigger value="board" className="py-1.5 text-xs">Board</TabsTrigger><TabsTrigger value="game" className="py-1.5 text-xs">Game</TabsTrigger></TabsList>
-      {ticTacToeClassDiagrams.map((model) => <TabsContent key={model.id} value={model.id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><Image src={model.image} alt={model.alt} width={model.width ?? 1536} height={model.height ?? 1024} className="h-full w-full object-contain" unoptimized /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--ink)]">Read the diagram: </strong>{model.reading}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{model.principle}</p></div></article></TabsContent>)}
+      {ticTacToeClassDiagrams.map((model) => <TabsContent key={model.id} value={model.id} className="mt-2 min-h-0 flex-1"><article className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--line)] bg-white"><div className="flex min-h-0 items-center justify-center overflow-hidden bg-[#fbf7ef] p-1"><StaticImage src={model.image} alt={model.alt} width={model.width ?? 1536} height={model.height ?? 1024} className="h-full w-full object-contain" /></div><div className="grid gap-1 border-t border-[var(--line)] px-3 py-2 sm:grid-cols-2"><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--ink)]">Read the diagram: </strong>{model.reading}</p><p className="text-[9px] leading-4 text-[var(--muted)]"><strong className="text-[var(--accent-dark)]">Principle: </strong>{model.principle}</p></div></article></TabsContent>)}
     </Tabs>
   </section>;
 }

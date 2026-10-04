@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, List, Route, Sparkles, X } from "lucide-react";
+import { Dialog } from "radix-ui";
 import { useEffect, useRef, useState } from "react";
 import { lessonHref, lessons } from "@/lib/lessons";
 import { componentHref, systemComponents } from "@/lib/system-components";
@@ -40,7 +41,7 @@ export function LessonShell({
   const [activeId, setActiveId] = useState(toc[0]?.id ?? "");
   const activeCurriculumItemRef = useRef<HTMLAnchorElement>(null);
   const drawerCloseButtonRef = useRef<HTMLButtonElement>(null);
-  const drawerTriggerRef = useRef<HTMLButtonElement>(null);
+  const pageHeadingRef = useRef<HTMLHeadingElement>(null);
   const activePhaseIndex = Math.max(0, toc.findIndex((item) => item.id === activeId));
   const activePhase = toc[activePhaseIndex];
   const activePhaseLabel = activePhase?.label.replace(/^\d+\.\s*/, "");
@@ -68,33 +69,13 @@ export function LessonShell({
   }, [toc]);
 
   useEffect(() => {
-    if (!drawerOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    const frame = window.requestAnimationFrame(() => {
-      activeCurriculumItemRef.current?.scrollIntoView({ block: "center" });
-      drawerCloseButtonRef.current?.focus();
-    });
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setDrawerOpen(false);
-        window.requestAnimationFrame(() => drawerTriggerRef.current?.focus());
-      }
+    const desktop = window.matchMedia("(min-width: 1280px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setDrawerOpen(false);
     };
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [drawerOpen, pathname]);
-
-  const closeDrawer = () => {
-    setDrawerOpen(false);
-    window.requestAnimationFrame(() => drawerTriggerRef.current?.focus());
-  };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   const curriculum = (
     <div className="flex h-full flex-col">
@@ -166,20 +147,37 @@ export function LessonShell({
   );
 
   return (
+    <Dialog.Root open={drawerOpen} onOpenChange={setDrawerOpen}>
     <div className="min-h-screen bg-white text-[var(--ink)]">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[250px] border-r border-[var(--line)] bg-[var(--sidebar)] p-6 xl:block">
         {curriculum}
       </aside>
 
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden">
-          <button className="absolute inset-0 bg-[var(--ink)]/35 backdrop-blur-sm" aria-label="Dismiss lessons" onClick={closeDrawer} />
-          <aside id="lesson-curriculum-drawer" role="dialog" aria-modal="true" aria-label="Lesson curriculum" className="absolute inset-y-0 left-0 w-[min(88vw,340px)] overflow-y-auto bg-white p-6 shadow-2xl">
-            <Button ref={drawerCloseButtonRef} variant="ghost" size="icon" className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))]" aria-label="Close lessons" onClick={closeDrawer}><X /></Button>
-            {curriculum}
-          </aside>
-        </div>
-      )}
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--ink)]/35 backdrop-blur-sm xl:hidden" />
+        <Dialog.Content
+          id="lesson-curriculum-drawer"
+          className="fixed inset-y-0 left-0 z-50 w-[min(88vw,340px)] overflow-y-auto bg-white p-6 shadow-2xl xl:hidden"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            activeCurriculumItemRef.current?.scrollIntoView({ block: "center" });
+            drawerCloseButtonRef.current?.focus({ preventScroll: true });
+          }}
+          onCloseAutoFocus={(event) => {
+            if (window.matchMedia("(min-width: 1280px)").matches) {
+              event.preventDefault();
+              pageHeadingRef.current?.focus({ preventScroll: true });
+            }
+          }}
+        >
+          <Dialog.Title className="sr-only">Lesson curriculum</Dialog.Title>
+          <Dialog.Description className="sr-only">Choose a lesson or return to the interview framework.</Dialog.Description>
+          <Dialog.Close asChild>
+            <Button ref={drawerCloseButtonRef} variant="ghost" size="icon" className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))]" aria-label="Close lessons"><X /></Button>
+          </Dialog.Close>
+          {curriculum}
+        </Dialog.Content>
+      </Dialog.Portal>
 
       <main className="xl:ml-[250px] xl:mr-[224px]">
         <article className="mx-auto w-full max-w-[780px] px-5 pb-24 pt-10 sm:px-8 lg:px-10 lg:pt-14">
@@ -200,19 +198,16 @@ export function LessonShell({
                   <ChevronDown className={cn("size-4 shrink-0 transition-transform", phaseMenuOpen && "rotate-180")} />
                 </button>
 
-                <Button
-                  ref={drawerTriggerRef}
-                  variant="outline"
-                  aria-expanded={drawerOpen}
-                  aria-controls="lesson-curriculum-drawer"
-                  className="h-11 shrink-0 px-3 shadow-none"
-                  onClick={() => {
-                    setPhaseMenuOpen(false);
-                    setDrawerOpen(true);
-                  }}
-                >
-                  <List /> Lessons
-                </Button>
+                <Dialog.Trigger asChild>
+                  <Button
+                    variant="outline"
+                    aria-controls="lesson-curriculum-drawer"
+                    className="h-11 shrink-0 px-3 shadow-none"
+                    onClick={() => setPhaseMenuOpen(false)}
+                  >
+                    <List /> Lessons
+                  </Button>
+                </Dialog.Trigger>
               </div>
 
               {phaseMenuOpen && (
@@ -245,7 +240,7 @@ export function LessonShell({
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[var(--muted)]">
             <span>{eyebrow}</span><span className="text-[var(--accent)]">•</span><span>{difficulty}</span><span className="text-[var(--accent)]">•</span><span>{duration}</span>
           </div>
-          <h1 className="text-[2.6rem] font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-5xl">{title}</h1>
+          <h1 ref={pageHeadingRef} tabIndex={-1} className="text-[2.6rem] font-extrabold leading-[1.08] tracking-[-0.045em] sm:text-5xl">{title}</h1>
           {focusHref && (
             <div className="mt-6 rounded-2xl border border-[#f1c3a7] bg-[var(--accent-soft)] p-4 sm:flex sm:items-center sm:justify-between sm:gap-5">
               <div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--accent)]"><Sparkles className="size-4" /></span><div><p className="text-sm font-extrabold">Prefer to learn one decision at a time?</p><p className="mt-1 text-xs leading-5 text-[var(--muted)]">Try questions, reveal the reasoning, trace the code, and finish with the simulator.</p></div></div>
@@ -286,5 +281,6 @@ export function LessonShell({
         </nav>
       </aside>
     </div>
+    </Dialog.Root>
   );
 }

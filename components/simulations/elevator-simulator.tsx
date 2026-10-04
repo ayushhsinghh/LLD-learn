@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useReducedMotionPreference } from "@/lib/use-media-query";
 
 type Direction = "UP" | "DOWN" | "IDLE";
 type RequestType = "PICKUP_UP" | "PICKUP_DOWN" | "DESTINATION";
@@ -73,6 +74,12 @@ export function ElevatorSimulator() {
   const [strategy, setStrategy] = useState<Strategy>("direction-aware");
   const [tick, setTick] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const reducedMotion = useReducedMotionPreference();
+  const [previousReducedMotion, setPreviousReducedMotion] = useState(reducedMotion);
+  if (previousReducedMotion !== reducedMotion) {
+    setPreviousReducedMotion(reducedMotion);
+    if (reducedMotion) setPlaying(false);
+  }
   const [events, setEvents] = useState<string[]>(["Simulation ready. Add a hall call or destination."]);
 
   const advance = useCallback(() => {
@@ -85,10 +92,14 @@ export function ElevatorSimulator() {
   }, [tick]);
 
   useEffect(() => {
-    if (!playing) return;
-    const timer = window.setInterval(advance, 850);
+    if (!playing || reducedMotion) return;
+    const timer = window.setInterval(() => {
+      // Also guard the callback if the preference changes before React cleans up.
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) advance();
+    }, 850);
     return () => window.clearInterval(timer);
-  }, [advance, playing]);
+  }, [advance, playing, reducedMotion]);
+
 
   const addHallCall = () => {
     const selected = selectElevator(elevators, floor, hallDirection, strategy);
@@ -172,7 +183,7 @@ export function ElevatorSimulator() {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <Button onClick={() => setPlaying((value) => !value)}>{playing ? <Pause /> : <Play />}{playing ? "Pause" : "Play"}</Button>
+            <Button disabled={reducedMotion} onClick={() => setPlaying((value) => !value)}>{playing ? <Pause /> : <Play />}{reducedMotion ? "Manual mode" : playing ? "Pause" : "Play"}</Button>
             <Button variant="outline" onClick={advance}><StepForward /> Step</Button>
             <Button variant="ghost" onClick={reset}><RotateCcw /> Reset</Button>
             <Button variant="ghost" onClick={loadRushHour}>Load edge case</Button>

@@ -556,7 +556,7 @@ Start with nouns, then ask what each must remember or enforce. A queue and threa
 
 <EntityModelOverview model={notificationEntityModel} />
 
-<ConceptImage src="/images/notification-system-entity-flow.png" alt="A caller submits to NotificationService, which records a DeliveryJob and uses a thread pool and channel sender" caption="Read left to right: acceptance creates visible job state before background delivery begins; retries update the same job." width={1693} height={929} mobileScrollable={true} />
+<ConceptImage src="/images/notification-system-entity-flow.png" alt="A caller submits to NotificationService, which records a DeliveryJob and uses a thread pool and channel sender" caption="Read left to right: acceptance creates visible job state before background delivery begins; retries update the same job." width={1692} height={929} mobileScrollable={true} />
 
 The caller enters through `NotificationService.submit`. The service creates a `DeliveryJob`, stores it, and schedules one worker task. That worker finds the `NotificationSender`, performs bounded attempts, and asks the job to publish `SENT` or `FAILED`. The executor enables parallel work but does not own any delivery rule.
 

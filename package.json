@@ -7,7 +7,9 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "images:generate": "node scripts/generate-image-variants.mjs",
+    "images:check": "node scripts/generate-image-variants.mjs --check"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.3.0",

@@ -1,22 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "motion/react";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, List, X } from "lucide-react";
 import { Dialog } from "radix-ui";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { FocusStepProvider } from "@/components/learning/lesson-step";
 import { Button } from "@/components/ui/button";
 import { type LearningStep, learningPhaseLabels } from "@/lib/learning-paths";
 import { cn } from "@/lib/utils";
+import { useMediaQuery, useReducedMotionPreference } from "@/lib/use-media-query";
+
+function FocusStepHeading({ step, headingRef, activeStepIdRef }: { step: LearningStep; headingRef: RefObject<HTMLHeadingElement | null>; activeStepIdRef: RefObject<string> }) {
+  useEffect(() => {
+    const heading = headingRef.current;
+    const frame = window.requestAnimationFrame(() => {
+      if (heading?.isConnected && heading.dataset.stepId === activeStepIdRef.current) {
+        heading.focus({ preventScroll: true });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeStepIdRef, headingRef, step.id]);
+
+  return <h1 ref={headingRef} data-step-id={step.id} tabIndex={-1} className="text-xl font-extrabold leading-tight tracking-[-0.025em] sm:text-2xl">{step.title}</h1>;
+}
 
 export function FocusLessonShell({ title, completeHref, steps, children }: { title: string; completeHref: string; steps: LearningStep[]; children: React.ReactNode }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [mapOpen, setMapOpen] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const reducedMotion = useReducedMotion();
+  const mapOpenerRef = useRef<HTMLButtonElement>(null);
+  const mapNavigationRef = useRef(false);
+  const reducedMotion = useReducedMotionPreference();
+  const desktop = useMediaQuery("(min-width: 1280px)");
   const activeStep = steps[activeIndex];
+  const activeStepIdRef = useRef(activeStep.id);
 
   const indexForHash = useCallback((hash: string) => {
     const id = decodeURIComponent(hash.replace(/^#/, ""));
@@ -45,14 +64,27 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
 
   useEffect(() => {
     if (!activeStep) return;
+    activeStepIdRef.current = activeStep.id;
     document.title = `${activeStep.title} · ${title} Focus Mode`;
     window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
-    const timeout = window.setTimeout(() => headingRef.current?.focus(), reducedMotion ? 0 : 180);
-    return () => window.clearTimeout(timeout);
   }, [activeStep, reducedMotion, title]);
 
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1280px)");
+    const closeOnDesktop = () => {
+      if (query.matches) setMapOpen(false);
+    };
+    query.addEventListener("change", closeOnDesktop);
+    return () => query.removeEventListener("change", closeOnDesktop);
+  }, []);
+
   const goTo = (index: number) => {
-    if (index < 0 || index >= steps.length || index === activeIndex) return;
+    if (index < 0 || index >= steps.length) return;
+    if (index === activeIndex) {
+      setMapOpen(false);
+      return;
+    }
+    mapNavigationRef.current = mapOpen;
     setDirection(index > activeIndex ? 1 : -1);
     setActiveIndex(index);
     window.history.pushState(null, "", `#${steps[index].id}`);
@@ -103,13 +135,28 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
 
   return (
     <LazyMotion features={domAnimation}>
+      <Dialog.Root open={mapOpen} onOpenChange={setMapOpen}>
       <div className="h-dvh overflow-hidden bg-[#f8f8f6] text-[var(--ink)]">
         <aside className="fixed inset-y-0 left-0 z-20 hidden w-[280px] border-r border-[var(--line)] bg-white p-6 xl:block">{lessonMap}</aside>
 
-        <Dialog.Root open={mapOpen} onOpenChange={setMapOpen}>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 z-50 bg-[var(--ink)]/35 backdrop-blur-sm xl:hidden" />
-            <Dialog.Content className="fixed inset-y-0 left-0 z-50 w-[min(90vw,360px)] overflow-y-auto bg-white p-6 shadow-2xl outline-none xl:hidden">
+            <Dialog.Content
+              className="fixed inset-y-0 left-0 z-50 w-[min(90vw,360px)] overflow-y-auto bg-white p-6 shadow-2xl outline-none xl:hidden"
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                if (mapNavigationRef.current) {
+                  mapNavigationRef.current = false;
+                  return;
+                }
+                const opener = mapOpenerRef.current;
+                if (opener?.isConnected && opener.getClientRects().length && !window.matchMedia("(min-width: 1280px)").matches) {
+                  opener.focus({ preventScroll: true });
+                } else {
+                  headingRef.current?.focus({ preventScroll: true });
+                }
+              }}
+            >
               <Dialog.Title className="sr-only">{title} lesson map</Dialog.Title>
               <Dialog.Description className="sr-only">Choose a phase or learning step to continue the focus lesson.</Dialog.Description>
               <Dialog.Close asChild>
@@ -118,12 +165,13 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
               {lessonMap}
             </Dialog.Content>
           </Dialog.Portal>
-        </Dialog.Root>
 
         <div className="flex h-dvh min-h-0 flex-col xl:ml-[280px]">
           <header className="z-30 shrink-0 border-b border-[var(--line)] bg-white/95 backdrop-blur">
             <div className="mx-auto flex max-w-[980px] items-center gap-3 px-4 py-3 sm:px-7">
-              <Button variant="ghost" size="icon" className="xl:hidden" aria-label="Open lesson map" onClick={() => setMapOpen(true)}><List /></Button>
+              <Dialog.Trigger asChild>
+                <Button variant="ghost" size="icon" className="xl:hidden" aria-label="Open lesson map" onClick={(event) => { mapOpenerRef.current = event.currentTarget; }}><List /></Button>
+              </Dialog.Trigger>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-4 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--faint)]"><span className="truncate">{learningPhaseLabels[activeStep.phase]}</span><span className="shrink-0">{activeIndex + 1} / {steps.length}</span></div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--paper-2)]"><m.div className="h-full rounded-full bg-[var(--accent)]" animate={{ width: `${progress}%` }} transition={reducedMotion ? { duration: 0 } : { duration: 0.25 }} /></div>
@@ -137,7 +185,7 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
               <AnimatePresence mode="wait" initial={false} custom={direction}>
                 <m.section key={activeStep.id} custom={direction} initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * 24 }} animate={{ opacity: 1, x: 0 }} exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * -18 }} transition={{ duration: reducedMotion ? 0.01 : 0.2 }} className="focus-card flex h-full min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-[var(--line)] bg-white shadow-[0_12px_38px_rgba(23,28,36,0.07)]">
                   <header className="shrink-0 border-b border-[var(--line)] px-4 py-2 sm:px-6 sm:py-4">
-                    <h1 ref={headingRef} tabIndex={-1} className="text-xl font-extrabold leading-tight tracking-[-0.025em] outline-none sm:text-2xl">{activeStep.title}</h1>
+                    <FocusStepHeading step={activeStep} headingRef={headingRef} activeStepIdRef={activeStepIdRef} />
                   </header>
                   <div className="focus-card-body min-h-0 flex-1 overflow-hidden p-3 sm:p-6">
                     <FocusStepProvider activeStepId={activeStep.id}>{children}</FocusStepProvider>
@@ -150,12 +198,15 @@ export function FocusLessonShell({ title, completeHref, steps, children }: { tit
           <nav aria-label="Focus lesson navigation" className="z-30 shrink-0 border-t border-[var(--line)] bg-white/95 px-4 py-3 backdrop-blur">
             <div className="mx-auto flex max-w-[820px] items-center justify-between gap-3">
               <Button aria-label="Previous step" variant="outline" onClick={() => goTo(activeIndex - 1)} disabled={activeIndex === 0}><ChevronLeft /> <span className="hidden sm:inline">Previous</span></Button>
-              <button onClick={() => setMapOpen(true)} className="min-w-0 text-center xl:pointer-events-none"><span className="block truncate text-xs font-extrabold">{activeStep.title}</span><span className="mt-0.5 block text-[10px] text-[var(--faint)]">Step {activeIndex + 1} of {steps.length}</span></button>
+              <Dialog.Trigger asChild>
+                <button disabled={desktop} aria-label={`Open lesson map: ${activeStep.title}`} onClick={(event) => { mapOpenerRef.current = event.currentTarget; }} className="min-w-0 text-center xl:pointer-events-none"><span className="block truncate text-xs font-extrabold">{activeStep.title}</span><span className="mt-0.5 block text-[10px] text-[var(--faint)]">Step {activeIndex + 1} of {steps.length}</span></button>
+              </Dialog.Trigger>
               {activeIndex < steps.length - 1 ? <Button aria-label="Next step" onClick={() => goTo(activeIndex + 1)}><span className="hidden sm:inline">Next</span><ChevronRight /></Button> : <Button asChild><Link href={completeHref}>Finish <ArrowRight /></Link></Button>}
             </div>
           </nav>
         </div>
       </div>
+      </Dialog.Root>
     </LazyMotion>
   );
 }

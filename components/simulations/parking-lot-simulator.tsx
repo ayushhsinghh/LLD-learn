@@ -41,6 +41,9 @@ function chooseSpot(spots: Spot[], vehicle: Vehicle) {
 export function ParkingLotSimulator({ compact = false }: { compact?: boolean }) {
   const [spots, setSpots] = useState<Spot[]>(initialSpots);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [selectedTicketId, setSelectedTicketId] = useState("");
+  // Resolve against the current tickets on every render, including reset/edge/exit.
+  const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0];
   const [plate, setPlate] = useState("KA-01-AB-1234");
   const [vehicleType, setVehicleType] = useState<VehicleType>("CAR");
   const [nextTicket, setNextTicket] = useState(1);
@@ -73,6 +76,7 @@ export function ParkingLotSimulator({ compact = false }: { compact?: boolean }) 
     const ticket: Ticket = { id: `T${String(nextTicket).padStart(3, "0")}`, vehicle, spotId: selected.id, floor: selected.floor };
     setSpots((current) => current.map((spot) => spot.id === selected.id ? { ...spot, vehicle } : spot));
     setTickets((current) => [...current, ticket]);
+    setSelectedTicketId(ticket.id);
     setNextTicket((value) => value + 1);
     setEvents((log) => [`Accepted: ${ticket.id} assigns ${normalizedPlate} to floor ${selected.floor}, spot ${selected.id}.`, ...log].slice(0, 8));
     setPlate(`KA-01-AB-${String(nextTicket + 1).padStart(4, "0")}`);
@@ -86,12 +90,14 @@ export function ParkingLotSimulator({ compact = false }: { compact?: boolean }) 
     }
     setSpots((current) => current.map((spot) => spot.id === ticket.spotId ? { ...spot, vehicle: null } : spot));
     setTickets((current) => current.filter((item) => item.id !== ticketId));
+    setSelectedTicketId((current) => current === ticketId ? tickets.find((item) => item.id !== ticketId)?.id ?? "" : current);
     setEvents((log) => [`Exit complete: ${ticket.vehicle.plate} left ${ticket.spotId}; the spot is free again.`, ...log].slice(0, 8));
   };
 
   const reset = () => {
     setSpots(initialSpots);
     setTickets([]);
+    setSelectedTicketId("");
     setNextTicket(1);
     setPlate("KA-01-AB-1234");
     setVehicleType("CAR");
@@ -110,6 +116,7 @@ export function ParkingLotSimulator({ compact = false }: { compact?: boolean }) 
       spotId: spot.id,
       floor: spot.floor,
     })));
+    setSelectedTicketId("E1");
     setVehicleType("CAR");
     setPlate("KA-EDGE-0001");
     setNextTicket(1);
@@ -117,17 +124,35 @@ export function ParkingLotSimulator({ compact = false }: { compact?: boolean }) 
   };
 
   if (compact) {
-    return <section aria-label="Interactive parking lot simulation" className="grid h-full min-h-0 grid-cols-[1.05fr_.95fr] overflow-hidden rounded-xl border border-[var(--line)] bg-white max-[520px]:grid-cols-[1fr_.9fr]">
-      <div className="flex min-h-0 flex-col border-r border-[var(--line)] bg-[var(--paper-2)] p-2 sm:p-3">
-        <div className="flex items-center justify-between gap-2"><p className="text-[10px] font-extrabold">Two-floor lot</p><Badge className="text-[9px]">{freeCount} free</Badge></div>
-        <div className="mt-2 grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-1.5">{spots.map((spot) => <div key={spot.id} className={cn("flex min-h-0 flex-col justify-between rounded-lg border p-1.5", spot.vehicle ? "border-[var(--ink)] bg-white" : "border-[#9db8ad] bg-[var(--mint-soft)]")}><div className="flex items-center justify-between gap-1"><span className="font-mono text-[8px] font-bold">{spot.id}</span><span className="font-mono text-[7px] text-[var(--faint)]">F{spot.floor}</span></div><p className="truncate text-[7px] font-bold text-[var(--muted)]">{spot.type}</p><p className={cn("truncate text-[8px] font-extrabold", spot.vehicle ? "text-[var(--accent-dark)]" : "text-[#28725c]")}>{spot.vehicle?.plate ?? "FREE"}</p></div>)}</div>
-        <p className="mt-2 text-[8px] font-bold leading-3 text-[var(--muted)]">Order: floor → suitable type → spot ID</p>
+    return <section aria-label="Interactive parking lot simulation" className="grid h-full min-h-0 grid-cols-1 grid-rows-[auto_1fr] overflow-hidden rounded-xl border border-[var(--line)] bg-white sm:grid-cols-[1fr_1fr] sm:grid-rows-1">
+      <div className="flex min-h-0 flex-col border-b border-[var(--line)] bg-[var(--paper-2)] p-2 sm:border-b-0 sm:border-r sm:p-3">
+        <div className="flex items-center justify-between gap-2"><p className="text-xs font-extrabold">Two-floor lot</p><Badge className="text-xs">{freeCount} free</Badge></div>
+        <div className="mt-2 grid min-h-0 grid-cols-3 grid-rows-2 gap-1.5 sm:flex-1">{spots.map((spot) => <div key={spot.id} className={cn("flex min-h-0 flex-col justify-center gap-1 rounded-lg border p-1.5", spot.vehicle ? "border-[var(--ink)] bg-white" : "border-[#9db8ad] bg-[var(--mint-soft)]")}>
+          <div className="flex items-center justify-between gap-1"><span className="font-mono text-xs font-bold">{spot.id}</span><span className="text-xs text-[var(--muted)]">F{spot.floor}</span></div>
+          <p className="text-xs leading-4 text-[var(--muted)]">{spot.type === "MOTORCYCLE" ? "Motorcycle" : spot.type === "COMPACT" ? "Compact" : "Large"}</p>
+          <p className="text-xs font-bold text-[var(--ink)]">{spot.vehicle ? "Occupied" : "Free"}</p>
+        </div>)}</div>
+        <p className="mt-2 text-xs leading-4 text-[var(--muted)]">Order: floor → suitable type → spot ID</p>
       </div>
-      <div className="flex min-h-0 flex-col p-2 sm:p-3">
-        <div className="grid gap-1.5"><label className="text-[8px] font-bold text-[var(--muted)]">Plate<input aria-label="License plate" value={plate} onChange={(event) => setPlate(event.target.value)} className="mt-0.5 h-7 w-full rounded-md border border-[var(--line)] px-2 font-mono text-[9px] uppercase outline-none focus:ring-4 focus:ring-[var(--focus)]" /></label><label className="text-[8px] font-bold text-[var(--muted)]">Type<select aria-label="Vehicle type" value={vehicleType} onChange={(event) => setVehicleType(event.target.value as VehicleType)} className="mt-0.5 h-7 w-full rounded-md border border-[var(--line)] bg-white px-2 text-[9px] outline-none focus:ring-4 focus:ring-[var(--focus)]"><option value="CAR">Car</option><option value="MOTORCYCLE">Motorcycle</option></select></label><Button size="sm" variant="accent" onClick={park}><CarFront /> Park</Button></div>
-        <div className="mt-2 min-h-0 flex-1"><div className="flex items-center justify-between"><p className="text-[9px] font-extrabold">Active tickets</p><span className="text-[8px] text-[var(--faint)]">{tickets.length}</span></div><div className="mt-1.5 grid gap-1">{tickets.slice(-2).map((ticket) => <div key={ticket.id} className="flex items-center justify-between gap-1 rounded-md border border-[var(--line)] px-2 py-1"><p className="min-w-0 truncate font-mono text-[8px] font-bold">{ticket.id} · {ticket.spotId}</p><button type="button" onClick={() => leave(ticket.id)} className="rounded bg-[var(--paper-2)] px-1.5 py-1 text-[8px] font-bold focus-visible:ring-4 focus-visible:ring-[var(--focus)]">Exit</button></div>)}{tickets.length === 0 && <p className="rounded-md bg-[var(--paper-2)] px-2 py-2 text-center text-[8px] text-[var(--faint)]">No active tickets</p>}</div></div>
-        <p aria-live="polite" className="mt-2 rounded-md bg-[var(--mint-soft)] px-2 py-1.5 text-[8px] font-medium leading-3 text-[var(--ink)]">{events[0]}</p>
-        <div className="mt-2 flex gap-1"><Button size="sm" variant="outline" onClick={reset}><RotateCcw /><span className="sr-only sm:not-sr-only">Reset</span></Button><Button size="sm" variant="ghost" onClick={loadCompatibilityEdge}>Edge case</Button></div>
+      <div className="flex min-h-0 flex-col gap-2 p-2 sm:p-3">
+        <div className="grid grid-cols-[1.25fr_1fr] gap-2">
+          <label className="min-w-0 text-xs font-bold text-[var(--muted)]">Plate<input aria-label="License plate" value={plate} onChange={(event) => setPlate(event.target.value)} className="mt-1 h-8 w-full rounded-md border border-[var(--line)] px-2 font-mono text-xs uppercase outline-none focus:ring-4 focus:ring-[var(--focus)]" /></label>
+          <label className="min-w-0 text-xs font-bold text-[var(--muted)]">Type<select aria-label="Vehicle type" value={vehicleType} onChange={(event) => setVehicleType(event.target.value as VehicleType)} className="mt-1 h-8 w-full rounded-md border border-[var(--line)] bg-white px-2 text-xs outline-none focus:ring-4 focus:ring-[var(--focus)]"><option value="CAR">Car</option><option value="MOTORCYCLE">Motorcycle</option></select></label>
+        </div>
+        <Button size="sm" variant="accent" onClick={park}><CarFront /> Park</Button>
+        <div className="min-w-0">
+          <label className="block text-xs font-bold text-[var(--muted)]">Active tickets ({tickets.length})
+            <select aria-label="Active ticket" disabled={!tickets.length} value={selectedTicket?.id ?? ""} onChange={(event) => setSelectedTicketId(event.target.value)} className="mt-1 h-8 w-full rounded-md border border-[var(--line)] bg-white px-2 text-xs text-[var(--ink)] outline-none focus:ring-4 focus:ring-[var(--focus)]">
+              {!tickets.length && <option value="">No active tickets</option>}
+              {tickets.map((ticket) => <option key={ticket.id} value={ticket.id}>{ticket.id} · {ticket.vehicle.plate}</option>)}
+            </select>
+          </label>
+          <div className="mt-2 flex min-h-12 items-center justify-between gap-2 rounded-md border border-[var(--line)] px-2 py-1">
+            {selectedTicket ? <><div className="min-w-0 text-xs leading-4"><p className="break-all font-mono font-bold">{selectedTicket.vehicle.plate}</p><p className="text-[var(--muted)]">{selectedTicket.id} · F{selectedTicket.floor} · {selectedTicket.spotId} · {selectedTicket.vehicle.type === "CAR" ? "Car" : "Motorcycle"}</p></div><Button size="sm" variant="outline" onClick={() => leave(selectedTicket.id)}><LogOut /> Exit</Button></> : <p className="text-xs text-[var(--muted)]">Park a vehicle to issue a ticket.</p>}
+          </div>
+        </div>
+        <p aria-live="polite" className="min-h-12 rounded-md bg-[var(--mint-soft)] px-2 py-1.5 text-xs leading-4 text-[var(--ink)]">{events[0]}</p>
+        <div className="mt-auto flex gap-2"><Button size="sm" variant="outline" onClick={reset}><RotateCcw />Reset</Button><Button size="sm" variant="ghost" onClick={loadCompatibilityEdge}>Edge case</Button></div>
       </div>
     </section>;
   }

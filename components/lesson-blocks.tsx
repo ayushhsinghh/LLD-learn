@@ -1,8 +1,7 @@
-import Image from "next/image";
+import { StaticImage } from "@/components/static-image";
 import { isValidElement } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Clock3, Code2, HelpCircle, Lightbulb, MessageCircleQuestion, Sparkles, X } from "lucide-react";
 import type { EntityModel } from "@/lib/entity-models";
-import { withBasePath } from "@/lib/base-path";
 import { cn } from "@/lib/utils";
 
 export function Lead({ children }: { children: React.ReactNode }) {
@@ -102,7 +101,7 @@ export function ConceptImage({ src, alt, caption, width = 1536, height = 1024, m
     <figure className="concept-image my-7">
       {mobileScrollable && <p className="mb-2 text-right text-[10px] font-bold uppercase tracking-wider text-[var(--faint)] sm:hidden">Swipe to follow the flow →</p>}
       <div className={cn("rounded-xl border border-[var(--line)] bg-[#fbfaf7]", mobileScrollable ? "overflow-x-auto" : "overflow-hidden")}>
-        <Image src={withBasePath(src)} alt={alt} width={width} height={height} loading={eager ? "eager" : undefined} unoptimized className={cn("h-auto w-full", mobileScrollable && "min-w-[680px] sm:min-w-0")} />
+        <StaticImage src={src} alt={alt} width={width} height={height} eager={eager} sizes={mobileScrollable ? "(max-width: 639px) 680px, (max-width: 779px) calc(100vw - 64px), (max-width: 1023px) 716px, 700px" : undefined} className={cn("h-auto w-full", mobileScrollable && "min-w-[680px] sm:min-w-0")} />
       </div>
       <figcaption className="mt-2 text-center text-xs leading-5 text-[var(--faint)]">{caption}</figcaption>
     </figure>

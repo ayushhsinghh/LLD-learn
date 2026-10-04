@@ -18,7 +18,7 @@
   --nav-active: #eef3f7;
   --ink: #171c24;
   --muted: #4d5968;
-  --faint: #7b8794;
+  --faint: #596777;
   --line: #e1e5e9;
   --accent: #ff8a4c;
   --accent-dark: #c85118;
@@ -26,7 +26,7 @@
   --mint: #3e9b80;
   --mint-soft: #edf8f4;
   --blue-soft: #eef5f9;
-  --focus: rgb(255 138 76 / 24%);
+  --focus: #205b85;
 }
 
 * { box-sizing: border-box; }
@@ -40,6 +40,10 @@ body {
 }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 ::selection { background: #ffd4b7; color: var(--ink); }
 
 .section-kicker {

@@ -10,7 +10,7 @@ import { parkingLotEntityModel } from "@/lib/entity-models"
 import { parkingLotClassDesign } from "@/lib/class-design-models"
 
 <LessonStep id="parking-orientation"><FocusOnly>
-<ConceptImage src="/images/parking-lot-overview.png" alt="A car entering a two-floor parking garage and following an assigned route to a highlighted compatible free spot" caption="Entry is a workflow: choose a compatible spot, remember the assignment, then free that exact spot on exit." width={1536} height={1024} />
+<ConceptImage eager src="/images/parking-lot-overview.png" alt="A car entering a two-floor parking garage and following an assigned route to a highlighted compatible free spot" caption="Entry is a workflow: choose a compatible spot, remember the assignment, then free that exact spot on exit." width={1536} height={1024} />
 </FocusOnly></LessonStep>
 
 <LessonStep id="parking-framework"><FocusOnly><FocusFrameworkRoadmap /></FocusOnly></LessonStep>
@@ -472,6 +472,7 @@ System.out.println(lot.park(car).status());`} /></FocusOnly></LessonStep>
   caption="The real problem in one picture: find a spot that is both free and suitable, remember the assignment, and make that spot available again after exit."
   width={1536}
   height={1024}
+  eager
 />
 
 <FrameworkMap />

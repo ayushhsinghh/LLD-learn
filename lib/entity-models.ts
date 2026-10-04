@@ -2,6 +2,8 @@ export type EntityModelItem = {
   name: string;
   kind: "Class" | "Record" | "Interface";
   purpose: string;
+  /** Equivalent compact wording for the bounded passive Focus checkpoint. */
+  focusPurpose?: string;
 };
 
 export type EntitySupportingItem = {
@@ -21,9 +23,9 @@ export type EntityModel = {
 
 export const ticTacToeEntityModel: EntityModel = {
   items: [
-    { name: "Game", kind: "Class", purpose: "Coordinates turns, match status, winner, and reset." },
-    { name: "Board", kind: "Class", purpose: "Owns cells, placement checks, and winning lines." },
-    { name: "Player", kind: "Record", purpose: "Carries one player's validated name and fixed mark." },
+    { name: "Game", kind: "Class", purpose: "Coordinates turns, match status, winner, and reset.", focusPurpose: "Coordinates turns, status, winner, reset." },
+    { name: "Board", kind: "Class", purpose: "Owns cells, placement checks, and winning lines.", focusPurpose: "Owns cells, placement, winning lines." },
+    { name: "Player", kind: "Record", purpose: "Carries one player's validated name and fixed mark.", focusPurpose: "Validated name and fixed mark." },
   ],
   enums: [
     { name: "Mark", purpose: "Limits a cell to X, O, or empty." },
@@ -42,14 +44,14 @@ export const ticTacToeEntityModel: EntityModel = {
 
 export const parkingLotEntityModel: EntityModel = {
   items: [
-    { name: "Vehicle", kind: "Record", purpose: "Carries the plate and vehicle type together." },
-    { name: "ParkingSpot", kind: "Class", purpose: "Owns compatibility, availability, occupation, and release." },
-    { name: "ParkingFloor", kind: "Class", purpose: "Groups and locates spots on one numbered floor." },
-    { name: "ParkingLot", kind: "Class", purpose: "Coordinates entry, tickets, indexes, and exit." },
-    { name: "ParkingTicket", kind: "Record", purpose: "Records the accepted vehicle-to-spot assignment." },
-    { name: "SpotAssignmentStrategy", kind: "Interface", purpose: "Keeps the candidate ranking policy replaceable." },
-    { name: "SpotSelection", kind: "Record", purpose: "Returns the selected floor and spot together." },
-    { name: "ParkingResult", kind: "Record", purpose: "Returns a named status and optional ticket." },
+    { name: "Vehicle", kind: "Record", purpose: "Carries the plate and vehicle type together.", focusPurpose: "Plate and vehicle type." },
+    { name: "ParkingSpot", kind: "Class", purpose: "Owns compatibility, availability, occupation, and release.", focusPurpose: "Owns fit, availability, occupation, release." },
+    { name: "ParkingFloor", kind: "Class", purpose: "Groups and locates spots on one numbered floor.", focusPurpose: "Groups and locates numbered-floor spots." },
+    { name: "ParkingLot", kind: "Class", purpose: "Coordinates entry, tickets, indexes, and exit.", focusPurpose: "Coordinates entry, tickets, indexes, exit." },
+    { name: "ParkingTicket", kind: "Record", purpose: "Records the accepted vehicle-to-spot assignment.", focusPurpose: "Accepted vehicle-to-spot assignment." },
+    { name: "SpotAssignmentStrategy", kind: "Interface", purpose: "Keeps the candidate ranking policy replaceable.", focusPurpose: "Replaceable candidate ranking." },
+    { name: "SpotSelection", kind: "Record", purpose: "Returns the selected floor and spot together.", focusPurpose: "Selected floor and spot." },
+    { name: "ParkingResult", kind: "Record", purpose: "Returns a named status and optional ticket.", focusPurpose: "Status and optional ticket." },
   ],
   enums: [
     { name: "VehicleType", purpose: "Names the supported vehicle categories." },
@@ -70,16 +72,16 @@ export const parkingLotEntityModel: EntityModel = {
 
 export const movieBookingEntityModel: EntityModel = {
   items: [
-    { name: "Movie", kind: "Record", purpose: "Keeps a movie's stable ID and title." },
-    { name: "Seat", kind: "Record", purpose: "Identifies one permanent physical seat." },
-    { name: "Screen", kind: "Class", purpose: "Owns the permanent physical seat layout." },
-    { name: "ShowSeat", kind: "Class", purpose: "Owns one seat's state for one screening." },
-    { name: "Show", kind: "Class", purpose: "Protects group seat changes and the per-show lock." },
-    { name: "SeatHold", kind: "Record", purpose: "Records an accepted temporary seat claim." },
-    { name: "Booking", kind: "Record", purpose: "Records a completed confirmation." },
-    { name: "BookingService", kind: "Class", purpose: "Coordinates lookup, IDs, holds, and bookings." },
-    { name: "HoldResult", kind: "Record", purpose: "Returns a hold status and accepted hold." },
-    { name: "ConfirmationResult", kind: "Record", purpose: "Returns a confirmation status and booking." },
+    { name: "Movie", kind: "Record", purpose: "Keeps a movie's stable ID and title.", focusPurpose: "Stable movie ID and title." },
+    { name: "Seat", kind: "Record", purpose: "Identifies one permanent physical seat.", focusPurpose: "Permanent physical seat identity." },
+    { name: "Screen", kind: "Class", purpose: "Owns the permanent physical seat layout.", focusPurpose: "Owns permanent physical seat layout." },
+    { name: "ShowSeat", kind: "Class", purpose: "Owns one seat's state for one screening.", focusPurpose: "Owns seat state per screening." },
+    { name: "Show", kind: "Class", purpose: "Protects group seat changes and the per-show lock.", focusPurpose: "Guards group changes and per-show lock." },
+    { name: "SeatHold", kind: "Record", purpose: "Records an accepted temporary seat claim.", focusPurpose: "Accepted temporary seat claim." },
+    { name: "Booking", kind: "Record", purpose: "Records a completed confirmation.", focusPurpose: "Completed confirmation." },
+    { name: "BookingService", kind: "Class", purpose: "Coordinates lookup, IDs, holds, and bookings.", focusPurpose: "Coordinates lookup, IDs, holds, bookings." },
+    { name: "HoldResult", kind: "Record", purpose: "Returns a hold status and accepted hold.", focusPurpose: "Hold status and accepted hold." },
+    { name: "ConfirmationResult", kind: "Record", purpose: "Returns a confirmation status and booking.", focusPurpose: "Confirmation status and booking." },
   ],
   enums: [
     { name: "SeatState", purpose: "Limits a show seat to AVAILABLE, HELD, or BOOKED." },
@@ -99,16 +101,16 @@ export const movieBookingEntityModel: EntityModel = {
 
 export const notificationEntityModel: EntityModel = {
   items: [
-    { name: "NotificationRequest", kind: "Record", purpose: "Preserves the validated content accepted for delivery." },
-    { name: "DeliveryJob", kind: "Class", purpose: "Owns one job's status, attempts, and latest failure." },
-    { name: "NotificationSender", kind: "Interface", purpose: "Defines one replaceable channel delivery attempt." },
-    { name: "EmailSender", kind: "Class", purpose: "Owns EMAIL provider-specific delivery behavior." },
-    { name: "SmsSender", kind: "Class", purpose: "Owns SMS provider-specific delivery behavior." },
-    { name: "PushSender", kind: "Class", purpose: "Owns PUSH provider-specific delivery behavior." },
-    { name: "RetryPolicy", kind: "Record", purpose: "Names and validates the total-attempt boundary." },
-    { name: "NotificationService", kind: "Class", purpose: "Coordinates submission, indexing, workers, and lifecycle." },
-    { name: "SubmissionReceipt", kind: "Record", purpose: "Returns the accepted job ID immediately." },
-    { name: "DeliverySnapshot", kind: "Record", purpose: "Exposes progress without leaking the mutable job." },
+    { name: "NotificationRequest", kind: "Record", purpose: "Preserves the validated content accepted for delivery.", focusPurpose: "Validated content accepted for delivery." },
+    { name: "DeliveryJob", kind: "Class", purpose: "Owns one job's status, attempts, and latest failure.", focusPurpose: "Owns status, attempts, latest failure." },
+    { name: "NotificationSender", kind: "Interface", purpose: "Defines one replaceable channel delivery attempt.", focusPurpose: "Replaceable channel delivery attempt." },
+    { name: "EmailSender", kind: "Class", purpose: "Owns EMAIL provider-specific delivery behavior.", focusPurpose: "EMAIL provider delivery behavior." },
+    { name: "SmsSender", kind: "Class", purpose: "Owns SMS provider-specific delivery behavior.", focusPurpose: "SMS provider delivery behavior." },
+    { name: "PushSender", kind: "Class", purpose: "Owns PUSH provider-specific delivery behavior.", focusPurpose: "PUSH provider delivery behavior." },
+    { name: "RetryPolicy", kind: "Record", purpose: "Names and validates the total-attempt boundary.", focusPurpose: "Validated total-attempt boundary." },
+    { name: "NotificationService", kind: "Class", purpose: "Coordinates submission, indexing, workers, and lifecycle.", focusPurpose: "Coordinates submission, indexing, workers, lifecycle." },
+    { name: "SubmissionReceipt", kind: "Record", purpose: "Returns the accepted job ID immediately.", focusPurpose: "Immediately returns accepted job ID." },
+    { name: "DeliverySnapshot", kind: "Record", purpose: "Exposes progress without leaking the mutable job.", focusPurpose: "Progress without mutable-job access." },
   ],
   enums: [
     { name: "NotificationChannel", purpose: "Limits delivery to EMAIL, SMS, or PUSH." },
@@ -134,13 +136,13 @@ export const notificationEntityModel: EntityModel = {
 
 export const meetingRoomEntityModel: EntityModel = {
   items: [
-    { name: "TimeSlot", kind: "Record", purpose: "Validates boundaries and owns overlap reasoning." },
-    { name: "MeetingRequest", kind: "Record", purpose: "Carries one organizer's scheduling intent." },
-    { name: "Meeting", kind: "Record", purpose: "Records one accepted room reservation." },
-    { name: "Room", kind: "Class", purpose: "Owns suitability and its ordered schedule." },
-    { name: "RoomSelectionStrategy", kind: "Interface", purpose: "Keeps deterministic room choice replaceable." },
-    { name: "MeetingScheduler", kind: "Class", purpose: "Coordinates selection, IDs, indexing, and cancellation." },
-    { name: "ScheduleResult", kind: "Record", purpose: "Returns a named scheduling outcome." },
+    { name: "TimeSlot", kind: "Record", purpose: "Validates boundaries and owns overlap reasoning.", focusPurpose: "Validates boundaries; checks overlap." },
+    { name: "MeetingRequest", kind: "Record", purpose: "Carries one organizer's scheduling intent.", focusPurpose: "Organizer’s scheduling intent." },
+    { name: "Meeting", kind: "Record", purpose: "Records one accepted room reservation.", focusPurpose: "Accepted room reservation." },
+    { name: "Room", kind: "Class", purpose: "Owns suitability and its ordered schedule.", focusPurpose: "Owns suitability and ordered schedule." },
+    { name: "RoomSelectionStrategy", kind: "Interface", purpose: "Keeps deterministic room choice replaceable.", focusPurpose: "Replaceable deterministic room choice." },
+    { name: "MeetingScheduler", kind: "Class", purpose: "Coordinates selection, IDs, indexing, and cancellation.", focusPurpose: "Coordinates selection, IDs, indexing, cancellation." },
+    { name: "ScheduleResult", kind: "Record", purpose: "Returns a named scheduling outcome.", focusPurpose: "Named scheduling outcome." },
   ],
   enums: [
     { name: "Equipment", purpose: "Names the room capabilities a request may require." },
@@ -163,19 +165,19 @@ export const meetingRoomEntityModel: EntityModel = {
 
 export const rideSharingEntityModel: EntityModel = {
   items: [
-    { name: "RoadGraph", kind: "Class", purpose: "Owns locations and directed adjacency lists." },
-    { name: "Driver", kind: "Class", purpose: "Owns availability and current location." },
-    { name: "Ride", kind: "Class", purpose: "Owns accepted routes and lifecycle." },
-    { name: "RideService", kind: "Class", purpose: "Coordinates validation, matching, IDs, and state changes." },
-    { name: "Location", kind: "Record", purpose: "Identifies one stable node in the road graph." },
-    { name: "Road", kind: "Record", purpose: "Describes one directed road and its positive travel time." },
-    { name: "Route", kind: "Record", purpose: "Carries an immutable path and its total travel time." },
-    { name: "Rider", kind: "Record", purpose: "Carries stable rider identity." },
-    { name: "RideRequest", kind: "Record", purpose: "Carries one rider's pickup and destination intent." },
-    { name: "DriverMatch", kind: "Record", purpose: "Returns the chosen driver with the pickup route." },
-    { name: "MatchResult", kind: "Record", purpose: "Returns a named request outcome and accepted ride." },
-    { name: "RoutingStrategy", kind: "Interface", purpose: "Keeps path calculation replaceable." },
-    { name: "DriverMatchingStrategy", kind: "Interface", purpose: "Keeps driver selection replaceable." },
+    { name: "RoadGraph", kind: "Class", purpose: "Owns locations and directed adjacency lists.", focusPurpose: "Owns locations and directed adjacency lists." },
+    { name: "Driver", kind: "Class", purpose: "Owns availability and current location.", focusPurpose: "Owns availability and current location." },
+    { name: "Ride", kind: "Class", purpose: "Owns accepted routes and lifecycle.", focusPurpose: "Owns accepted routes and lifecycle." },
+    { name: "RideService", kind: "Class", purpose: "Coordinates validation, matching, IDs, and state changes.", focusPurpose: "Coordinates validation, matching, IDs, state changes." },
+    { name: "Location", kind: "Record", purpose: "Identifies one stable node in the road graph.", focusPurpose: "Stable road-graph node identity." },
+    { name: "Road", kind: "Record", purpose: "Describes one directed road and its positive travel time.", focusPurpose: "Directed road; positive travel time." },
+    { name: "Route", kind: "Record", purpose: "Carries an immutable path and its total travel time.", focusPurpose: "Immutable path and total travel time." },
+    { name: "Rider", kind: "Record", purpose: "Carries stable rider identity.", focusPurpose: "Stable rider identity." },
+    { name: "RideRequest", kind: "Record", purpose: "Carries one rider's pickup and destination intent.", focusPurpose: "Rider’s pickup and destination intent." },
+    { name: "DriverMatch", kind: "Record", purpose: "Returns the chosen driver with the pickup route.", focusPurpose: "Chosen driver and pickup route." },
+    { name: "MatchResult", kind: "Record", purpose: "Returns a named request outcome and accepted ride.", focusPurpose: "Request outcome and accepted ride." },
+    { name: "RoutingStrategy", kind: "Interface", purpose: "Keeps path calculation replaceable.", focusPurpose: "Replaceable path calculation." },
+    { name: "DriverMatchingStrategy", kind: "Interface", purpose: "Keeps driver selection replaceable.", focusPurpose: "Replaceable driver selection." },
   ],
   enums: [
     { name: "DriverStatus", purpose: "Names whether a driver can receive a ride." },

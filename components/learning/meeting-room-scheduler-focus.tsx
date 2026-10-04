@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { StaticImage } from "@/components/static-image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChoiceQuestion, ClassificationChallenge, FocusFrameworkRoadmap, FocusSpec, InterviewDialogueExample, InterviewDynamicsGuide, OrderQuestion, PassiveLearningCards, PredictionChecklist, TabbedCodeView, TabbedConceptView } from "@/components/learning/learning-interactions";
 import { MeetingRoomSchedulerSimulator } from "@/components/simulations/meeting-room-scheduler-simulator";
@@ -43,7 +43,7 @@ const timeSlotCode = `public record TimeSlot(LocalDateTime start, LocalDateTime 
 }`;
 
 export function MeetingRoomFocusSlide({ id }: { id: string }) {
-  if (id === "meeting-orientation") return <Image src="/images/meeting-room-scheduler-overview.png" alt="A request passes capacity, equipment, and time checks before the smallest qualified room is selected" width={1536} height={1024} className="h-full max-h-[29rem] w-full rounded-xl border border-[var(--line)] object-contain" priority unoptimized />;
+  if (id === "meeting-orientation") return <StaticImage src="/images/meeting-room-scheduler-overview.png" alt="A request passes capacity, equipment, and time checks before the smallest qualified room is selected" width={1536} height={1024} className="h-full max-h-[29rem] w-full rounded-xl border border-[var(--line)] object-contain" eager />;
   if (id === "meeting-framework") return <FocusFrameworkRoadmap />;
   if (id === "meeting-interview") return <InterviewDynamicsGuide timing={[{label:"Requirements",minutes:"5 min"},{label:"Entities",minutes:"3 min"},{label:"Class design",minutes:"12 min"},{label:"Code",minutes:"15 min"},{label:"Extensions",minutes:"5 min"}]} speaking={["Define available with a concrete touching-boundary example.","State the capacity/ID tie-break before showing Strategy.","Say that the first implementation is sequential and in memory."]} signals={[{id:"smallest",signal:"What does smallest mean?",response:"Clarify lowest capacity, with room ID as the deterministic tie-break."},{id:"conflict",signal:"Do these meetings conflict?",response:"Write the half-open formula and test touching boundaries."},{id:"scale",signal:"How does this scale?",response:"Explain TreeMap neighbour lookup, then property indexes as an extension."}]} />;
   if (id === "meeting-dialogue") return <InterviewDialogueExample turns={[{speaker:"Candidate",text:"Does [09:00,10:00) conflict with a meeting starting exactly at 10:00?"},{speaker:"Interviewer",text:"No. Treat intervals as start-inclusive and end-exclusive."},{speaker:"Candidate",text:"Then overlap uses two strict comparisons, so touching boundaries are allowed."}]} />;
@@ -75,5 +75,5 @@ export function MeetingRoomFocusSlide({ id }: { id: string }) {
 }
 
 function MeetingBlueprint() {
-  return <Tabs defaultValue="values" className="flex h-full min-h-0 flex-col"><TabsList className="grid w-full grid-cols-5">{meetingRoomClassDiagrams.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="text-[9px]">{tab.label}</TabsTrigger>)}</TabsList>{meetingRoomClassDiagrams.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-2 min-h-0 flex-1"><div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-xl border border-[var(--line)] bg-white"><div className="min-h-0 overflow-hidden bg-[#fbf7ef]"><Image src={tab.image} alt={tab.alt} width={tab.width ?? 1536} height={tab.height ?? 1024} className="h-full w-full object-contain" loading="eager" unoptimized /></div><div className="grid gap-1 border-t p-2 text-[9px] leading-4 sm:grid-cols-2"><p><strong>Read it: </strong>{tab.reading}</p><p><strong>Principle: </strong>{tab.principle}</p></div></div></TabsContent>)}</Tabs>;
+  return <Tabs defaultValue="values" className="flex h-full min-h-0 flex-col"><TabsList className="grid w-full grid-cols-5">{meetingRoomClassDiagrams.map((tab) => <TabsTrigger key={tab.id} value={tab.id} className="text-[9px]">{tab.label}</TabsTrigger>)}</TabsList>{meetingRoomClassDiagrams.map((tab) => <TabsContent key={tab.id} value={tab.id} className="mt-2 min-h-0 flex-1"><div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden rounded-xl border border-[var(--line)] bg-white"><div className="min-h-0 overflow-hidden bg-[#fbf7ef]"><StaticImage src={tab.image} alt={tab.alt} width={tab.width ?? 1536} height={tab.height ?? 1024} className="h-full w-full object-contain" eager /></div><div className="grid gap-1 border-t p-2 text-[9px] leading-4 sm:grid-cols-2"><p><strong>Read it: </strong>{tab.reading}</p><p><strong>Principle: </strong>{tab.principle}</p></div></div></TabsContent>)}</Tabs>;
 }
